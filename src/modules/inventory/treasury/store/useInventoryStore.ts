@@ -11,7 +11,7 @@ interface InventoryState {
   updateProductStock: (id: string, newStock: number) => Promise<void>;
 }
 
-export const useInventoryStore = create<InventoryState>((set, get) => ({
+export const useInventoryStore = create<InventoryState>((set) => ({
   products: [],
   isLoading: false,
 

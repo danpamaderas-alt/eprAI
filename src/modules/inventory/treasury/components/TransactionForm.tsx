@@ -20,7 +20,7 @@ export const TransactionForm = ({ onSubmitSuccess, onCancel }: TransactionFormPr
     control,
     formState: { errors, isSubmitting } 
   } = useForm<TransactionFormValues>({
-    resolver: zodResolver(transactionSchema),
+    resolver: zodResolver(transactionSchema) as any,
     defaultValues: { 
       type: 'INCOME', 
       date: new Date().toISOString().split('T')[0], 
@@ -53,7 +53,7 @@ export const TransactionForm = ({ onSubmitSuccess, onCancel }: TransactionFormPr
         </button>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmitSuccess)} className="p-4 sm:p-8 space-y-6 sm:space-y-8">
+      <form onSubmit={handleSubmit((data) => onSubmitSuccess(data as any))} className="p-4 sm:p-8 space-y-6 sm:space-y-8">
         
         {/* SELECTOR DE TIPO (Stackeado en móvil muy chico, flex en el resto) */}
         <div className="space-y-3">

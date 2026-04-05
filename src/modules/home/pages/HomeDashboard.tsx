@@ -15,7 +15,7 @@ export const HomeDashboard = () => {
   }, [fetchTransactions, fetchProducts]);
 
   // Cálculos automáticos usando useMemo para máximo rendimiento
-  const { totalIncome, totalExpense, balance, lowStockCount } = useMemo(() => {
+  const { totalIncome, totalExpense, balance, lowStockCount, recentTransactions } = useMemo(() => {
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
 
@@ -28,17 +28,22 @@ export const HomeDashboard = () => {
       return isCurrentMonth && isRightUnit && t.status === 'COMPLETED';
     });
 
-    const income = filteredTransactions.filter(t => t.type === 'INCOME').reduce((acc, curr) => acc + curr.amount, 0);
-    const expense = filteredTransactions.filter(t => t.type === 'EXPENSE').reduce((acc, curr) => acc + curr.amount, 0);
+    const income = filteredTransactions.filter(t => t.type === 'INCOME').reduce((acc, curr) => acc + Number(curr.amount), 0);
+    const expense = filteredTransactions.filter(t => t.type === 'EXPENSE').reduce((acc, curr) => acc + Number(curr.amount), 0);
 
     // Stock bajo (este no depende de la unidad de negocio, es general del catálogo)
-    const lowStock = products.filter(p => p.stock <= p.minStock).length;
+    // Usamos Number() para evitar errores de Typescript si el stock llega vacío
+    const lowStock = products.filter(p => (Number(p.stock) || 0) <= (Number(p.minStock) || 0)).length;
+
+    // Tomamos los últimos 5 movimientos para mostrar en el panel
+    const recent = transactions.slice(0, 5);
 
     return {
       totalIncome: income,
       totalExpense: expense,
       balance: income - expense,
-      lowStockCount: lowStock
+      lowStockCount: lowStock,
+      recentTransactions: recent
     };
   }, [transactions, products, selectedUnit]);
 
@@ -100,7 +105,7 @@ export const HomeDashboard = () => {
           </div>
         </div>
 
-        {/* Balance Net */}
+        {/* Balance Neto */}
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xl shadow-blue-500/5 relative overflow-hidden group">
           <div className="absolute -right-6 -top-6 w-24 h-24 bg-blue-50 rounded-full group-hover:scale-150 transition-transform duration-500"></div>
           <div className="relative z-10">
@@ -130,23 +135,45 @@ export const HomeDashboard = () => {
 
       </div>
 
-      {/* ÁREA DE GRÁFICOS (Estructura base para el futuro) */}
+      {/* ÁREA SECUNDARIA (Gráficos y Listas) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm h-80 flex items-center justify-center relative overflow-hidden">
+        
+        {/* Gráfico Placeholder */}
+        <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm min-h-[320px] flex items-center justify-center relative overflow-hidden">
            <div className="text-center z-10">
               <span className="text-4xl mb-2 block">📈</span>
-              <p className="text-xs font-black uppercase tracking-widest text-slate-400">Espacio reservado para gráfico de curva de ingresos</p>
+              <p className="text-xs font-black uppercase tracking-widest text-slate-400">Espacio reservado para gráfico de ingresos</p>
            </div>
-           {/* Decoración de fondo temporal */}
            <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-slate-50 to-transparent"></div>
         </div>
         
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm h-80 flex flex-col">
+        {/* Lista de últimos movimientos reales */}
+        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm min-h-[320px] flex flex-col">
           <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-4">Últimos Movimientos</h3>
-          <div className="flex-1 flex items-center justify-center border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50/50">
-             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Lista en construcción</p>
+          
+          <div className="flex-1 flex flex-col gap-3 overflow-y-auto pr-2">
+            {recentTransactions.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50/50">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Sin movimientos</p>
+              </div>
+            ) : (
+              recentTransactions.map(t => (
+                <div key={t.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-blue-200 transition-colors">
+                  <div className="flex-1 truncate pr-3">
+                    <p className="text-[11px] font-bold text-slate-800 truncate">{t.description}</p>
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{t.category}</p>
+                  </div>
+                  <div className="text-right whitespace-nowrap">
+                    <p className={`text-xs font-black tabular-nums ${t.type === 'INCOME' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      {t.type === 'EXPENSE' ? '- ' : ''}{formatCurrency(Number(t.amount))}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
+
       </div>
 
     </div>

@@ -9,7 +9,7 @@ interface Product {
   id: string;
   name: string;
   sku: string;
-  stock: number; // Forzamos a number para evitar errores de tipo
+  stock: number; 
   price: number;
 }
 
@@ -92,14 +92,16 @@ export const SalesDashboard = () => {
     const itemsDescription = cart.map(item => `${item.product.name} (x${item.quantity})`).join(', ');
 
     try {
-      // 1. REGISTRAR EN TESORERÍA (Ajustado a Supabase)
+      // 1. REGISTRAR EN TESORERÍA
       await addTransaction({
         type: 'INCOME',
         amount: subtotal,
         description: `VENTA: ${customerName} | ${itemsDescription}`.substring(0, 100),
         category: 'VENTA',
         date: new Date().toISOString(),
-        businessUnit: businessUnit as 'SHOWROOM' | 'UNIFORMES' | 'GENERAL' | 'RAICES' | 'ROJO_SHOWROOM' | 'RJ_CO' | 'BITA_IT'
+        businessUnit: businessUnit as any,
+        paymentMethod: paymentMethod as any, 
+        status: 'COMPLETED'                  
       });
 
       // 2. DESCONTAR STOCK
