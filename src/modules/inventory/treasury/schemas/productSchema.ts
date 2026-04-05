@@ -5,16 +5,14 @@ export const productSchema = z.object({
   name: z.string().trim().min(3, 'Nombre muy corto'),
   category: z.string().trim().min(1, 'Categoría obligatoria'),
   price: z.preprocess((val) => Number(val), z.number().min(0, 'No puede ser negativo')),
-  // El stock general pasa a ser opcional, porque ahora el stock real va a estar en las variantes
   stock: z.preprocess((val) => Number(val), z.number().int().min(0)).optional(), 
   minStock: z.preprocess((val) => Number(val), z.number().int().min(0, 'No puede ser negativo')),
   
-  // ¡LA NUEVA MAGIA! 
   variations: z.array(z.object({
     id: z.string(),
     size: z.string(),
     color: z.string(),
-    stock: z.number().int().min(0)
+    stock: z.preprocess((val) => Number(val), z.number().int().min(0))
   })).default([])
 });
 

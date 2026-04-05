@@ -16,7 +16,7 @@ export const InventoryDashboard = () => {
     products, 
     addProduct, 
     deleteProduct, 
-    updateStock, 
+    updateProductStock, // <-- ACÁ CORREGÍ EL NOMBRE DE LA FUNCIÓN
     fetchProducts, 
     isLoading 
   } = useInventoryStore();
@@ -59,7 +59,7 @@ export const InventoryDashboard = () => {
       {/* CABECERA DINÁMICA */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight italic">Inventario Geral</h1>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight italic">Inventario General</h1>
           <p className="text-slate-500 text-sm font-medium uppercase tracking-wider">Gestión de activos y catálogo de productos.</p>
         </div>
         {!showForm && (
@@ -148,7 +148,7 @@ export const InventoryDashboard = () => {
         <ProductTable 
           data={products} 
           onDelete={deleteProduct} 
-          onUpdateStock={updateStock} 
+          onUpdateStock={updateProductStock} // <-- ACÁ CORREGÍ EL NOMBRE DE LA FUNCIÓN
         />
       </div>
     </div>

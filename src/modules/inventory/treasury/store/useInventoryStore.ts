@@ -3,133 +3,123 @@ import { supabase } from '../../../../lib/supabase';
 import { type Product, type ProductFormValues } from '../schemas/productSchema';
 import Swal from 'sweetalert2';
 
-// Función auxiliar para centralizar la lógica de negocio del inventario
-const calculateStatus = (stock: number, minStock: number): Product['status'] => {
-  if (stock <= 0) return 'OUT_OF_STOCK';
-  if (stock <= minStock) return 'LOW_STOCK';
-  return 'ACTIVE';
-};
-
 interface InventoryState {
   products: Product[];
   isLoading: boolean;
   fetchProducts: () => Promise<void>;
   addProduct: (data: ProductFormValues) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
-  updateStock: (id: string, newStock: number) => Promise<void>;
+  // 👇 Nueva función agregada al contrato
+  updateProductStock: (id: string, newStock: number) => Promise<void>;
 }
 
 export const useInventoryStore = create<InventoryState>((set, get) => ({
   products: [],
   isLoading: false,
 
-  // 1. DESCARGA: Con ordenamiento inteligente
   fetchProducts: async () => {
     set({ isLoading: true });
     try {
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .order('name', { ascending: true }); // Ordenamos alfabéticamente por defecto
+        .order('createdAt', { ascending: false });
 
       if (error) throw error;
-      set({ products: data || [], isLoading: false });
-    } catch (error: any) {
+      set({ products: data as Product[], isLoading: false });
+    } catch (error) {
+      console.error('Error cargando inventario:', error);
       set({ isLoading: false });
-      console.error('🚨 Error descargando catálogo:', error.message);
     }
   },
 
-  // 2. ALTA: Sincronización garantizada con la nube
-  addProduct: async (data) => {
-    set({ isLoading: true });
+  addProduct: async (productData) => {
+    let totalStock = productData.stock || 0;
+    if (productData.variations && productData.variations.length > 0) {
+      totalStock = productData.variations.reduce((acumulador, variante) => acumulador + (Number(variante.stock) || 0), 0);
+    }
+
+    let currentStatus: 'ACTIVE' | 'LOW_STOCK' | 'OUT_OF_STOCK' = 'ACTIVE';
+    if (totalStock === 0) {
+      currentStatus = 'OUT_OF_STOCK';
+    } else if (totalStock <= productData.minStock) {
+      currentStatus = 'LOW_STOCK';
+    }
+
+    const newProduct = {
+      ...productData,
+      stock: totalStock,
+      status: currentStatus
+    };
+    
     try {
-      const stock = Number(data.stock) || 0;
-      const minStock = Number(data.minStock) || 0;
-      
-      const { data: newProduct, error } = await supabase
+      const { data, error } = await supabase
         .from('products')
-        .insert([{
-          ...data,
-          stock,
-          minStock,
-          status: calculateStatus(stock, minStock),
-          lastUpdated: new Date().toISOString()
-        }])
+        .insert([newProduct])
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') { 
+            Swal.fire('Error de Código', 'Ya existe un producto registrado con ese mismo SKU.', 'error');
+            return;
+        }
+        throw error;
+      }
 
-      set((state) => ({ 
-        products: [newProduct, ...state.products],
-        isLoading: false 
-      }));
-
-      Swal.fire({
-        toast: true,
-        position: 'top-end',
-        icon: 'success',
-        title: 'Producto añadido al catálogo',
-        showConfirmButton: false,
-        timer: 2000
-      });
-    } catch (error: any) {
-      set({ isLoading: false });
-      Swal.fire('Error al crear producto', error.message, 'error');
+      set((state) => ({ products: [data as Product, ...state.products] }));
+      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Producto ingresado', showConfirmButton: false, timer: 1500 });
+    } catch (error) {
+      console.error('Error guardando producto:', error);
+      Swal.fire('Error', 'Hubo un problema de conexión.', 'error');
     }
   },
 
-  // 3. ELIMINACIÓN: Con confirmación de integridad
   deleteProduct: async (id) => {
     try {
-      const { error } = await supabase
-        .from('products')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      set((state) => ({ 
-        products: state.products.filter(p => p.id !== id) 
-      }));
-    } catch (error: any) {
-      Swal.fire('Error', 'No se pudo eliminar el producto. Quizás tiene ventas asociadas.', 'error');
+       const { error } = await supabase.from('products').delete().eq('id', id);
+       if (error) throw error;
+       set((state) => ({ products: state.products.filter(p => p.id !== id) }));
+       Swal.fire('Eliminado', 'Producto borrado del catálogo', 'success');
+    } catch (error) {
+       console.error('Error borrando producto:', error);
+       Swal.fire('Error', 'No se pudo eliminar el producto', 'error');
     }
   },
 
-  // 4. STOCK: Actualización optimista con protección de datos
-  updateStock: async (id, newStock) => {
-    const originalProducts = get().products;
-    const product = originalProducts.find(p => p.id === id);
+  // 👇 NUEVA FUNCIÓN: ACTUALIZAR STOCK
+  updateProductStock: async (id, newStock) => {
+    const product = get().products.find(p => p.id === id);
     if (!product) return;
 
-    const stock = Number(newStock);
-    const status = calculateStatus(stock, product.minStock);
-    const lastUpdated = new Date().toISOString();
-
-    // Actualización Optimista: Cambiamos la pantalla ANTES de ir a la nube
-    set((state) => ({
-      products: state.products.map(p => 
-        p.id === id ? { ...p, stock, status, lastUpdated } : p
-      )
-    }));
+    // Recalculamos el estado (para que si llega a 0, se ponga en OUT_OF_STOCK solo)
+    let currentStatus: 'ACTIVE' | 'LOW_STOCK' | 'OUT_OF_STOCK' = 'ACTIVE';
+    if (newStock === 0) {
+      currentStatus = 'OUT_OF_STOCK';
+    } else if (newStock <= product.minStock) {
+      currentStatus = 'LOW_STOCK';
+    }
 
     try {
+      // 1. Mandamos el nuevo número a la base de datos
       const { error } = await supabase
         .from('products')
-        .update({ stock, status, lastUpdated })
+        .update({ stock: newStock, status: currentStatus })
         .eq('id', id);
 
       if (error) throw error;
-    } catch (error: any) {
-      // Rollback: Si la nube falla, devolvemos el stock a como estaba
-      set({ products: originalProducts });
-      Swal.fire({
-        title: 'Error de sincronización',
-        text: 'El stock no se pudo actualizar en la base de datos.',
-        icon: 'warning'
-      });
+
+      // 2. Actualizamos la pantalla al instante
+      set((state) => ({
+        products: state.products.map(p =>
+          p.id === id ? { ...p, stock: newStock, status: currentStatus } : p
+        )
+      }));
+      
+      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Stock actualizado', showConfirmButton: false, timer: 1500 });
+    } catch (error) {
+      console.error('Error actualizando stock:', error);
+      Swal.fire('Error', 'No se pudo actualizar el stock en la nube', 'error');
     }
   }
 }));
