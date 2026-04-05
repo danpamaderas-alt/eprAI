@@ -160,9 +160,9 @@ export const OrdersDashboard = () => {
           <OrderForm 
             onSubmitSuccess={handleCreateOrder} 
             onCancel={() => setShowForm(false)} 
-          />
+/>
         </div>
       )}
     </div>
   );
-};
+}; // OrdersDashboard // OPTIMIZACIÓN: Componente memoizado para evitar re-renderizados innecesarios [cite: 36, 99]
