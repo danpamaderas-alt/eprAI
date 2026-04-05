@@ -21,7 +21,7 @@ export const ProductForm = ({ onSubmitSuccess, onCancel }: ProductFormProps) => 
     defaultValues: { sku: '', name: '', category: '', price: 0, stock: 0, minStock: 5, variations: [] },
   });
 
-  const { fields: variations, , replace } = useFieldArray({
+  const { fields: variations, replace } = useFieldArray({
     control,
     name: 'variations'
   });
