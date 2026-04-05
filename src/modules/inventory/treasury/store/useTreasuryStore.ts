@@ -1,7 +1,8 @@
 import { create } from 'zustand';
-import { supabase } from '../lib/supabase'; // Ajusta la ruta según tu proyecto
+// CORRECCIÓN 1: Ruta exacta al cliente de Supabase (igual que en el inventario)
+import { supabase } from '../../../../lib/supabase'; 
 
-// 1. Definimos qué datos maneja la Tesorería
+// CORRECCIÓN 2: Agregamos user_id opcional para satisfacer al esquema
 interface Transaction {
   id: string;
   createdAt: string;
@@ -13,6 +14,7 @@ interface Transaction {
   businessUnit: string;
   paymentMethod: string;
   status: string;
+  user_id?: string; 
 }
 
 interface TreasuryState {
@@ -20,21 +22,23 @@ interface TreasuryState {
   isLoading: boolean;
   fetchTransactions: () => Promise<void>;
   addTransaction: (formData: any) => Promise<{ success: boolean }>;
+  
+  // CORRECCIÓN 3: Agregamos las funciones que la pantalla exige
+  deleteTransaction: (id: string) => Promise<void>;
+  updateTransactionStatus: (id: string, status: string) => Promise<void>;
 }
 
-// 2. Creamos el Store (El cerebro)
 export const useTreasuryStore = create<TreasuryState>((set) => ({
   transactions: [],
   isLoading: false,
 
-  // Función para LEER los movimientos
   fetchTransactions: async () => {
     set({ isLoading: true });
     try {
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
-        .order('createdAt', { ascending: false }); // Coincide con nuestro SQL
+        .order('createdAt', { ascending: false });
 
       if (error) throw error;
       set({ transactions: data || [], isLoading: false });
@@ -44,20 +48,18 @@ export const useTreasuryStore = create<TreasuryState>((set) => ({
     }
   },
 
-  // FUNCIÓN CRÍTICA: La que "Graba" el movimiento
   addTransaction: async (formData) => {
     try {
       const { data, error } = await supabase
         .from('transactions')
         .insert([{
-          // Forzamos los nombres exactos que pusimos en el SQL Editor
           amount: Number(formData.amount),
           description: formData.description,
           type: formData.type,
           category: formData.category,
           date: formData.date || new Date().toISOString(),
-          businessUnit: formData.businessUnit,   // La "U" mayúscula es clave
-          paymentMethod: formData.paymentMethod, // La "M" mayúscula es clave
+          businessUnit: formData.businessUnit,
+          paymentMethod: formData.paymentMethod,
           status: 'COMPLETED'
         }])
         .select()
@@ -65,7 +67,6 @@ export const useTreasuryStore = create<TreasuryState>((set) => ({
 
       if (error) throw error;
 
-      // Actualizamos la lista en pantalla sin recargar la página
       set((state) => ({ 
         transactions: [data, ...state.transactions] 
       }));
@@ -75,5 +76,25 @@ export const useTreasuryStore = create<TreasuryState>((set) => ({
       console.error("Error al grabar en la base de datos:", error);
       throw error;
     }
+  },
+
+  // Implementación de borrado
+  deleteTransaction: async (id) => {
+    const { error } = await supabase.from('transactions').delete().eq('id', id);
+    if (error) throw error;
+    set((state) => ({
+      transactions: state.transactions.filter(t => t.id !== id)
+    }));
+  },
+
+  // Implementación de cambio de estado (ej: de PENDING a COMPLETED)
+  updateTransactionStatus: async (id, status) => {
+    const { error } = await supabase.from('transactions').update({ status }).eq('id', id);
+    if (error) throw error;
+    set((state) => ({
+      transactions: state.transactions.map(t => 
+        t.id === id ? { ...t, status } : t
+      )
+    }));
   }
 }));
