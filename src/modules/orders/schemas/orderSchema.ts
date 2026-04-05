@@ -1,42 +1,48 @@
 import { z } from 'zod';
 
-// 1. Nueva estructura: Variante específica (Ej: Talle L, Azul)
+// 1. Variante específica
 export const itemVariationSchema = z.object({
-  id: z.string(),
-  size: z.string().min(1, 'Talle requerido'),
-  color: z.string().min(1, 'Color requerido'),
-  quantityOrdered: z.number().min(1),
-  quantityDelivered: z.number().default(0),
+  // Usamos uuid() para asegurar que el ID sea válido
+  id: z.string().uuid('ID de variante inválido'),
+  size: z.string().min(1, 'Talle requerido').max(20),
+  color: z.string().min(1, 'Color requerido').max(30),
+  // z.coerce asegura que si el input manda un string, se convierta a número
+  quantityOrdered: z.coerce.number().int().positive('Mínimo 1 unidad'),
+  // Eliminamos el .default(0) para evitar el error de "undefined" en el build
+  quantityDelivered: z.coerce.number().int().min(0),
 });
 
-// 2. El artículo ahora contiene una lista de variantes
+// 2. Artículo del pedido
 export const orderItemSchema = z.object({
-  id: z.string(),
-  productName: z.string().min(1, 'El producto es obligatorio'),
+  id: z.string().uuid('ID de artículo inválido'),
+  productName: z.string().min(1, 'El producto es obligatorio').max(200),
   variations: z.array(itemVariationSchema).min(1, 'Debe tener al menos un talle/color'),
 });
 
-// 3. El remito ahora anota exactamente qué variante se entregó
+// 3. Remitos / Historial de entrega
 export const deliveryLogSchema = z.object({
-  id: z.string(),
-  date: z.string(),
-  notes: z.string(),
+  id: z.string().uuid(),
+  date: z.string().datetime(), // Fuerza formato ISO
+  notes: z.string().max(1000),
   itemsDelivered: z.array(z.object({
-    itemId: z.string(),
-    variationId: z.string(), // ¡Agregamos esto para saber qué talle/color fue!
-    quantity: z.number()
+    itemId: z.string().uuid(),
+    variationId: z.string().uuid(),
+    quantity: z.coerce.number().int().positive()
   }))
 });
 
 export const orderSchema = z.object({
-  customerName: z.string().trim().min(2, 'Nombre obligatorio'),
+  customerName: z.string().trim().min(2, 'Nombre obligatorio').max(100),
   businessUnit: z.enum(['GENERAL', 'RAICES', 'RJ_CO', 'BITA_IT', 'ROJO_SHOWROOM', 'UNIFORMES']),
   status: z.enum(['PENDING', 'PARTIAL', 'DELIVERED', 'CANCELLED']),
-  dueDate: z.string().min(1, 'Fecha de entrega obligatoria'),
+  // Validamos que sea una fecha real
+  dueDate: z.string().min(1, 'Fecha obligatoria'),
   items: z.array(orderItemSchema).min(1, 'Debe tener al menos un artículo'),
-  deliveryHistory: z.array(deliveryLogSchema).default([]),
+  // Cambiamos .default([]) por una validación de array simple para evitar errores de tipo
+  deliveryHistory: z.array(deliveryLogSchema),
 });
 
+// Tipos inferidos
 export type ItemVariation = z.infer<typeof itemVariationSchema>;
 export type OrderItem = z.infer<typeof orderItemSchema>;
 export type DeliveryLog = z.infer<typeof deliveryLogSchema>;

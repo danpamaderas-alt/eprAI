@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const productSchema = z.object({
-  // Seguridad: Límites máximos estrictos (Fallo rápido ante payloads maliciosos)
+  // Seguridad: Límites máximos estrictos
   sku: z.string().trim().toUpperCase()
     .min(3, 'Mínimo 3 caracteres')
     .max(50, 'Máximo 50 caracteres'), 
@@ -14,9 +14,8 @@ export const productSchema = z.object({
     .min(1, 'Categoría obligatoria')
     .max(60, 'Categoría no válida'),
   
-  // Optimización: Uso de coerce nativo de Zod
-  // Nota: Si el precio NO puede ser gratis, cambiar .min(0) a .min(0.01)
-  price: z.coerce.number({ invalid_type_error: "Debe ser un número válido" })
+  // CORRECCIÓN TS2353: coerce.number() no recibe argumentos de error aquí
+  price: z.coerce.number()
     .min(0, 'No puede ser negativo'),
   
   stock: z.coerce.number().int().min(0, 'No puede ser negativo').default(0), 
@@ -24,13 +23,12 @@ export const productSchema = z.object({
   minStock: z.coerce.number().int().min(0, 'No puede ser negativo').default(5),
   
   variations: z.array(z.object({
-    id: z.string().uuid('Identificador de variante corrupto'), // Validación UUID obligatoria
+    id: z.string().uuid('Identificador de variante corrupto'),
     size: z.string().min(1, 'Talle requerido').max(20),
     color: z.string().min(1, 'Color requerido').max(30),
     stock: z.coerce.number().int().min(0, 'Stock inválido')
   }))
   .default([])
-  // Integridad: Bloqueo de colisiones (variantes duplicadas) en tiempo de ejecución
   .refine((variations) => {
     const uniqueCombos = new Set(variations.map(v => `${v.size}-${v.color}`));
     return uniqueCombos.size === variations.length;
@@ -39,10 +37,8 @@ export const productSchema = z.object({
 
 export type ProductFormValues = z.infer<typeof productSchema>;
 
-// Separación de Responsabilidades: DTO vs Entidad
-// La entidad Product representa un registro real en la BBDD. Nada de '?' en columnas NOT NULL.
 export interface Product extends ProductFormValues {
   id: string;
-  createdAt: string; // Garantizado por PostgreSQL
+  createdAt: string; 
   status: 'ACTIVE' | 'LOW_STOCK' | 'OUT_OF_STOCK';
 }

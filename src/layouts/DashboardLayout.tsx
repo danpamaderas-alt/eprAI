@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import Swal from 'sweetalert2';
 
-// OPTIMIZACIÓN: Extraído fuera del render cycle para evitar reasignación de memoria.
 const NAV_ITEMS = [
   { path: '/inicio', label: 'Inicio', icon: '📊' },
   { path: '/tesoreria', label: 'Tesorería', icon: '🏦' },
@@ -16,46 +15,58 @@ const NAV_ITEMS = [
 
 export const DashboardLayout = () => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // OPTIMIZACIÓN MÓVIL
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  // CRÍTICO: Debes sustituir esto por tu gestor de estado real (ej. Context, Zustand)
-  // const { user } = useAuth(); 
-  const currentUser = { name: 'Usuario', role: 'Rol no definido' }; 
+  // CRÍTICO CORREGIDO: Sincronización real con Supabase
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUserEmail(user?.email || 'Usuario');
+    };
+    getUser();
+  }, []);
 
   const handleLogout = async () => {
     const result = await Swal.fire({
       title: '¿Cerrar sesión?',
-      text: "Tendrás que volver a ingresar tus credenciales.",
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#2563eb',
-      cancelButtonColor: '#64748b',
       confirmButtonText: 'Sí, salir',
       cancelButtonText: 'Cancelar',
-      background: '#ffffff',
     });
 
     if (!result.isConfirmed) return;
 
     setIsLoggingOut(true);
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      
-      // Control explícito de la redirección para prevenir inconsistencias de estado
+      await supabase.auth.signOut();
       navigate('/login', { replace: true }); 
     } catch (error) {
-      // ADVERTENCIA CORREGIDA: Registro estricto del fallo
-      console.error('[Auth Error] Fallo al invalidar sesión:', error);
-      Swal.fire('Error crítico', 'Fallo de comunicación con el proveedor de identidad.', 'error');
-      setIsLoggingOut(false); // Solo revertimos estado si falla. Si tiene éxito, se desmonta.
+      console.error('[Auth Error]:', error);
+      Swal.fire('Error', 'No se pudo cerrar la sesión.', 'error');
+      setIsLoggingOut(false);
     }
   };
 
   return (
-    <div className="flex h-screen bg-slate-100 overflow-hidden">
+    <div className="flex h-screen bg-slate-100 overflow-hidden relative">
       
-      <aside className="w-64 bg-slate-900 text-white flex flex-col shadow-2xl z-30">
+      {/* BOTÓN HAMBURGUESA (Solo visible en móviles) */}
+      <button 
+        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        className="lg:hidden absolute top-4 left-4 z-50 p-2 bg-slate-900 text-white rounded-lg shadow-lg"
+      >
+        {isSidebarOpen ? '✕' : '☰'}
+      </button>
+
+      {/* ASIDE RESPONSIVE */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white flex flex-col shadow-2xl transition-transform duration-300 lg:relative lg:translate-x-0
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
         <div className="p-8">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
@@ -72,6 +83,7 @@ export const DashboardLayout = () => {
             <NavLink
               key={path}
               to={path}
+              onClick={() => setIsSidebarOpen(false)} // Cierra el menú al navegar en móvil
               className={({ isActive }) => `
                 flex items-center gap-3 px-4 py-3.5 rounded-xl font-semibold transition-all duration-200
                 ${isActive 
@@ -88,32 +100,37 @@ export const DashboardLayout = () => {
 
         <div className="p-4 mt-auto">
           <div className="bg-slate-800/40 rounded-2xl border border-slate-700/50 p-4 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center font-bold text-white shadow-inner">
-                  {currentUser.name.charAt(0)}
-                </div>
-                <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-slate-900 rounded-full"></div>
+            <div className="flex items-center gap-3 overflow-hidden">
+              <div className="w-11 h-11 shrink-0 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center font-bold text-white shadow-inner uppercase">
+                {userEmail?.charAt(0)}
               </div>
               <div className="overflow-hidden">
-                <p className="text-sm font-bold text-white truncate uppercase tracking-tight">{currentUser.name}</p>
-                <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest leading-none">{currentUser.role}</p>
+                <p className="text-xs font-bold text-white truncate lowercase italic">{userEmail}</p>
+                <p className="text-[10px] text-emerald-500 uppercase font-black tracking-widest leading-none mt-1">● Online</p>
               </div>
             </div>
 
             <button 
               onClick={handleLogout}
               disabled={isLoggingOut}
-              className="w-full py-2.5 bg-slate-900 hover:bg-rose-600/90 text-slate-400 hover:text-white rounded-xl text-[11px] font-black transition-all duration-300 uppercase tracking-widest border border-slate-700 hover:border-rose-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-2.5 bg-slate-900 hover:bg-rose-600/90 text-slate-400 hover:text-white rounded-xl text-[11px] font-black transition-all duration-300 uppercase tracking-widest border border-slate-700 disabled:opacity-50"
             >
-              {isLoggingOut ? 'Desconectando...' : 'Cerrar Sesión'}
+              {isLoggingOut ? 'Saliendo...' : 'Cerrar Sesión'}
             </button>
           </div>
         </div>
       </aside>
 
+      {/* OVERLAY PARA CERRAR MENÚ EN MÓVIL AL TOCAR AFUERA */}
+      {isSidebarOpen && (
+        <div 
+          onClick={() => setIsSidebarOpen(false)}
+          className="lg:hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-30"
+        />
+      )}
+
       <main className="flex-1 overflow-y-auto relative scroll-smooth bg-slate-50">
-        <div className="p-8 max-w-[1600px] mx-auto min-h-full">
+        <div className="p-4 lg:p-8 max-w-[1600px] mx-auto min-h-full">
           <Outlet />
         </div>
       </main>
