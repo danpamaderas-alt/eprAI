@@ -66,10 +66,10 @@ export const ResellersDashboard = () => {
         await addTreasuryTransaction({
           type: 'INCOME',
           amount: Number(data.amount),
-          concept: `💰 PAGO REV.: ${selectedReseller.name} (${data.description || 'S/D'})`,
-          categoryId: 'VENTA',
+          description: `💰 PAGO REV.: ${selectedReseller.name} (${data.description || 'S/D'})`, // <-- CORREGIDO
+          category: 'VENTA', // <-- CORREGIDO
           date: new Date().toISOString(),
-          accountId: data.paymentMethod as any,
+          paymentMethod: data.paymentMethod as any, // <-- CORREGIDO
           businessUnit: 'RAICES',
           status: 'COMPLETED'
         });
