@@ -1,15 +1,15 @@
 import { z } from 'zod';
 
 export const transactionSchema = z.object({
-  type: z.enum(['INCOME', 'EXPENSE', 'TRANSFER']),
-  amount: z.coerce.number().positive('El monto debe ser mayor a cero'),
-  concept: z.string().trim().min(3, 'El concepto debe tener al menos 3 caracteres'),
-  categoryId: z.string().min(1, 'La categoría es obligatoria'),
-  date: z.string().min(1, 'La fecha es obligatoria'),
-  accountId: z.enum(['EFECTIVO', 'BANCO', 'MERCADO_PAGO']),
-  businessUnit: z.enum(['GENERAL', 'RAICES', 'RJ_CO', 'BITA_IT', 'ROJO_SHOWROOM', 'UNIFORMES']),
-  status: z.enum(['COMPLETED', 'PENDING', 'CANCELLED']),
-}).strict();
+  date: z.string().min(1),
+  description: z.string().trim().min(3),
+  amount: z.preprocess((val) => Number(val), z.number().min(0.01)),
+  type: z.enum(['INCOME', 'EXPENSE']),
+  category: z.string().min(1),
+  businessUnit: z.enum(['SHOWROOM', 'UNIFORMES', 'GENERAL', 'RAICES', 'ROJO_SHOWROOM', 'RJ_CO', 'BITA_IT']).default('GENERAL'),
+  paymentMethod: z.enum(['MERCADO_PAGO', 'BANCO', 'EFECTIVO']).default('EFECTIVO'),
+  status: z.enum(['PENDING', 'COMPLETED']).default('COMPLETED')
+});
 
 export type TransactionFormValues = z.infer<typeof transactionSchema>;
 

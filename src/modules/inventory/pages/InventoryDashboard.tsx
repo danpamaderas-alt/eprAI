@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { useInventoryStore } from '../treasury/store/useInventoryStore';
+import { useInventoryStore } from '../treasury/store/useInventoryStore'; // Revisa que esta ruta sea correcta
 import { ProductTable } from '../treasury/components/ProductTable';
 import { ProductForm } from '../treasury/components/ProductForm';
 

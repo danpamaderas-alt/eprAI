@@ -9,8 +9,8 @@ interface Product {
   id: string;
   name: string;
   sku: string;
-  stock: number | string;
-  price: number | string;
+  stock: number; // Forzamos a number para evitar errores de tipo
+  price: number;
 }
 
 interface CartItem {
@@ -45,7 +45,6 @@ export const SalesDashboard = () => {
     fetchCustomers();
   }, [fetchProducts, fetchCustomers]);
 
-  // Filtro de productos (Usamos filteredProducts)
   const filteredProducts = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
     if (!term) return products;
@@ -55,7 +54,7 @@ export const SalesDashboard = () => {
     );
   }, [products, searchTerm]);
 
-  const addToCart = (product: Product) => {
+  const addToCart = (product: any) => {
     const stockDisponible = Number(product.stock) || 0;
     if (stockDisponible <= 0) {
       Swal.fire({ icon: 'error', title: 'Sin Stock', text: 'No hay unidades.', timer: 1500, showConfirmButton: false });
@@ -90,24 +89,22 @@ export const SalesDashboard = () => {
 
     const selectedCustomer = customers.find((c: Customer) => c.id === selectedCustomerId);
     const customerName = selectedCustomer ? selectedCustomer.name : 'Consumidor Final';
-
     const itemsDescription = cart.map(item => `${item.product.name} (x${item.quantity})`).join(', ');
-    const concept = `VENTA: ${customerName} | ${itemsDescription}`.substring(0, 100);
 
     try {
+      // 1. REGISTRAR EN TESORERÍA (Ajustado a Supabase)
       await addTransaction({
         type: 'INCOME',
         amount: subtotal,
-        concept: concept,
-        categoryId: 'VENTA',
+        description: `VENTA: ${customerName} | ${itemsDescription}`.substring(0, 100),
+        category: 'VENTA',
         date: new Date().toISOString(),
-                accountId: paymentMethod as 'MERCADO_PAGO' | 'EFECTIVO' | 'BANCO',
-        businessUnit: businessUnit as 'GENERAL' | 'RAICES' | 'RJ_CO' | 'BITA_IT' | 'ROJO_SHOWROOM' | 'UNIFORMES',
-             status: 'COMPLETED'
+        businessUnit: businessUnit as 'SHOWROOM' | 'UNIFORMES' | 'GENERAL' | 'RAICES' | 'ROJO_SHOWROOM' | 'RJ_CO' | 'BITA_IT'
       });
 
+      // 2. DESCONTAR STOCK
       for (const item of cart) {
-        const newStock = Number(item.product.stock) - item.quantity;
+        const newStock = (Number(item.product.stock) || 0) - item.quantity;
         await updateProductStock(item.product.id, newStock);
       }
 
@@ -144,7 +141,7 @@ export const SalesDashboard = () => {
     <div className="animate-in fade-in duration-500">
       <div className="space-y-6 print:hidden">
         <header>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Punto de Venta</h1>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight italic">Punto de Venta</h1>
           <p className="text-slate-500 text-sm font-medium uppercase tracking-widest mt-1">Terminal de cobro rápida.</p>
         </header>
 
@@ -167,10 +164,10 @@ export const SalesDashboard = () => {
               {filteredProducts.map(product => (
                 <button 
                   key={product.id} 
-                  disabled={product.stock <= 0}
+                  disabled={(Number(product.stock) || 0) <= 0}
                   onClick={() => addToCart(product)}
                   className={`text-left bg-white p-4 rounded-2xl border-2 transition-all flex flex-col justify-between h-40 shadow-sm
-                    ${product.stock <= 0 ? 'opacity-50 grayscale border-slate-100' : 'border-transparent hover:border-blue-500 hover:shadow-xl active:scale-95'}`}
+                    ${(Number(product.stock) || 0) <= 0 ? 'opacity-50 grayscale border-slate-100' : 'border-transparent hover:border-blue-500 hover:shadow-xl active:scale-95'}`}
                 >
                   <div>
                     <div className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded inline-block mb-2 uppercase">{product.sku}</div>
@@ -178,7 +175,7 @@ export const SalesDashboard = () => {
                   </div>
                   <div className="flex justify-between items-end mt-auto">
                     <span className="text-sm font-black text-slate-900">{formatCurrency(Number(product.price))}</span>
-                    <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${product.stock > 5 ? 'bg-slate-100' : 'bg-rose-100 text-rose-600'}`}>
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${(Number(product.stock) || 0) > 5 ? 'bg-slate-100' : 'bg-rose-100 text-rose-600'}`}>
                       {product.stock} un.
                     </span>
                   </div>
@@ -224,7 +221,7 @@ export const SalesDashboard = () => {
                   onChange={e => setSelectedCustomerId(e.target.value)}
                 >
                   <option value="">👤 CONSUMIDOR FINAL</option>
-                  {customers.map(c => (
+                  {customers.map((c: any) => (
                     <option key={c.id} value={c.id}>{c.name} {c.company ? `- ${c.company}` : ''}</option>
                   ))}
                 </select>

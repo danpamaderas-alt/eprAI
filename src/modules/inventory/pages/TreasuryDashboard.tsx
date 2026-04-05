@@ -35,22 +35,21 @@ export const TreasuryDashboard = () => {
     transactions.forEach(tx => {
       const amount = Number(tx.amount) || 0;
       
-      // Si está pendiente, va a la bolsa de pendientes sin afectar la liquidez real
+      // Si está pendiente, va a la bolsa de pendientes
       if (tx.status === 'PENDING') {
         calc.PENDIENTE += (tx.type === 'INCOME' ? amount : -amount);
         return;
       }
 
-      // Solo sumamos ingresos y restamos egresos si están COMPLETED
-      let val = 0;
-      if (tx.type === 'INCOME') val = amount;
-      if (tx.type === 'EXPENSE') val = -amount;
-      // Nota: TRANSFER no afecta el TOTAL neto, solo balance entre cuentas
+      // FIJATE ACÁ: Cambiamos 'let' por 'const' para que TypeScript no chille
+      const val = tx.type === 'INCOME' ? amount : -amount;
 
       calc.TOTAL += val;
-      if (tx.accountId === 'MERCADO_PAGO') calc.MERCADO_PAGO += val;
-      if (tx.accountId === 'BANCO') calc.BANCO += val;
-      if (tx.accountId === 'EFECTIVO') calc.EFECTIVO += val;
+      
+      // Clasificación por cuenta (paymentMethod)
+      if (tx.paymentMethod === 'MERCADO_PAGO') calc.MERCADO_PAGO += val;
+      if (tx.paymentMethod === 'BANCO') calc.BANCO += val;
+      if (tx.paymentMethod === 'EFECTIVO') calc.EFECTIVO += val;
     });
     
     return calc;
@@ -58,11 +57,12 @@ export const TreasuryDashboard = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      {/* CABECERA */}
+      
+      {/* CABECERA DINÁMICA */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Tesorería</h1>
-          <p className="text-slate-500 text-sm font-medium">Control de flujos y conciliación bancaria.</p>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight italic">Tesorería</h1>
+          <p className="text-slate-500 text-sm font-medium uppercase tracking-widest mt-1">Control de flujos y conciliación bancaria.</p>
         </div>
         {!showForm && (
           <button 
@@ -75,7 +75,7 @@ export const TreasuryDashboard = () => {
         )}
       </div>
 
-      {/* FORMULARIO (Si está activo) */}
+      {/* FORMULARIO DE CARGA */}
       {showForm && (
         <div className="animate-in slide-in-from-top-4 duration-300">
           <TransactionForm 
@@ -88,60 +88,52 @@ export const TreasuryDashboard = () => {
         </div>
       )}
 
-      {/* TARJETAS DE BALANCE */}
+      {/* TARJETAS DE BALANCE (Dashboard Financiero) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Liquidez Total */}
-        <div className="bg-slate-900 p-6 rounded-2xl shadow-xl text-white relative overflow-hidden group">
-          <div className="absolute -right-4 -top-4 text-6-xl opacity-10 group-hover:scale-110 transition-transform">🏦</div>
+        
+        {/* Liquidez Total (Caja Global) */}
+        <div className="bg-slate-900 p-6 rounded-2xl shadow-xl text-white relative overflow-hidden group border-l-8 border-blue-500">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Liquidez Real</p>
           <h3 className="text-3xl font-black">{formatCurrency(balances.TOTAL)}</h3>
         </div>
 
         {/* Mercado Pago */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="w-2 h-2 rounded-full bg-sky-500"></span>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mercado Pago</p>
-          </div>
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm border-l-8 border-sky-400">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Mercado Pago</p>
           <h3 className="text-2xl font-black text-slate-800">{formatCurrency(balances.MERCADO_PAGO)}</h3>
         </div>
 
-        {/* Banco */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Banco Galicia</p>
-          </div>
+        {/* Banco Galicia */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm border-l-8 border-emerald-500">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Banco Galicia</p>
           <h3 className="text-2xl font-black text-slate-800">{formatCurrency(balances.BANCO)}</h3>
         </div>
 
         {/* Caja Fuerte */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Caja Fuerte (EFE)</p>
-          </div>
+        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm border-l-8 border-amber-500">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Caja Fuerte (EFE)</p>
           <h3 className="text-2xl font-black text-slate-800">{formatCurrency(balances.EFECTIVO)}</h3>
         </div>
       </div>
 
-      {/* TABLA DE MOVIMIENTOS */}
+      {/* LISTADO DE MOVIMIENTOS */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/30">
           <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.15em]">Libro Mayor Detallado</h2>
+          
+          {/* Alerta de Pendientes */}
           {balances.PENDIENTE !== 0 && (
             <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 border border-rose-100 text-rose-600 rounded-lg animate-pulse">
-              <span className="text-sm">⚠️</span>
               <span className="text-[10px] font-black uppercase">Pendientes: {formatCurrency(balances.PENDIENTE)}</span>
             </div>
           )}
         </div>
 
-        {/* Estado de carga o Tabla */}
+        {/* Pantalla de Carga o Tabla Final */}
         {isLoading ? (
           <div className="p-20 flex flex-col items-center justify-center gap-4">
             <div className="w-10 h-10 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin"></div>
-            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Sincronizando con la nube...</p>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando con Supabase...</p>
           </div>
         ) : (
           <TransactionTable 
