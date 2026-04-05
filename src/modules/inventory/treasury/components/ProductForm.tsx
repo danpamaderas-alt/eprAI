@@ -9,11 +9,7 @@ interface ProductFormProps {
 
 export const ProductForm = ({ onSubmitSuccess, onCancel }: ProductFormProps) => {
   // 1. Configuración de Formulario con Blindaje Total
-  const { 
-    register, 
-    handleSubmit, 
-    formState: { errors, isSubmitting } 
-  } = useForm<ProductFormValues>({
+  const { register, handleSubmit, setValue, formState: { errors, isSubmitting }} = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema) as Resolver<ProductFormValues>,
     defaultValues: { 
       sku: '', 
@@ -24,6 +20,15 @@ export const ProductForm = ({ onSubmitSuccess, onCancel }: ProductFormProps) => 
       minStock: 5 
     },
   });
+// Generador automático de SKU
+  const handleGenerateSKU = () => {
+    // Genera 6 caracteres aleatorios en mayúsculas
+    const randomChars = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const newSKU = `SKU-${randomChars}`;
+    
+    // Lo inyecta en el campo y avisa que ya es válido
+    setValue('sku', newSKU, { shouldValidate: true, shouldDirty: true });
+  };
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
@@ -39,15 +44,21 @@ export const ProductForm = ({ onSubmitSuccess, onCancel }: ProductFormProps) => 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           
           {/* SKU */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 text-blue-600">Código SKU</label>
-            <input 
-              type="text" 
-              className={`w-full px-4 py-3 bg-slate-50 border ${errors.sku ? 'border-rose-500' : 'border-slate-200'} rounded-xl outline-none focus:border-blue-500 font-mono font-bold text-slate-700 uppercase`}
-              {...register('sku')} 
-            />
-            {errors.sku && <p className="text-[10px] font-bold text-rose-500 ml-1 uppercase italic">{errors.sku.message}</p>}
-          </div>
+        <div className="flex justify-between items-end mb-1.5">
+  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Código SKU</label>
+  <button 
+    type="button" 
+    onClick={handleGenerateSKU}
+    className="text-[9px] font-black text-blue-500 hover:text-blue-700 uppercase tracking-widest cursor-pointer transition-colors"
+  >
+    ⚡ Auto-Generar
+  </button>
+</div>
+<input 
+  {...register('sku')}
+  placeholder="Ej: REM-AZ-L o autogenerar"
+  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 font-bold text-slate-800"
+/>
 
           {/* NOMBRE */}
           <div className="space-y-1.5">
