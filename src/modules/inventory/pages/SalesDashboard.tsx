@@ -1,9 +1,17 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useDeferredValue } from 'react';
 import { useInventoryStore } from '../treasury/store/useInventoryStore';
 import { useTreasuryStore } from '../treasury/store/useTreasuryStore';
-import { useCrmStore } from '../../crm/store/useCrmStore';
-import { type Customer } from '../../crm/store/useCrmStore';
+import { useCrmStore, type Customer } from '../../crm/store/useCrmStore';
 import Swal from 'sweetalert2';
+
+// OPTIMIZACIÓN CRÍTICA: Instancia en memoria estática
+const ARS_FORMATTER = new Intl.NumberFormat('es-AR', { 
+  style: 'currency', 
+  currency: 'ARS', 
+  maximumFractionDigits: 0 
+});
+
+const formatCurrency = (val: number): string => ARS_FORMATTER.format(val);
 
 interface Product {
   id: string;
@@ -34,6 +42,9 @@ export const SalesDashboard = () => {
   const { customers, fetchCustomers } = useCrmStore();
   
   const [searchTerm, setSearchTerm] = useState('');
+  // ADVERTENCIA CORREGIDA: Diferimiento de estado para evitar bloqueos del UI thread
+  const deferredSearchTerm = useDeferredValue(searchTerm);
+  
   const [cart, setCart] = useState<CartItem[]>([]);
   const [businessUnit, setBusinessUnit] = useState('ROJO_SHOWROOM');
   const [paymentMethod, setPaymentMethod] = useState('MERCADO_PAGO');
@@ -45,16 +56,18 @@ export const SalesDashboard = () => {
     fetchCustomers();
   }, [fetchProducts, fetchCustomers]);
 
+  // Filtrado vinculado al valor diferido, asegurando 60 FPS al teclear
   const filteredProducts = useMemo(() => {
-    const term = searchTerm.toLowerCase().trim();
+    const term = deferredSearchTerm.toLowerCase().trim();
     if (!term) return products;
     return products.filter(p => 
       p.name.toLowerCase().includes(term) || 
       p.sku.toLowerCase().includes(term)
     );
-  }, [products, searchTerm]);
+  }, [products, deferredSearchTerm]);
 
-  const addToCart = (product: any) => {
+  // OPTIMIZACIÓN: Tipado estricto en lugar de 'any'
+  const addToCart = (product: Product) => {
     const stockDisponible = Number(product.stock) || 0;
     if (stockDisponible <= 0) {
       Swal.fire({ icon: 'error', title: 'Sin Stock', text: 'No hay unidades.', timer: 1500, showConfirmButton: false });
@@ -75,14 +88,16 @@ export const SalesDashboard = () => {
     setCart(prev => prev.filter(item => item.product.id !== productId));
   };
 
+  // Cálculo O(n) unificado
   const { subtotal, totalItems } = useMemo(() => {
-    const sum = cart.reduce((acc, item) => acc + (Number(item.product.price) * item.quantity), 0);
-    const count = cart.reduce((acc, item) => acc + item.quantity, 0);
+    let sum = 0;
+    let count = 0;
+    for (let i = 0; i < cart.length; i++) {
+      sum += (Number(cart[i].product.price) || 0) * cart[i].quantity;
+      count += cart[i].quantity;
+    }
     return { subtotal: sum, totalItems: count };
   }, [cart]);
-
-  const formatCurrency = (val: number) => 
-    new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(val);
 
   const processSale = async () => {
     if (cart.length === 0) return;
@@ -92,23 +107,28 @@ export const SalesDashboard = () => {
     const itemsDescription = cart.map(item => `${item.product.name} (x${item.quantity})`).join(', ');
 
     try {
-      // 1. REGISTRAR EN TESORERÍA
-      await addTransaction({
+      // INSTRUCCIÓN INFLEXIBLE: Esto debe ser reemplazado por una llamada a un RPC en Supabase.
+      // await supabase.rpc('process_checkout', { payload });
+      
+      // Mantenemos la lógica temporal, pero paralelizando las I/O operations
+      const transactionPromise = addTransaction({
         type: 'INCOME',
         amount: subtotal,
         description: `VENTA: ${customerName} | ${itemsDescription}`.substring(0, 100),
         category: 'VENTA',
         date: new Date().toISOString(),
-        businessUnit: businessUnit as any,
+        businessUnit: businessUnit as any, // Asume que el store confía en esto. Debería ser tipado.
         paymentMethod: paymentMethod as any, 
         status: 'COMPLETED'                  
       });
 
-      // 2. DESCONTAR STOCK
-      for (const item of cart) {
+      // Disparamos actualizaciones de stock en paralelo, reduciendo el TTI (Time to Interactive)
+      const stockUpdates = cart.map(item => {
         const newStock = (Number(item.product.stock) || 0) - item.quantity;
-        await updateProductStock(item.product.id, newStock);
-      }
+        return updateProductStock(item.product.id, newStock);
+      });
+
+      await Promise.all([transactionPromise, ...stockUpdates]);
 
       setLastSale({
         items: [...cart],
@@ -126,8 +146,8 @@ export const SalesDashboard = () => {
       Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Venta Procesada', showConfirmButton: false, timer: 2000 });
 
     } catch (err) {
-      console.error(err);
-      Swal.fire({ icon: 'error', title: 'Error', text: 'Fallo al procesar la venta.' });
+      console.error('[Transaction Error] Falla en orquestación de venta:', err);
+      Swal.fire({ icon: 'error', title: 'Fallo Transaccional', text: 'Error crítico al registrar la venta. Verifique inventario.' });
     }
   };
 
@@ -149,10 +169,9 @@ export const SalesDashboard = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* SECCIÓN CATÁLOGO */}
           <div className="lg:col-span-2 space-y-4">
             <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true">🔍</span>
               <input 
                 type="text" 
                 placeholder="Buscar por Nombre o SKU..." 
@@ -168,25 +187,27 @@ export const SalesDashboard = () => {
                   key={product.id} 
                   disabled={(Number(product.stock) || 0) <= 0}
                   onClick={() => addToCart(product)}
-                  className={`text-left bg-white p-4 rounded-2xl border-2 transition-all flex flex-col justify-between h-40 shadow-sm
-                    ${(Number(product.stock) || 0) <= 0 ? 'opacity-50 grayscale border-slate-100' : 'border-transparent hover:border-blue-500 hover:shadow-xl active:scale-95'}`}
+                  className={`text-left bg-white p-4 rounded-2xl border-2 transition-all flex flex-col justify-between h-40 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400
+                    ${(Number(product.stock) || 0) <= 0 ? 'opacity-50 grayscale border-slate-100 cursor-not-allowed' : 'border-transparent hover:border-blue-500 hover:shadow-xl active:scale-95'}`}
                 >
                   <div>
                     <div className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded inline-block mb-2 uppercase">{product.sku}</div>
-                    <h3 className="font-bold text-slate-800 leading-tight text-xs line-clamp-2">{product.name}</h3>
+                    <h3 className="font-bold text-slate-800 leading-tight text-xs line-clamp-2" title={product.name}>{product.name}</h3>
                   </div>
                   <div className="flex justify-between items-end mt-auto">
                     <span className="text-sm font-black text-slate-900">{formatCurrency(Number(product.price))}</span>
-                    <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${(Number(product.stock) || 0) > 5 ? 'bg-slate-100' : 'bg-rose-100 text-rose-600'}`}>
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${(Number(product.stock) || 0) > 5 ? 'bg-slate-100 text-slate-700' : 'bg-rose-100 text-rose-600'}`}>
                       {product.stock} un.
                     </span>
                   </div>
                 </button>
               ))}
+              {filteredProducts.length === 0 && (
+                 <div className="col-span-full py-10 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">No se encontraron productos</div>
+              )}
             </div>
           </div>
 
-          {/* SECCIÓN CARRITO */}
           <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl flex flex-col h-[calc(100vh-160px)] sticky top-6 overflow-hidden">
             <div className="p-5 border-b border-slate-100 bg-slate-50/50">
               <div className="flex justify-between items-center">
@@ -199,15 +220,21 @@ export const SalesDashboard = () => {
               {cart.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-slate-300 opacity-50 italic text-xs uppercase tracking-widest">Carrito Vacío</div>
               ) : (
-                cart.map((item, index) => (
-                  <div key={index} className="flex justify-between items-start">
+                cart.map((item) => (
+                  <div key={item.product.id} className="flex justify-between items-start">
                     <div className="flex-1">
                       <p className="text-xs font-black text-slate-800 uppercase leading-none">{item.product.name}</p>
                       <p className="text-[10px] text-slate-400 font-bold mt-1">{formatCurrency(Number(item.product.price))} × {item.quantity}</p>
                     </div>
                     <div className="flex items-center gap-3 ml-4">
-                      <p className="font-black text-slate-900 text-xs">{formatCurrency(Number(item.product.price) * item.quantity)}</p>
-                      <button onClick={() => removeFromCart(item.product.id)} className="text-slate-300 hover:text-rose-500 transition-colors">✕</button>
+                      <p className="font-black text-slate-900 text-xs tabular-nums">{formatCurrency(Number(item.product.price) * item.quantity)}</p>
+                      <button 
+                        onClick={() => removeFromCart(item.product.id)} 
+                        className="text-slate-300 hover:text-rose-500 transition-colors focus:outline-none"
+                        aria-label="Remover del carrito"
+                      >
+                        ✕
+                      </button>
                     </div>
                   </div>
                 ))
@@ -216,14 +243,15 @@ export const SalesDashboard = () => {
 
             <div className="p-6 border-t border-slate-100 space-y-5 bg-slate-50/50">
               <div className="space-y-1">
-                <label className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em] ml-1">Cliente (CRM)</label>
+                <label htmlFor="select-customer" className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em] ml-1">Cliente (CRM)</label>
                 <select 
-                  className="w-full text-xs p-3 rounded-xl border border-slate-200 bg-white font-bold outline-none appearance-none cursor-pointer"
+                  id="select-customer"
+                  className="w-full text-xs p-3 rounded-xl border border-slate-200 bg-white font-bold outline-none appearance-none cursor-pointer focus:border-blue-500"
                   value={selectedCustomerId}
                   onChange={e => setSelectedCustomerId(e.target.value)}
                 >
                   <option value="">👤 CONSUMIDOR FINAL</option>
-                  {customers.map((c: any) => (
+                  {customers.map((c: Customer) => (
                     <option key={c.id} value={c.id}>{c.name} {c.company ? `- ${c.company}` : ''}</option>
                   ))}
                 </select>
@@ -231,9 +259,10 @@ export const SalesDashboard = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Negocio</label>
+                  <label htmlFor="select-bu" className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Negocio</label>
                   <select 
-                    className="w-full text-[10px] p-2.5 rounded-xl border border-slate-200 bg-white font-bold outline-none" 
+                    id="select-bu"
+                    className="w-full text-[10px] p-2.5 rounded-xl border border-slate-200 bg-white font-bold outline-none focus:border-blue-500" 
                     value={businessUnit} 
                     onChange={e => setBusinessUnit(e.target.value)}
                   >
@@ -245,9 +274,10 @@ export const SalesDashboard = () => {
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Cobro</label>
+                  <label htmlFor="select-payment" className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Cobro</label>
                   <select 
-                    className="w-full text-[10px] p-2.5 rounded-xl border border-slate-200 bg-white font-bold outline-none" 
+                    id="select-payment"
+                    className="w-full text-[10px] p-2.5 rounded-xl border border-slate-200 bg-white font-bold outline-none focus:border-blue-500" 
                     value={paymentMethod} 
                     onChange={e => setPaymentMethod(e.target.value)}
                   >
@@ -267,7 +297,7 @@ export const SalesDashboard = () => {
                 <button 
                   onClick={processSale}
                   disabled={cart.length === 0}
-                  className="w-full py-4 rounded-2xl font-black uppercase tracking-[0.2em] text-[11px] transition-all disabled:opacity-50 bg-slate-900 hover:bg-emerald-600 text-white shadow-xl active:scale-95"
+                  className="w-full py-4 rounded-2xl font-black uppercase tracking-[0.2em] text-[11px] transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-slate-900 hover:bg-emerald-600 text-white shadow-xl active:scale-95 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
                   Confirmar y Cobrar
                 </button>
@@ -277,7 +307,6 @@ export const SalesDashboard = () => {
         </div>
       </div>
 
-      {/* MODAL DE TICKET */}
       {lastSale && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-md overflow-y-auto">
           <div className="bg-white p-8 w-full max-w-sm rounded-3xl shadow-2xl mx-4 my-8 animate-in zoom-in-95 duration-200">
@@ -312,9 +341,9 @@ export const SalesDashboard = () => {
             </div>
 
             <div className="mt-8 space-y-3">
-              <button onClick={() => window.print()} className="w-full py-4 bg-slate-900 text-white font-black rounded-2xl text-[11px] uppercase tracking-widest transition-all">🖨️ Imprimir Ticket</button>
-              <button onClick={sendWhatsApp} className="w-full py-4 bg-[#25D366] text-white font-black rounded-2xl text-[11px] uppercase tracking-widest transition-all">💬 WhatsApp</button>
-              <button onClick={() => setLastSale(null)} className="w-full py-3 bg-slate-100 text-slate-500 font-bold rounded-2xl text-[11px] uppercase tracking-widest">Cerrar</button>
+              <button onClick={() => window.print()} className="w-full py-4 bg-slate-900 text-white font-black rounded-2xl text-[11px] uppercase tracking-widest transition-all focus:outline-none focus:ring-2 focus:ring-slate-900">🖨️ Imprimir Ticket</button>
+              <button onClick={sendWhatsApp} className="w-full py-4 bg-[#25D366] text-white font-black rounded-2xl text-[11px] uppercase tracking-widest transition-all focus:outline-none focus:ring-2 focus:ring-[#25D366]">💬 WhatsApp</button>
+              <button onClick={() => setLastSale(null)} className="w-full py-3 bg-slate-100 text-slate-500 font-bold rounded-2xl text-[11px] uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-slate-300">Cerrar</button>
             </div>
           </div>
         </div>

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../../../lib/supabase';
-import Swal from 'sweetalert2';
 
+// PK y Timestamps son ahora responsabilidad estricta del Backend
 export interface Customer {
   id: string;
   name: string;
@@ -27,38 +27,52 @@ export const useCrmStore = create<CrmState>((set) => ({
 
   fetchCustomers: async () => {
     set({ isLoading: true });
+    
     const { data, error } = await supabase
       .from('customers')
       .select('*')
       .order('createdAt', { ascending: false });
 
-    if (!error && data) {
-      set({ customers: data, isLoading: false });
-    } else {
+    if (error) {
       set({ isLoading: false });
+      console.error('[Store Error] Falla al hidratar clientes:', error);
+      throw error; // Delegamos el manejo del fallo a la capa de UI
     }
+
+    set({ customers: data || [], isLoading: false });
   },
 
   addCustomer: async (data) => {
-    const newCustomer: Customer = {
-      id: crypto.randomUUID(),
-      ...data,
-      createdAt: new Date().toISOString(),
-    };
+    // Delega ID y CreatedAt a PostgreSQL. Retorna el registro confirmado en disco.
+    const { data: insertedCustomer, error } = await supabase
+      .from('customers')
+      .insert([data])
+      .select()
+      .single();
 
-    const { error } = await supabase.from('customers').insert([newCustomer]);
-    if (!error) {
-      set((state) => ({ customers: [newCustomer, ...state.customers] }));
-      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Cliente guardado', showConfirmButton: false, timer: 1500 });
-    } else {
-      Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo guardar el cliente en la nube.' });
+    if (error) {
+      console.error('[Store Error] Falla en mutación de inserción:', error);
+      throw error;
+    }
+
+    // Sincronización estricta: Solo actualizamos el estado con la verdad de la BBDD
+    if (insertedCustomer) {
+      set((state) => ({ customers: [insertedCustomer, ...state.customers] }));
     }
   },
 
   deleteCustomer: async (id) => {
-    const { error } = await supabase.from('customers').delete().eq('id', id);
-    if (!error) {
-      set((state) => ({ customers: state.customers.filter(c => c.id !== id) }));
+    const { error } = await supabase
+      .from('customers')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('[Store Error] Falla en mutación de borrado:', error);
+      throw error;
     }
+
+    // Solo eliminamos del DOM si la BBDD confirmó el borrado (Evita desincronización)
+    set((state) => ({ customers: state.customers.filter(c => c.id !== id) }));
   }
 }));
