@@ -1,8 +1,7 @@
 import { create } from 'zustand';
-// CORRECCIÓN 1: Ruta exacta al cliente de Supabase (igual que en el inventario)
+// CORRECCIÓN 1: Ruta exacta al cliente de Supabase
 import { supabase } from '../../../../lib/supabase'; 
 
-// CORRECCIÓN 2: Agregamos user_id opcional para satisfacer al esquema
 interface Transaction {
   id: string;
   createdAt: string;
@@ -11,10 +10,10 @@ interface Transaction {
   description: string;
   type: 'INCOME' | 'EXPENSE' | 'TRANSFER';
   category: string;
-  businessUnit: string;
-  paymentMethod: string;
-  status: string;
-  user_id?: string; 
+  businessUnit: 'GENERAL' | 'RAICES' | 'RJ_CO' | 'BITA_IT' | 'ROJO_SHOWROOM' | 'UNIFORMES';
+  paymentMethod: 'MERCADO_PAGO' | 'BANCO' | 'EFECTIVO';
+  status: 'PENDING' | 'COMPLETED' | 'CANCELLED';
+  user_id: string; 
 }
 
 interface TreasuryState {
@@ -22,8 +21,6 @@ interface TreasuryState {
   isLoading: boolean;
   fetchTransactions: () => Promise<void>;
   addTransaction: (formData: any) => Promise<{ success: boolean }>;
-  
-  // CORRECCIÓN 3: Agregamos las funciones que la pantalla exige
   deleteTransaction: (id: string) => Promise<void>;
   updateTransactionStatus: (id: string, status: string) => Promise<void>;
 }
@@ -78,22 +75,24 @@ export const useTreasuryStore = create<TreasuryState>((set) => ({
     }
   },
 
-  // Implementación de borrado
+  // Implementación de borrado (CORREGIDO: usa filter en lugar de map)
   deleteTransaction: async (id) => {
     const { error } = await supabase.from('transactions').delete().eq('id', id);
     if (error) throw error;
     set((state) => ({
-      transactions: state.transactions.filter(t => t.id !== id)
+      transactions: state.transactions.filter((t) => t.id !== id)
     }));
   },
 
-  // Implementación de cambio de estado (ej: de PENDING a COMPLETED)
+  // Implementación de cambio de estado (CORREGIDO: se agregó t => y el tipado de status)
   updateTransactionStatus: async (id, status) => {
-    const { error } = await supabase.from('transactions').update({ status }).eq('id', id);
+    const validStatus = status as 'PENDING' | 'COMPLETED' | 'CANCELLED';
+    const { error } = await supabase.from('transactions').update({ status: validStatus }).eq('id', id);
     if (error) throw error;
+    
     set((state) => ({
-      transactions: state.transactions.map(t => 
-        t.id === id ? { ...t, status } : t
+      transactions: state.transactions.map((t) => 
+        t.id === id ? { ...t, status: validStatus } : t
       )
     }));
   }
