@@ -1,95 +1,78 @@
 import { create } from 'zustand';
-import { supabase } from '../../../../lib/supabase';
-import { type Transaction, type TransactionFormValues } from '../schemas/transactionSchema';
+import { supabase } from '../lib/supabase'; // Ajusta la ruta según tu proyecto
+
+// 1. Definimos qué datos maneja la Tesorería
+interface Transaction {
+  id: string;
+  createdAt: string;
+  date: string;
+  amount: number;
+  description: string;
+  type: 'INCOME' | 'EXPENSE' | 'TRANSFER';
+  category: string;
+  businessUnit: string;
+  paymentMethod: string;
+  status: string;
+}
 
 interface TreasuryState {
   transactions: Transaction[];
   isLoading: boolean;
-  fetchTransactions: (limit?: number) => Promise<void>;
-  addTransaction: (data: TransactionFormValues) => Promise<void>;
-  deleteTransaction: (id: string) => Promise<void>;
-  updateTransactionStatus: (id: string, status: 'PENDING' | 'COMPLETED') => Promise<void>;
+  fetchTransactions: () => Promise<void>;
+  addTransaction: (formData: any) => Promise<{ success: boolean }>;
 }
 
-// Constante para evitar "Magic Strings" y facilitar mantenimiento
-const TABLE_NAME = 'transactions';
-
+// 2. Creamos el Store (El cerebro)
 export const useTreasuryStore = create<TreasuryState>((set) => ({
   transactions: [],
   isLoading: false,
 
-  fetchTransactions: async (limit = 1000) => {
+  // Función para LEER los movimientos
+  fetchTransactions: async () => {
     set({ isLoading: true });
     try {
       const { data, error } = await supabase
-        .from(TABLE_NAME)
-        .select('id, type, amount, description, category, date, businessUnit, paymentMethod, status, createdAt')
-        .order('date', { ascending: false })
-        .limit(limit); // CRÍTICO CORREGIDO: Límite de seguridad para evitar OOM
+        .from('transactions')
+        .select('*')
+        .order('createdAt', { ascending: false }); // Coincide con nuestro SQL
 
       if (error) throw error;
-      set({ transactions: (data as Transaction[]) || [], isLoading: false });
+      set({ transactions: data || [], isLoading: false });
     } catch (error) {
+      console.error('[Treasury Store] Error al cargar:', error);
       set({ isLoading: false });
-      console.error('[Treasury Store] Fetch critical failure:', error);
-      throw error; // Propagación para que la UI maneje el error
     }
   },
 
-  addTransaction: async (data) => {
+  // FUNCIÓN CRÍTICA: La que "Graba" el movimiento
+  addTransaction: async (formData) => {
     try {
-      const { data: newRow, error } = await supabase
-        .from(TABLE_NAME)
-        .insert([data])
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert([{
+          // Forzamos los nombres exactos que pusimos en el SQL Editor
+          amount: Number(formData.amount),
+          description: formData.description,
+          type: formData.type,
+          category: formData.category,
+          date: formData.date || new Date().toISOString(),
+          businessUnit: formData.businessUnit,   // La "U" mayúscula es clave
+          paymentMethod: formData.paymentMethod, // La "M" mayúscula es clave
+          status: 'COMPLETED'
+        }])
         .select()
         .single();
 
       if (error) throw error;
-      
+
+      // Actualizamos la lista en pantalla sin recargar la página
       set((state) => ({ 
-        transactions: [newRow as Transaction, ...state.transactions] 
+        transactions: [data, ...state.transactions] 
       }));
+
+      return { success: true };
     } catch (error) {
-      console.error('[Treasury Store] Insert failure:', error);
-      throw error;
-    }
-  },
-
-  deleteTransaction: async (id) => {
-    try {
-      const { error } = await supabase
-        .from(TABLE_NAME)
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      // Sincronización: Solo filtramos si la DB confirmó el borrado
-      set((state) => ({ 
-        transactions: state.transactions.filter(t => t.id !== id) 
-      }));
-    } catch (error) {
-      console.error('[Treasury Store] Delete failure:', error);
-      throw error;
-    }
-  },
-
-  updateTransactionStatus: async (id, status) => {
-    try {
-      const { error } = await supabase
-        .from(TABLE_NAME)
-        .update({ status })
-        .eq('id', id);
-
-      if (error) throw error;
-
-      set((state) => ({
-        transactions: state.transactions.map(t => 
-          t.id === id ? { ...t, status } : t
-        )
-      }));
-    } catch (error) {
-      console.error('[Treasury Store] Status update failure:', error);
+      console.error("Error al grabar en la base de datos:", error);
       throw error;
     }
   }

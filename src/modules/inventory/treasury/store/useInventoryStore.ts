@@ -11,7 +11,6 @@ interface InventoryState {
   updateProductStock: (id: string, newStock: number) => Promise<void>;
 }
 
-// Lógica de dominio centralizada para evitar inconsistencias
 const determineStatus = (stock: number, minStock: number): 'ACTIVE' | 'LOW_STOCK' | 'OUT_OF_STOCK' => {
   if (stock <= 0) return 'OUT_OF_STOCK';
   if (stock <= minStock) return 'LOW_STOCK';
@@ -28,19 +27,19 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .order('created_at', { ascending: false }); // Corregido snake_case de auditoría SQL
+        // IMPORTANTE: Asegúrate que en SQL se llame "createdAt" con comillas
+        .order('createdAt', { ascending: false }); 
 
       if (error) throw error;
       set({ products: data as Product[], isLoading: false });
     } catch (error) {
       set({ isLoading: false });
-      console.error('[Inventory Store] Fetch Error:', error);
-      throw error;
+      console.error('[Inventory Store] Error al cargar:', error);
     }
   },
 
   addProduct: async (productData) => {
-    // Cálculo de stock total blindado
+    // Calculamos el stock sumando las variantes
     const totalStock = productData.variations?.length > 0 
       ? productData.variations.reduce((acc, v) => acc + (Number(v.stock) || 0), 0)
       : (productData.stock || 0);
@@ -50,32 +49,25 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     const { data, error } = await supabase
       .from('products')
       .insert([{ 
-        ...productData, 
+        sku: productData.sku,
+        name: productData.name,
+        category: productData.category,
+        price: productData.price,
+        minStock: productData.minStock, // Nombre exacto del SQL
         stock: totalStock, 
-        status 
+        status,
+        variations: productData.variations 
       }])
       .select()
       .single();
 
-    if (error) {
-      console.error('[Inventory Store] Insert Error:', error);
-      throw error;
-    }
-
-    if (data) {
-      set((state) => ({ products: [data as Product, ...state.products] }));
-    }
+    if (error) throw error;
+    set((state) => ({ products: [data as Product, ...state.products] }));
   },
 
   deleteProduct: async (id) => {
     const { error } = await supabase.from('products').delete().eq('id', id);
-    
-    if (error) {
-      console.error('[Inventory Store] Delete Error:', error);
-      throw error;
-    }
-
-    // Solo actualizamos el estado si la DB confirmó el borrado
+    if (error) throw error;
     set((state) => ({ products: state.products.filter(p => p.id !== id) }));
   },
 
@@ -87,13 +79,10 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
 
     const { error } = await supabase
       .from('products')
-      .update({ stock: newStock, status: newStatus }) // CRÍTICO: Actualización de estado sincronizada
+      .update({ stock: newStock, status: newStatus })
       .eq('id', id);
 
-    if (error) {
-      console.error('[Inventory Store] Update Stock Error:', error);
-      throw error;
-    }
+    if (error) throw error;
 
     set((state) => ({
       products: state.products.map(p => 
