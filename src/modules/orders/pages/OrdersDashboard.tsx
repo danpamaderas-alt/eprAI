@@ -22,25 +22,20 @@ export const OrdersDashboard = () => {
   const { orders = [], fetchOrders, addOrder, registerPartialDelivery } = useOrderStore();
   const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'PARTIAL' | 'DELIVERED'>('ALL');
   const [showForm, setShowForm] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-
+  
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
 
-  // CRÍTICO CORREGIDO: Gestión de errores y estado de carga [cite: 54, 56]
   const handleCreateOrder = async (data: any) => {
-    setIsProcessing(true);
-    try {
+        try {
       await addOrder(data);
       setShowForm(false);
       Swal.fire({ icon: 'success', title: 'Pedido Creado', timer: 1500, showConfirmButton: false });
     } catch (error) {
       console.error('[Orders] Error al crear:', error);
-      Swal.fire('Error', 'No se pudo guardar el pedido. Verifique conexión.', 'error');
+     Swal.fire('Error', 'No se pudo guardar el pedido.', 'error');
     } finally {
-      setIsProcessing(false);
-    }
   };
 
   const handleDeliverVariation = async (orderId: string, itemId: string, variationId: string, pendingQty: number, description: string) => {

@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
-import type { Control, UseFormRegister, Resolver } from 'react-hook-form';
+import type { Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { orderSchema, type OrderFormValues } from '../schemas/orderSchema';
 
