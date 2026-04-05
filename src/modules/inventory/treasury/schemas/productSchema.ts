@@ -15,5 +15,5 @@ export type ProductFormValues = z.infer<typeof productSchema>;
 export interface Product extends ProductFormValues {
   id: string;
   createdAt?: string;
-  status?: 'ACTIVE' | 'LOW_STOCK' | 'OUT_OF_STOCK';
+  status: 'ACTIVE' | 'LOW_STOCK' | 'OUT_OF_STOCK'; // <-- ¡Acá le sacamos el "?"!
 }
