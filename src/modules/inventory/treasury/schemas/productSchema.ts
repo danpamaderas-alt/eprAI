@@ -12,3 +12,8 @@ export const productSchema = z.object({
 
 // Forzamos la exportación del tipo de esta manera para que sea más robusto
 export type ProductFormValues = z.infer<typeof productSchema>;
+export interface Product extends ProductFormValues {
+  id: string;
+  createdAt?: string;
+  status?: 'ACTIVE' | 'LOW_STOCK' | 'OUT_OF_STOCK';
+}

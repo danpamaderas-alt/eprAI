@@ -86,19 +86,24 @@ export const OrdersDashboard = () => {
       Swal.fire('¡Registrado!', `Se entregaron ${qty} unidades de ${description}.`, 'success');
     }
   };
-const statusColors: Record<string, string> = { 
-  PENDING: 'bg-rose-100 text-rose-700 border-rose-200', 
-  PARTIAL: 'bg-amber-100 text-amber-700 border-amber-200', 
-  DELIVERED: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  CANCELLED: 'bg-slate-100 text-slate-500 border-slate-200'
-};
 
-const statusLabels: Record<string, string> = { 
-  PENDING: '⏳ PENDIENTE', 
-  PARTIAL: '📦 PARCIAL', 
-  DELIVERED: '✅ COMPLETADO',
-  CANCELLED: '🚫 CANCELADO'
-};
+  // 👇 LÍNEA CORREGIDA (AHORA ESTÁ EN EL LUGAR CORRECTO) 👇
+  const filteredOrders = orders.filter(o => filter === 'ALL' || o.status === filter);
+
+  const statusColors: Record<string, string> = { 
+    PENDING: 'bg-rose-100 text-rose-700 border-rose-200', 
+    PARTIAL: 'bg-amber-100 text-amber-700 border-amber-200', 
+    DELIVERED: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    CANCELLED: 'bg-slate-100 text-slate-500 border-slate-200'
+  };
+
+  const statusLabels: Record<string, string> = { 
+    PENDING: '⏳ PENDIENTE', 
+    PARTIAL: '📦 PARCIAL', 
+    DELIVERED: '✅ COMPLETADO',
+    CANCELLED: '🚫 CANCELADO'
+  };
+
   return (
     <div className="animate-in fade-in duration-500 space-y-6">
       
