@@ -16,12 +16,12 @@ export const ProductForm = ({ onSubmitSuccess, onCancel }: ProductFormProps) => 
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [hasVariations, setHasVariations] = useState(false);
 
-  const { register, control, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<ProductFormValues>({
+  const { register, control, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema) as Resolver<ProductFormValues>,
     defaultValues: { sku: '', name: '', category: '', price: 0, stock: 0, minStock: 5, variations: [] },
   });
 
-  const { fields: variations, append, replace } = useFieldArray({
+  const { fields: variations, , replace } = useFieldArray({
     control,
     name: 'variations'
   });

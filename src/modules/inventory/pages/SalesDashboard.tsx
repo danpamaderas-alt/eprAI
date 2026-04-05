@@ -29,7 +29,7 @@ interface SaleTicket {
 }
 
 export const SalesDashboard = () => {
-  const { products, fetchProducts, updateStock } = useInventoryStore();
+  const { products, fetchProducts, updateProductStock } = useInventoryStore();
   const { addTransaction } = useTreasuryStore();
   const { customers, fetchCustomers } = useCrmStore();
   
@@ -108,7 +108,7 @@ export const SalesDashboard = () => {
 
       for (const item of cart) {
         const newStock = Number(item.product.stock) - item.quantity;
-        await updateStock(item.product.id, newStock);
+        await updateProductStock(item.product.id, newStock);
       }
 
       setLastSale({
