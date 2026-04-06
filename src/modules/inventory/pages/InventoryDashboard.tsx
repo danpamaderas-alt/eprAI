@@ -50,7 +50,8 @@ export const InventoryDashboard = () => {
     };
   }, [products]);
 
-  // CRÍTICO CORREGIDO: Manejador asíncrono blindado
+  // CRÍTICO CORREGIDO: Manejador asíncrono blindado (Ignoramos la regla de ESLint para el any)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleAddProduct = async (data: any) => {
     try {
       await addProduct(data);
