@@ -1,9 +1,23 @@
 import { z } from 'zod';
 
 export const transactionSchema = z.object({
-  // Seguridad: Fuerza formato de fecha estandarizado para evitar errores de parseo en DB
-  date: z.string().datetime({ message: "Formato de fecha inválido (ISO Requerido)" }),
-  
+  date: z.string().min(1),
+  description: z.string().trim().min(2, "El detalle es obligatorio"),
+  amount: z.preprocess((val) => Number(val), z.number().min(0.01, "Monto mayor a 0")),
+  type: z.enum(['INCOME', 'EXPENSE', 'TRANSFER']), // Agregamos TRANSFER
+  category: z.string().min(1),
+  businessUnit: z.enum(['SHOWROOM', 'UNIFORMES', 'GENERAL', 'RAICES', 'ROJO_SHOWROOM', 'RJ_CO', 'BITA_IT']).default('GENERAL'),
+  paymentMethod: z.enum(['MERCADO_PAGO', 'BANCO', 'EFECTIVO']).default('EFECTIVO'),
+  status: z.enum(['PENDING', 'COMPLETED']).default('COMPLETED')
+});
+
+export type TransactionFormValues = z.infer<typeof transactionSchema>;
+
+export interface Transaction extends TransactionFormValues {
+  id: string;
+  createdAt?: string; 
+}
+
   // Optimización: Límite de caracteres para evitar abusos de memoria
   description: z.string()
     .trim()
