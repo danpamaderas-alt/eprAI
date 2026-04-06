@@ -8,7 +8,8 @@ export const transactionSchema = z.object({
   category: z.string().min(1),
   businessUnit: z.enum(['SHOWROOM', 'UNIFORMES', 'GENERAL', 'RAICES', 'ROJO_SHOWROOM', 'RJ_CO', 'BITA_IT']).default('GENERAL'),
   paymentMethod: z.enum(['MERCADO_PAGO', 'BANCO', 'EFECTIVO']).default('EFECTIVO'),
-  status: z.enum(['PENDING', 'COMPLETED']).default('COMPLETED')
+  // Le agregamos 'CANCELLED' a la lista de permitidos
+  status: z.enum(['PENDING', 'COMPLETED', 'CANCELLED']).default('COMPLETED')
 });
 
 export type TransactionFormValues = z.infer<typeof transactionSchema>;
