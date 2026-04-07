@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-table';
 import { type Transaction } from '../schemas/transactionSchema';
 import Swal from 'sweetalert2';
+import { useTreasuryStore } from '../store/useTreasuryStore';
 
 interface TransactionTableProps {
   data: Transaction[];
@@ -17,16 +18,14 @@ interface TransactionTableProps {
 const columnHelper = createColumnHelper<Transaction>();
 
 export const TransactionTable = ({ data, onDelete, onUpdateStatus }: TransactionTableProps) => {
+  const resolvePayment = useTreasuryStore(state => state.resolvePayment);
   
   const columns = useMemo(() => [
     columnHelper.accessor('date', {
       header: 'Fecha',
       cell: (info) => {
         const dateStr = info.getValue();
-        // Evitar errores si la fecha viene vacía
         if (!dateStr) return <span className="text-xs text-slate-500">-</span>;
-        
-        // Formatear fecha para Argentina
         const [year, month, day] = dateStr.split('T')[0].split('-');
         return <span className="text-xs text-slate-500 font-medium">{`${day}/${month}/${year}`}</span>;
       }
@@ -34,7 +33,6 @@ export const TransactionTable = ({ data, onDelete, onUpdateStatus }: Transaction
     columnHelper.accessor('type', {
       header: 'Tipo',
       cell: (info) => {
-        // Convertimos a string para que TypeScript no se queje al comparar
         const val = String(info.getValue());
         if (val === 'INCOME') return <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-[10px] font-black uppercase">Ingreso</span>;
         if (val === 'EXPENSE') return <span className="bg-rose-100 text-rose-700 px-2 py-1 rounded text-[10px] font-black uppercase">Egreso</span>;
@@ -42,7 +40,7 @@ export const TransactionTable = ({ data, onDelete, onUpdateStatus }: Transaction
         return <span className="text-[10px] uppercase font-bold">{val}</span>;
       }
     }),
-    columnHelper.accessor('description', { // <-- ACÁ CORREGIMOS "concept" POR "description"
+    columnHelper.accessor('description', { 
       header: 'Concepto / Detalle',
       cell: (info) => <span className="text-xs font-bold text-slate-800">{info.getValue()}</span>
     }),
@@ -60,10 +58,9 @@ export const TransactionTable = ({ data, onDelete, onUpdateStatus }: Transaction
         return <span className={`font-black tabular-nums ${color}`}>{type === 'EXPENSE' ? '- ' : ''}{formatted}</span>;
       }
     }),
-    columnHelper.accessor('paymentMethod', { // <-- ACÁ CORREGIMOS "accountId" POR "paymentMethod"
+    columnHelper.accessor('paymentMethod', { 
       header: 'Cuenta',
       cell: (info) => {
-        // Lo pasamos a String para poder usar el .replace sin error
         const val = String(info.getValue() || '').replace('_', ' ');
         return <span className="text-[10px] font-black text-slate-600 bg-slate-100 border border-slate-200 px-2 py-1 rounded uppercase">{val}</span>;
       }
@@ -80,13 +77,69 @@ export const TransactionTable = ({ data, onDelete, onUpdateStatus }: Transaction
       cell: (info) => {
         const status = info.getValue();
         const isPending = status === 'PENDING';
+        const tx = info.row.original;
+
+        const handleStatusClick = async () => {
+          if (!isPending) {
+            // Si está completado y apretás, lo vuelve a hacer Pendiente (por si te equivocaste)
+            onUpdateStatus(tx.id, 'PENDING');
+            return;
+          }
+
+          // SI ESTÁ PENDIENTE: Abrimos el cartel inteligente de cobro/pago
+          const { value: formValues } = await Swal.fire({
+            title: tx.type === 'INCOME' ? 'Registrar Cobro' : 'Registrar Pago',
+            html: `
+              <div class="text-left space-y-4">
+                <div class="bg-blue-50 text-blue-800 p-3 rounded-lg text-sm mb-4 border border-blue-200">
+                  Total pendiente: <strong class="text-lg font-black tabular-nums">$${tx.amount}</strong>
+                </div>
+                <div>
+                  <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Monto de la operación ($)</label>
+                  <input id="partial-amount" type="number" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 font-black text-lg text-slate-800" value="${tx.amount}" max="${tx.amount}">
+                  <p class="text-[10px] text-slate-400 mt-1">Modificá el valor si es un pago parcial.</p>
+                </div>
+                <div>
+                  <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Destino / Origen</label>
+                  <select id="partial-method" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 font-bold text-slate-700">
+                    <option value="EFECTIVO" ${tx.paymentMethod === 'EFECTIVO' ? 'selected' : ''}>💵 EFECTIVO</option>
+                    <option value="MERCADO_PAGO" ${tx.paymentMethod === 'MERCADO_PAGO' ? 'selected' : ''}>📱 MERCADO PAGO</option>
+                    <option value="BANCO" ${tx.paymentMethod === 'BANCO' ? 'selected' : ''}>🏦 BANCO / TRANSF.</option>
+                  </select>
+                </div>
+              </div>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Confirmar',
+            cancelButtonText: 'Cancelar',
+            preConfirm: () => {
+              const amount = (document.getElementById('partial-amount') as HTMLInputElement).value;
+              const method = (document.getElementById('partial-method') as HTMLSelectElement).value;
+              if (!amount || Number(amount) <= 0) {
+                Swal.showValidationMessage('Ingresá un monto válido mayor a 0');
+                return false;
+              }
+              return { amount: Number(amount), method };
+            }
+          });
+
+          if (formValues) {
+            try {
+              await resolvePayment(tx.id, formValues.amount, formValues.method);
+              Swal.fire({ icon: 'success', title: '¡Registrado!', timer: 1500, showConfirmButton: false });
+            } catch (e) {
+              Swal.fire('Error', 'No se pudo actualizar el pago', 'error');
+            }
+          }
+        };
+
         return (
           <button 
-            onClick={() => onUpdateStatus(info.row.original.id, isPending ? 'COMPLETED' : 'PENDING')}
+            onClick={handleStatusClick}
             className={`text-[9px] font-black px-2 py-1.5 rounded transition-colors uppercase cursor-pointer border ${
               isPending 
-                ? 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100' 
-                : 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
+                ? 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100 hover:shadow-sm' 
+                : 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100 hover:shadow-sm'
             }`}
           >
             {isPending ? '⏳ Pendiente' : '✅ Pagado'}
@@ -122,7 +175,7 @@ export const TransactionTable = ({ data, onDelete, onUpdateStatus }: Transaction
         </button>
       )
     })
-  ], [onDelete, onUpdateStatus]);
+  ], [onDelete, onUpdateStatus, resolvePayment]);
 
   const table = useReactTable({
     data,
