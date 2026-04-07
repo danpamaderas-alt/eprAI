@@ -22,14 +22,12 @@ export const OrdersDashboard = () => {
   const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'PARTIAL' | 'DELIVERED'>('ALL');
   const [showForm, setShowForm] = useState(false);
   
-  // Estado para el Remito a imprimir
   const [orderToPrint, setOrderToPrint] = useState<any | null>(null);
 
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
 
-  // Vuelve a la normalidad después de imprimir
   useEffect(() => {
     const handleAfterPrint = () => setOrderToPrint(null);
     window.addEventListener('afterprint', handleAfterPrint);
@@ -38,10 +36,9 @@ export const OrdersDashboard = () => {
 
   const handlePrintRemito = (order: any) => {
     setOrderToPrint(order);
-    // Le damos un respiro mínimo a React para que dibuje el remito antes de llamar a la impresora
     setTimeout(() => {
       window.print();
-    }, 200);
+    }, 500); 
   };
 
   const handleCreateOrder = async (data: any) => {
@@ -96,10 +93,26 @@ export const OrdersDashboard = () => {
 
   return (
     <>
-      {/* ========================================================================
-        ZONA DE PANTALLA NORMAL (Se oculta al imprimir gracias a "print:hidden") 
-        ========================================================================
-      */}
+      {/* INYECCIÓN DE REGLAS DE ORO PARA IMPRESORA */}
+      <style type="text/css" media="print">
+        {`
+          @page { size: A4; margin: 15mm; }
+          html, body, #root {
+            height: auto !important;
+            min-height: auto !important;
+            overflow: visible !important;
+            position: static !important;
+            background-color: white !important;
+          }
+          nav, aside { display: none !important; }
+          table { page-break-inside: auto; width: 100%; }
+          tr    { page-break-inside: avoid; page-break-after: auto; }
+          thead { display: table-header-group; }
+          tfoot { display: table-footer-group; }
+        `}
+      </style>
+
+      {/* ZONA DE PANTALLA NORMAL */}
       <div className="animate-in fade-in duration-500 space-y-6 print:hidden">
         
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
@@ -137,18 +150,37 @@ export const OrdersDashboard = () => {
             filteredOrders.map(order => (
               <div key={order.id} className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden flex flex-col hover:border-blue-200 transition-colors">
                 <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-start">
+                  
+                  {/* LADO IZQUIERDO: Info y Plata */}
                   <div>
                     <span className="text-[9px] font-black uppercase text-blue-600 bg-blue-100 px-2 py-1 rounded-md mb-2 inline-block">
                       {order.businessUnit.replace('_', ' ')}
                     </span>
                     <h3 className="text-xl font-black text-slate-900 leading-tight">{order.customerName}</h3>
                     <p className="text-[10px] text-slate-500 font-bold uppercase mt-1 italic">Vence: {new Date(order.dueDate).toLocaleDateString('es-AR')}</p>
+                    
+                    {/* PANEL FINANCIERO AUTOMÁTICO */}
+                    <div className="mt-3 flex items-center gap-3 border-t border-slate-200 pt-3">
+                      <div className="text-[10px] font-bold text-slate-500">Total: <span className="text-slate-900">${order.totalAmount || 0}</span></div>
+                      <div className="text-[10px] font-bold text-slate-500">Seña: <span className="text-emerald-600">${order.advancePayment || 0}</span></div>
+                      
+                      {((order.totalAmount || 0) - (order.advancePayment || 0)) > 0 ? (
+                        <div className="text-[10px] font-black text-rose-600 bg-rose-100 px-2 py-1 rounded-md border border-rose-200 animate-pulse shadow-sm">
+                          DEBE: ${ (order.totalAmount || 0) - (order.advancePayment || 0) }
+                        </div>
+                      ) : (order.totalAmount > 0) ? (
+                        <div className="text-[10px] font-black text-emerald-600 bg-emerald-100 px-2 py-1 rounded-md border border-emerald-200 shadow-sm">
+                          PAGADO TOTAL
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
+
+                  {/* LADO DERECHO: Botones */}
                   <div className="flex flex-col items-end gap-2">
                     <span className={`px-3 py-1.5 text-[10px] font-black rounded-lg border shadow-sm ${STATUS_COLORS[order.status]}`}>
                       {STATUS_LABELS[order.status]}
                     </span>
-                    {/* BOTÓN DE IMPRIMIR REMITO */}
                     <button 
                       onClick={() => handlePrintRemito(order)}
                       className="flex items-center gap-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-[10px] font-bold uppercase transition-colors shadow-sm"
@@ -158,6 +190,7 @@ export const OrdersDashboard = () => {
                   </div>
                 </div>
 
+                {/* DETALLE DE LOS ARTÍCULOS */}
                 <div className="p-6 space-y-6 flex-1">
                   {order.items.map((item: any) => (
                     <div key={item.id} className="space-y-3">
@@ -215,14 +248,10 @@ export const OrdersDashboard = () => {
         )}
       </div>
 
-      {/* ========================================================================
-        ZONA DE IMPRESIÓN (Invisible normalmente, solo se ve al imprimir) 
-        ========================================================================
-      */}
+      {/* ZONA DE IMPRESIÓN */}
       {orderToPrint && (
-        <div className="hidden print:block p-8 bg-white text-black min-h-screen">
+        <div className="hidden print:block w-full bg-white text-black p-4">
           
-          {/* ENCABEZADO DEL REMITO */}
           <div className="flex justify-between items-start border-b-2 border-black pb-6 mb-8">
             <div>
               <h1 className="text-5xl font-black tracking-tighter uppercase" style={{ fontFamily: 'serif' }}>RAÍCES</h1>
@@ -235,18 +264,17 @@ export const OrdersDashboard = () => {
             </div>
           </div>
 
-          {/* DATOS DEL CLIENTE */}
           <div className="border border-gray-300 rounded-xl p-5 mb-8 bg-gray-50">
             <p className="text-xs font-bold uppercase text-gray-500 mb-1">Cliente / Destinatario</p>
             <p className="text-2xl font-black uppercase">{orderToPrint.customerName}</p>
           </div>
 
-          {/* TABLA DE MERCADERÍA */}
           <div className="mb-12">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b-2 border-black">
                   <th className="py-3 font-black uppercase text-sm w-12 text-center">Chk</th>
+                  <th className="py-3 font-black uppercase text-sm">Sector</th>
                   <th className="py-3 font-black uppercase text-sm">Artículo</th>
                   <th className="py-3 font-black uppercase text-sm text-center">Talle</th>
                   <th className="py-3 font-black uppercase text-sm">Color</th>
@@ -257,10 +285,10 @@ export const OrdersDashboard = () => {
                 {orderToPrint.items.map((item: any) => 
                   item.variations.map((variation: any) => (
                     <tr key={variation.id} className="border-b border-gray-200">
-                      {/* Casillita vacía para tildar con lapicera cuando arman el paquete */}
                       <td className="py-3 text-center">
                         <div className="w-5 h-5 border-2 border-gray-400 rounded-sm mx-auto"></div>
                       </td>
+                      <td className="py-3 font-bold uppercase text-gray-600">{(item as any).sector || '-'}</td>
                       <td className="py-3 font-bold uppercase">{item.productName}</td>
                       <td className="py-3 font-black text-center">{variation.size}</td>
                       <td className="py-3 font-bold uppercase">{variation.color}</td>
@@ -272,7 +300,6 @@ export const OrdersDashboard = () => {
             </table>
           </div>
 
-          {/* FIRMA Y ACLARACIÓN (Abajo de todo) */}
           <div className="mt-20 pt-10 border-t border-gray-200">
             <div className="w-1/2 ml-auto">
               <div className="border-b border-black mb-2 h-10"></div>

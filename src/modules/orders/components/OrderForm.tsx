@@ -17,6 +17,8 @@ export const OrderForm = ({ onSubmitSuccess, onCancel }: OrderFormProps) => {
       businessUnit: 'GENERAL',
       status: 'PENDING',
       dueDate: new Date().toISOString().split('T')[0],
+      totalAmount: 0,
+      advancePayment: 0,
       items: [{ 
         id: crypto.randomUUID(),
         productName: '', 
@@ -36,6 +38,8 @@ export const OrderForm = ({ onSubmitSuccess, onCancel }: OrderFormProps) => {
       </header>
 
       <form onSubmit={handleSubmit(onSubmitSuccess)} className="p-8 space-y-8">
+        
+        {/* FILA SUPERIOR: Cliente, Total y Seña */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-1.5">
             <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Cliente</label>
@@ -44,9 +48,27 @@ export const OrderForm = ({ onSubmitSuccess, onCancel }: OrderFormProps) => {
               className={`w-full px-4 py-3 bg-slate-50 border ${errors.customerName ? 'border-rose-500' : 'border-slate-200'} rounded-xl outline-none font-bold`} 
             />
           </div>
-          {/* Espacio para los otros campos generales de tu formulario */}
+          
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Total Pedido ($)</label>
+            <input 
+              type="number"
+              {...register('totalAmount', { valueAsNumber: true })}
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-black text-blue-600" 
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-slate-500 uppercase ml-1">Seña / Adelanto ($)</label>
+            <input 
+              type="number"
+              {...register('advancePayment', { valueAsNumber: true })}
+              className="w-full px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl outline-none font-black text-emerald-600" 
+            />
+          </div>
         </div>
 
+        {/* LISTA DE ARTÍCULOS */}
         <div className="space-y-6">
           {itemFields.map((item, index) => (
             <div key={item.id} className="bg-slate-50 rounded-2xl border border-slate-200 p-6 relative shadow-sm">
@@ -56,12 +78,10 @@ export const OrderForm = ({ onSubmitSuccess, onCancel }: OrderFormProps) => {
                 className="absolute -top-2 -right-2 w-6 h-6 flex items-center justify-center bg-rose-500 text-white rounded-full shadow-lg font-bold"
               >✕</button>
               
-              {/* NUEVO: Fila con Sector y Producto */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div className="space-y-1.5">
                   <label className="text-[9px] font-black text-blue-600 uppercase ml-1">Sector / Rubro</label>
                   <input 
-                    // Usamos 'as any' temporalmente por si 'sector' no está todavía en tu Zod schema
                     {...register(`items.${index}.sector` as any)}
                     placeholder="Ej: Indumentaria, Merchandising..."
                     className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl font-black shadow-inner"
@@ -109,17 +129,19 @@ const VariationFields = memo(({ nestIndex, control, register }: { nestIndex: num
 
   const [quickColor, setQuickColor] = useState('');
   const [quickSizes, setQuickSizes] = useState<Record<string, number>>({});
-  const [savedColors, setSavedColors] = useState<string[]>([]);
   const [customSize, setCustomSize] = useState('');
-
-  useEffect(() => {
-    const saved = localStorage.getItem('epr_saved_colors');
-    if (saved) {
-      setSavedColors(JSON.parse(saved));
-    } else {
-      setSavedColors(['Negro', 'Blanco', 'Azul Marino', 'Gris Melange', 'Rojo']);
+  
+  // SOLUCIÓN: Inicialización perezosa (Lazy Initialization). 
+  // React lee la memoria ANTES de dibujar, evitando el doble renderizado y el error.
+  const [savedColors, setSavedColors] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('epr_saved_colors');
+      return saved ? JSON.parse(saved) : ['Negro', 'Blanco', 'Azul Marino', 'Gris Melange', 'Rojo'];
+    } catch {
+      // Si por alguna razón falla la memoria, devuelve los colores por defecto
+      return ['Negro', 'Blanco', 'Azul Marino', 'Gris Melange', 'Rojo'];
     }
-  }, []);
+  });
 
   const handleSizeChange = (size: string, qty: number) => {
     setQuickSizes(prev => ({ ...prev, [size]: qty }));
@@ -156,7 +178,6 @@ const VariationFields = memo(({ nestIndex, control, register }: { nestIndex: num
         </h4>
 
         <div className="space-y-5">
-          {/* SECCIÓN COLORES CON BOTONES */}
           <div>
             <label className="text-[10px] font-bold text-slate-600 mb-2 block">1. Seleccionar Color</label>
             <div className="flex flex-wrap gap-2 mb-3">
@@ -187,7 +208,6 @@ const VariationFields = memo(({ nestIndex, control, register }: { nestIndex: num
             </div>
           </div>
 
-          {/* SECCIÓN TALLES */}
           <div>
             <label className="text-[10px] font-bold text-slate-600 mb-2 block">2. Indicar cantidades por Talle</label>
             <div className="flex flex-wrap gap-2">
