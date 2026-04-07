@@ -21,10 +21,28 @@ export const OrdersDashboard = () => {
   const { orders = [], fetchOrders, addOrder, registerPartialDelivery } = useOrderStore();
   const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'PARTIAL' | 'DELIVERED'>('ALL');
   const [showForm, setShowForm] = useState(false);
+  
+  // Estado para el Remito a imprimir
+  const [orderToPrint, setOrderToPrint] = useState<any | null>(null);
 
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  // Vuelve a la normalidad después de imprimir
+  useEffect(() => {
+    const handleAfterPrint = () => setOrderToPrint(null);
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => window.removeEventListener('afterprint', handleAfterPrint);
+  }, []);
+
+  const handlePrintRemito = (order: any) => {
+    setOrderToPrint(order);
+    // Le damos un respiro mínimo a React para que dibuje el remito antes de llamar a la impresora
+    setTimeout(() => {
+      window.print();
+    }, 200);
+  };
 
   const handleCreateOrder = async (data: any) => {
     try {
@@ -77,110 +95,195 @@ export const OrdersDashboard = () => {
   }, [orders, filter]);
 
   return (
-    <div className="animate-in fade-in duration-500 space-y-6">
-      
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Hoja de Ruta</h1>
-          <p className="text-slate-500 text-sm font-medium uppercase tracking-widest mt-1">Control de Pedidos y Entregas</p>
-        </div>
-        <button 
-          onClick={() => setShowForm(true)}
-          className="px-6 py-3 bg-slate-900 hover:bg-blue-600 text-white rounded-xl font-black text-[11px] uppercase tracking-widest shadow-lg transition-all active:scale-95"
-        >
-          Nuevo Pedido
-        </button>
-      </header>
-
-      <nav className="flex bg-slate-200/50 p-1 rounded-xl w-fit">
-        {(['ALL', 'PENDING', 'PARTIAL', 'DELIVERED'] as const).map(tab => (
-          <button 
-            key={tab} 
-            onClick={() => setFilter(tab)} 
-            className={`px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filter === tab ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-          >
-            {tab === 'ALL' ? 'TODOS' : STATUS_LABELS[tab].substring(2)}
-          </button>
-        ))}
-      </nav>
-
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {filteredOrders.length === 0 ? (
-          <div className="col-span-full py-20 text-center opacity-30">
-             <span className="text-6xl mb-4 block">🚚</span>
-             <p className="text-xs font-black uppercase tracking-widest text-slate-900">No hay pedidos registrados</p>
+    <>
+      {/* ========================================================================
+        ZONA DE PANTALLA NORMAL (Se oculta al imprimir gracias a "print:hidden") 
+        ========================================================================
+      */}
+      <div className="animate-in fade-in duration-500 space-y-6 print:hidden">
+        
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+          <div>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Hoja de Ruta</h1>
+            <p className="text-slate-500 text-sm font-medium uppercase tracking-widest mt-1">Control de Pedidos y Entregas</p>
           </div>
-        ) : (
-          filteredOrders.map(order => (
-            <div key={order.id} className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden flex flex-col hover:border-blue-200 transition-colors">
-              <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-start">
-                <div>
-                  <span className="text-[9px] font-black uppercase text-blue-600 bg-blue-100 px-2 py-1 rounded-md mb-2 inline-block">
-                    {order.businessUnit.replace('_', ' ')}
-                  </span>
-                  <h3 className="text-xl font-black text-slate-900 leading-tight">{order.customerName}</h3>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase mt-1 italic">Vence: {new Date(order.dueDate).toLocaleDateString('es-AR')}</p>
-                </div>
-                <span className={`px-3 py-1.5 text-[10px] font-black rounded-lg border shadow-sm ${STATUS_COLORS[order.status]}`}>
-                  {STATUS_LABELS[order.status]}
-                </span>
-              </div>
+          <button 
+            onClick={() => setShowForm(true)}
+            className="px-6 py-3 bg-slate-900 hover:bg-blue-600 text-white rounded-xl font-black text-[11px] uppercase tracking-widest shadow-lg transition-all active:scale-95"
+          >
+            Nuevo Pedido
+          </button>
+        </header>
 
-              <div className="p-6 space-y-6 flex-1">
-                {order.items.map(item => (
-                  <div key={item.id} className="space-y-3">
-                    <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest border-b border-slate-100 pb-2">{item.productName}</h4>
-                    <div className="space-y-2">
-                      {item.variations.map(variation => {
-                        const delivered = variation.quantityDelivered || 0;
-                        const pending = variation.quantityOrdered - delivered;
-                        const progress = Math.round((delivered / variation.quantityOrdered) * 100);
-                        const desc = `Talle ${variation.size} - ${variation.color}`;
+        <nav className="flex bg-slate-200/50 p-1 rounded-xl w-fit">
+          {(['ALL', 'PENDING', 'PARTIAL', 'DELIVERED'] as const).map(tab => (
+            <button 
+              key={tab} 
+              onClick={() => setFilter(tab)} 
+              className={`px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filter === tab ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            >
+              {tab === 'ALL' ? 'TODOS' : STATUS_LABELS[tab].substring(2)}
+            </button>
+          ))}
+        </nav>
 
-                        return (
-                          <div key={variation.id} className="bg-slate-50 border border-slate-100 p-3 rounded-xl flex items-center justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="flex justify-between items-end mb-2">
-                                <p className="text-[10px] font-bold text-slate-700 uppercase">{desc}</p>
-                                <span className="text-[10px] font-black text-slate-900">{delivered} <span className="text-slate-400">/ {variation.quantityOrdered}</span></span>
-                              </div>
-                              <div className="w-full bg-slate-200 rounded-full h-1.5">
-                                <div className={`h-1.5 rounded-full transition-all duration-500 ${progress >= 100 ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${progress}%` }}></div>
-                              </div>
-                            </div>
-
-                            {pending > 0 ? (
-                              <button 
-                                onClick={() => handleDeliverVariation(order.id, item.id, variation.id, pending, desc)}
-                                className="px-4 py-2 bg-slate-900 hover:bg-blue-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest transition-all"
-                              >
-                                Entregar
-                              </button>
-                            ) : (
-                              <span className="px-4 py-2 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-lg text-[9px] font-black uppercase tracking-widest">
-                                OK
-                              </span>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          {filteredOrders.length === 0 ? (
+            <div className="col-span-full py-20 text-center opacity-30">
+               <span className="text-6xl mb-4 block">🚚</span>
+               <p className="text-xs font-black uppercase tracking-widest text-slate-900">No hay pedidos registrados</p>
             </div>
-          ))
+          ) : (
+            filteredOrders.map(order => (
+              <div key={order.id} className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden flex flex-col hover:border-blue-200 transition-colors">
+                <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-start">
+                  <div>
+                    <span className="text-[9px] font-black uppercase text-blue-600 bg-blue-100 px-2 py-1 rounded-md mb-2 inline-block">
+                      {order.businessUnit.replace('_', ' ')}
+                    </span>
+                    <h3 className="text-xl font-black text-slate-900 leading-tight">{order.customerName}</h3>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase mt-1 italic">Vence: {new Date(order.dueDate).toLocaleDateString('es-AR')}</p>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <span className={`px-3 py-1.5 text-[10px] font-black rounded-lg border shadow-sm ${STATUS_COLORS[order.status]}`}>
+                      {STATUS_LABELS[order.status]}
+                    </span>
+                    {/* BOTÓN DE IMPRIMIR REMITO */}
+                    <button 
+                      onClick={() => handlePrintRemito(order)}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-[10px] font-bold uppercase transition-colors shadow-sm"
+                    >
+                      🖨️ Remito
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-6 space-y-6 flex-1">
+                  {order.items.map((item: any) => (
+                    <div key={item.id} className="space-y-3">
+                      <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest border-b border-slate-100 pb-2">{item.productName}</h4>
+                      <div className="space-y-2">
+                        {item.variations.map((variation: any) => {
+                          const delivered = variation.quantityDelivered || 0;
+                          const pending = variation.quantityOrdered - delivered;
+                          const progress = Math.round((delivered / variation.quantityOrdered) * 100);
+                          const desc = `Talle ${variation.size} - ${variation.color}`;
+
+                          return (
+                            <div key={variation.id} className="bg-slate-50 border border-slate-100 p-3 rounded-xl flex items-center justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="flex justify-between items-end mb-2">
+                                  <p className="text-[10px] font-bold text-slate-700 uppercase">{desc}</p>
+                                  <span className="text-[10px] font-black text-slate-900">{delivered} <span className="text-slate-400">/ {variation.quantityOrdered}</span></span>
+                                </div>
+                                <div className="w-full bg-slate-200 rounded-full h-1.5">
+                                  <div className={`h-1.5 rounded-full transition-all duration-500 ${progress >= 100 ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${progress}%` }}></div>
+                                </div>
+                              </div>
+
+                              {pending > 0 ? (
+                                <button 
+                                  onClick={() => handleDeliverVariation(order.id, item.id, variation.id, pending, desc)}
+                                  className="px-4 py-2 bg-slate-900 hover:bg-blue-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest transition-all"
+                                >
+                                  Entregar
+                                </button>
+                              ) : (
+                                <span className="px-4 py-2 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-lg text-[9px] font-black uppercase tracking-widest">
+                                  OK
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {showForm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+            <OrderForm 
+              onSubmitSuccess={handleCreateOrder} 
+              onCancel={() => setShowForm(false)} 
+            />
+          </div>
         )}
       </div>
 
-      {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-          <OrderForm 
-            onSubmitSuccess={handleCreateOrder} 
-            onCancel={() => setShowForm(false)} 
-          />
+      {/* ========================================================================
+        ZONA DE IMPRESIÓN (Invisible normalmente, solo se ve al imprimir) 
+        ========================================================================
+      */}
+      {orderToPrint && (
+        <div className="hidden print:block p-8 bg-white text-black min-h-screen">
+          
+          {/* ENCABEZADO DEL REMITO */}
+          <div className="flex justify-between items-start border-b-2 border-black pb-6 mb-8">
+            <div>
+              <h1 className="text-5xl font-black tracking-tighter uppercase" style={{ fontFamily: 'serif' }}>RAÍCES</h1>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] mt-1 text-gray-500">Documento no válido como factura</p>
+              <h2 className="text-xl font-bold uppercase mt-4">Remito de Envío</h2>
+            </div>
+            <div className="text-right border border-gray-300 p-4 rounded-lg bg-gray-50">
+              <p className="text-sm font-bold uppercase text-gray-500">Fecha de Emisión</p>
+              <p className="text-xl font-black">{new Date().toLocaleDateString('es-AR')}</p>
+            </div>
+          </div>
+
+          {/* DATOS DEL CLIENTE */}
+          <div className="border border-gray-300 rounded-xl p-5 mb-8 bg-gray-50">
+            <p className="text-xs font-bold uppercase text-gray-500 mb-1">Cliente / Destinatario</p>
+            <p className="text-2xl font-black uppercase">{orderToPrint.customerName}</p>
+          </div>
+
+          {/* TABLA DE MERCADERÍA */}
+          <div className="mb-12">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b-2 border-black">
+                  <th className="py-3 font-black uppercase text-sm w-12 text-center">Chk</th>
+                  <th className="py-3 font-black uppercase text-sm">Artículo</th>
+                  <th className="py-3 font-black uppercase text-sm text-center">Talle</th>
+                  <th className="py-3 font-black uppercase text-sm">Color</th>
+                  <th className="py-3 font-black uppercase text-sm text-center">Cantidad</th>
+                </tr>
+              </thead>
+              <tbody className="text-sm">
+                {orderToPrint.items.map((item: any) => 
+                  item.variations.map((variation: any) => (
+                    <tr key={variation.id} className="border-b border-gray-200">
+                      {/* Casillita vacía para tildar con lapicera cuando arman el paquete */}
+                      <td className="py-3 text-center">
+                        <div className="w-5 h-5 border-2 border-gray-400 rounded-sm mx-auto"></div>
+                      </td>
+                      <td className="py-3 font-bold uppercase">{item.productName}</td>
+                      <td className="py-3 font-black text-center">{variation.size}</td>
+                      <td className="py-3 font-bold uppercase">{variation.color}</td>
+                      <td className="py-3 font-black text-center text-lg">{variation.quantityOrdered}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* FIRMA Y ACLARACIÓN (Abajo de todo) */}
+          <div className="mt-20 pt-10 border-t border-gray-200">
+            <div className="w-1/2 ml-auto">
+              <div className="border-b border-black mb-2 h-10"></div>
+              <p className="text-xs font-bold uppercase text-center text-gray-500 tracking-widest">
+                Firma y Aclaración de quien recibe
+              </p>
+            </div>
+          </div>
+
         </div>
       )}
-    </div>
+    </>
   );
 };
