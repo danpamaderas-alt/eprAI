@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 import { supabase } from '../../../../lib/supabase'; 
 
-interface Transaction {
+export interface Transaction {
   id: string;
-  createdAt: string;
+  created_at: string; // Ajustado al estándar de Supabase
   date: string;
   amount: number;
   description: string;
@@ -12,14 +12,16 @@ interface Transaction {
   businessUnit: 'GENERAL' | 'RAICES' | 'RJ_CO' | 'BITA_IT' | 'ROJO_SHOWROOM' | 'UNIFORMES';
   paymentMethod: 'MERCADO_PAGO' | 'BANCO' | 'EFECTIVO';
   status: 'PENDING' | 'COMPLETED' | 'CANCELLED';
-  user_id: string; 
+  user_id?: string; 
 }
 
 interface TreasuryState {
   transactions: Transaction[];
   isLoading: boolean;
   fetchTransactions: () => Promise<void>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   addTransaction: (formData: any) => Promise<{ success: boolean }>;
+  updateTransaction: (id: string, updates: Partial<Transaction>) => Promise<void>; // 🔥 NUEVA FUNCIÓN DE EDICIÓN
   deleteTransaction: (id: string) => Promise<void>;
   updateTransactionStatus: (id: string, status: string) => Promise<void>;
   resolvePayment: (id: string, amountPaid: number, method: string) => Promise<void>;
@@ -35,10 +37,10 @@ export const useTreasuryStore = create<TreasuryState>((set, get) => ({
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
-        .order('createdAt', { ascending: false });
+        .order('date', { ascending: false }); // Mejor ordenar por la fecha del comprobante que por creación
 
       if (error) throw error;
-      set({ transactions: data || [], isLoading: false });
+      set({ transactions: data as Transaction[] || [], isLoading: false });
     } catch (error) {
       console.error('[Treasury Store] Error al cargar:', error);
       set({ isLoading: false });
@@ -63,74 +65,109 @@ export const useTreasuryStore = create<TreasuryState>((set, get) => ({
         .single();
 
       if (error) throw error;
-      set((state) => ({ transactions: [data, ...state.transactions] }));
+      set((state) => ({ transactions: [data as Transaction, ...state.transactions] }));
       return { success: true };
     } catch (error) {
-      console.error("Error al grabar en la base de datos:", error);
+      console.error("[Treasury Store] Error al grabar en la base de datos:", error);
+      throw error;
+    }
+  },
+
+  // 🔥 LA MAGIA DE LA EDICIÓN: Permite corregir cualquier error humano
+  updateTransaction: async (id, updates) => {
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .update(updates)
+        .eq('id', id);
+
+      if (error) throw error;
+
+      set((state) => ({
+        transactions: state.transactions.map((t) => 
+          t.id === id ? { ...t, ...updates } : t
+        )
+      }));
+    } catch (error) {
+      console.error('[Treasury Store] Error al actualizar:', error);
       throw error;
     }
   },
 
   deleteTransaction: async (id) => {
-    const { error } = await supabase.from('transactions').delete().eq('id', id);
-    if (error) throw error;
-    set((state) => ({ transactions: state.transactions.filter((t) => t.id !== id) }));
+    try {
+      const { error } = await supabase.from('transactions').delete().eq('id', id);
+      if (error) throw error;
+      set((state) => ({ transactions: state.transactions.filter((t) => t.id !== id) }));
+    } catch (error) {
+      console.error('[Treasury Store] Error al eliminar:', error);
+      throw error;
+    }
   },
 
   updateTransactionStatus: async (id, status) => {
-    const validStatus = status as 'PENDING' | 'COMPLETED' | 'CANCELLED';
-    const { error } = await supabase.from('transactions').update({ status: validStatus }).eq('id', id);
-    if (error) throw error;
-    set((state) => ({
-      transactions: state.transactions.map((t) => t.id === id ? { ...t, status: validStatus } : t)
-    }));
+    try {
+      const validStatus = status as 'PENDING' | 'COMPLETED' | 'CANCELLED';
+      const { error } = await supabase.from('transactions').update({ status: validStatus }).eq('id', id);
+      if (error) throw error;
+      set((state) => ({
+        transactions: state.transactions.map((t) => t.id === id ? { ...t, status: validStatus } : t)
+      }));
+    } catch (error) {
+      console.error('[Treasury Store] Error al cambiar estado:', error);
+      throw error;
+    }
   },
 
-  // LA MAGIA NUEVA: Resolutor de pagos parciales/totales
+  // LA MAGIA DE PAGOS PARCIALES (Intacta y brillando)
   resolvePayment: async (id, amountPaid, method) => {
-    const state = get();
-    const tx = state.transactions.find(t => t.id === id);
-    if (!tx) return;
+    try {
+      const state = get();
+      const tx = state.transactions.find(t => t.id === id);
+      if (!tx) return;
 
-    const remaining = tx.amount - amountPaid;
+      const remaining = tx.amount - amountPaid;
 
-    if (remaining <= 0) {
-      // PAGO TOTAL: Cambiamos estado y dónde entró la plata
-      const { error } = await supabase.from('transactions')
-        .update({ status: 'COMPLETED', paymentMethod: method }).eq('id', id);
-      if (error) throw error;
-      
-      set((state) => ({
-        transactions: state.transactions.map(t => 
-          t.id === id ? { ...t, status: 'COMPLETED', paymentMethod: method as any } : t
-        )
-      }));
-    } else {
-      // PAGO PARCIAL: Achicamos la deuda original...
-      const { error: updateError } = await supabase.from('transactions')
-        .update({ amount: remaining }).eq('id', id);
-      if (updateError) throw updateError;
+      if (remaining <= 0) {
+        // PAGO TOTAL
+        const { error } = await supabase.from('transactions')
+          .update({ status: 'COMPLETED', paymentMethod: method }).eq('id', id);
+        if (error) throw error;
+        
+        set((state) => ({
+          transactions: state.transactions.map(t => 
+            t.id === id ? { ...t, status: 'COMPLETED', paymentMethod: method as any } : t
+          )
+        }));
+      } else {
+        // PAGO PARCIAL
+        const { error: updateError } = await supabase.from('transactions')
+          .update({ amount: remaining }).eq('id', id);
+        if (updateError) throw updateError;
 
-      // ...y creamos un movimiento nuevo completado con la plata que entró
-      const { data: newTx, error: insertError } = await supabase.from('transactions').insert([{
-        amount: amountPaid,
-        description: tx.description + ' (Pago Parcial)',
-        type: tx.type,
-        category: tx.category,
-        date: new Date().toISOString(),
-        businessUnit: tx.businessUnit,
-        paymentMethod: method,
-        status: 'COMPLETED'
-      }]).select().single();
+        const { data: newTx, error: insertError } = await supabase.from('transactions').insert([{
+          amount: amountPaid,
+          description: tx.description + ' (Pago Parcial)',
+          type: tx.type,
+          category: tx.category,
+          date: new Date().toISOString(),
+          businessUnit: tx.businessUnit,
+          paymentMethod: method,
+          status: 'COMPLETED'
+        }]).select().single();
 
-      if (insertError) throw insertError;
+        if (insertError) throw insertError;
 
-      set((state) => ({
-        transactions: [
-          newTx,
-          ...state.transactions.map(t => t.id === id ? { ...t, amount: remaining } : t)
-        ]
-      }));
+        set((state) => ({
+          transactions: [
+            newTx as Transaction,
+            ...state.transactions.map(t => t.id === id ? { ...t, amount: remaining } : t)
+          ]
+        }));
+      }
+    } catch (error) {
+      console.error('[Treasury Store] Error al resolver pago:', error);
+      throw error;
     }
   }
 }));
