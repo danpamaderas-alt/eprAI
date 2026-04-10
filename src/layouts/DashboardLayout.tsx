@@ -3,6 +3,9 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import Swal from 'sweetalert2';
 
+// IMPORTAMOS NUESTRO INTERRUPTOR DE LUZ
+import { ThemeToggle } from '../components/ThemeToggle'; 
+
 const NAV_ITEMS = [
   { path: '/inicio', label: 'Inicio', icon: '📊' },
   { path: '/tesoreria', label: 'Tesorería', icon: '🏦' },
@@ -15,11 +18,10 @@ const NAV_ITEMS = [
 
 export const DashboardLayout = () => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // OPTIMIZACIÓN MÓVIL
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  // CRÍTICO CORREGIDO: Sincronización real con Supabase
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -52,12 +54,12 @@ export const DashboardLayout = () => {
   };
 
   return (
-    <div className="flex h-screen bg-slate-100 overflow-hidden relative">
+    <div className="flex h-screen bg-slate-100 dark:bg-slate-900 transition-colors duration-300 overflow-hidden relative">
       
       {/* BOTÓN HAMBURGUESA (Solo visible en móviles) */}
       <button 
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className="lg:hidden absolute top-4 left-4 z-50 p-2 bg-slate-900 text-white rounded-lg shadow-lg"
+        className="lg:hidden absolute top-4 left-4 z-50 p-2 bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-lg"
       >
         {isSidebarOpen ? '✕' : '☰'}
       </button>
@@ -83,7 +85,7 @@ export const DashboardLayout = () => {
             <NavLink
               key={path}
               to={path}
-              onClick={() => setIsSidebarOpen(false)} // Cierra el menú al navegar en móvil
+              onClick={() => setIsSidebarOpen(false)} 
               className={({ isActive }) => `
                 flex items-center gap-3 px-4 py-3.5 rounded-xl font-semibold transition-all duration-200
                 ${isActive 
@@ -129,8 +131,15 @@ export const DashboardLayout = () => {
         />
       )}
 
-      <main className="flex-1 overflow-y-auto relative scroll-smooth bg-slate-50">
-        <div className="p-4 lg:p-8 max-w-[1600px] mx-auto min-h-full">
+      {/* ÁREA PRINCIPAL CON SOPORTE PARA MODO OSCURO */}
+      <main className="flex-1 overflow-y-auto relative scroll-smooth bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
+        
+        {/* === ACÁ ESTÁ EL BOTÓN FLOTANTE MÁGICO === */}
+        <div className="absolute top-4 right-4 lg:top-8 lg:right-8 z-40">
+          <ThemeToggle />
+        </div>
+
+        <div className="p-4 pt-16 lg:p-8 max-w-[1600px] mx-auto min-h-full">
           <Outlet />
         </div>
       </main>

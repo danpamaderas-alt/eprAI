@@ -3,11 +3,12 @@ import { useOrderStore } from '../store/useOrderStore';
 import Swal from 'sweetalert2';
 import { OrderForm } from '../components/OrderForm';
 
+// Ajustamos los colores para que se vean bien tanto en claro como en oscuro
 const STATUS_COLORS: Record<string, string> = { 
-  PENDING: 'bg-rose-100 text-rose-700 border-rose-200', 
-  PARTIAL: 'bg-amber-100 text-amber-700 border-amber-200', 
-  DELIVERED: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  CANCELLED: 'bg-slate-100 text-slate-500 border-slate-200'
+  PENDING: 'bg-rose-100 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-900/50', 
+  PARTIAL: 'bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900/50', 
+  DELIVERED: 'bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/50',
+  CANCELLED: 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
 };
 
 const STATUS_LABELS: Record<string, string> = { 
@@ -21,7 +22,6 @@ export const OrdersDashboard = () => {
   const { orders = [], fetchOrders, addOrder, registerPartialDelivery } = useOrderStore();
   const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'PARTIAL' | 'DELIVERED'>('ALL');
   const [showForm, setShowForm] = useState(false);
-  
   const [orderToPrint, setOrderToPrint] = useState<any | null>(null);
 
   useEffect(() => {
@@ -60,7 +60,8 @@ export const OrdersDashboard = () => {
       inputAttributes: { min: '1', max: pendingQty.toString(), step: '1' },
       showCancelButton: true,
       confirmButtonText: 'Registrar',
-      confirmButtonColor: '#2563eb'
+      confirmButtonColor: '#2563eb',
+      customClass: { popup: 'dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-3xl' }
     });
 
     if (!qty || Number(qty) <= 0) return;
@@ -70,7 +71,8 @@ export const OrdersDashboard = () => {
       input: 'text',
       inputPlaceholder: 'Ej: Retirado por transporte...',
       showCancelButton: true,
-      confirmButtonText: 'Guardar'
+      confirmButtonText: 'Guardar',
+      customClass: { popup: 'dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-3xl' }
     });
 
     try {
@@ -79,10 +81,10 @@ export const OrdersDashboard = () => {
         notes: notes || `Se entregaron ${qty} un. de ${description}`,
         itemsDelivered: [{ itemId, variationId, quantity: Number(qty) }]
       });
-      Swal.fire('¡Registrado!', 'La entrega parcial ha sido guardada.', 'success');
+      Swal.fire({ icon: 'success', title: '¡Registrado!', text: 'La entrega parcial ha sido guardada.', customClass: { popup: 'dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-3xl' }});
     } catch (error) {
       console.error('[Orders Dashboard] Error en entrega parcial:', error);
-      Swal.fire('Error', 'Hubo un fallo al registrar la entrega.', 'error');
+      Swal.fire({ icon: 'error', title: 'Error', text: 'Hubo un fallo al registrar la entrega.', customClass: { popup: 'dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-3xl' }});
     }
   };
 
@@ -93,7 +95,6 @@ export const OrdersDashboard = () => {
 
   return (
     <>
-      {/* INYECCIÓN DE REGLAS DE ORO PARA IMPRESORA */}
       <style type="text/css" media="print">
         {`
           @page { size: A4; margin: 15mm; }
@@ -112,64 +113,66 @@ export const OrdersDashboard = () => {
         `}
       </style>
 
-      {/* ZONA DE PANTALLA NORMAL */}
       <div className="animate-in fade-in duration-500 space-y-6 print:hidden">
         
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        {/* ENCABEZADO */}
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm transition-colors duration-300">
           <div>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Hoja de Ruta</h1>
-            <p className="text-slate-500 text-sm font-medium uppercase tracking-widest mt-1">Control de Pedidos y Entregas</p>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight transition-colors">Hoja de Ruta</h1>
+            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium uppercase tracking-widest mt-1 transition-colors">Control de Pedidos y Entregas</p>
           </div>
           <button 
             onClick={() => setShowForm(true)}
-            className="px-6 py-3 bg-slate-900 hover:bg-blue-600 text-white rounded-xl font-black text-[11px] uppercase tracking-widest shadow-lg transition-all active:scale-95"
+            className="px-6 py-3 bg-slate-900 dark:bg-blue-600 hover:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-xl font-black text-[11px] uppercase tracking-widest shadow-lg transition-all active:scale-95"
           >
             Nuevo Pedido
           </button>
         </header>
 
-        <nav className="flex bg-slate-200/50 p-1 rounded-xl w-fit">
+        {/* FILTROS */}
+        <nav className="flex bg-slate-200/50 dark:bg-slate-800/50 p-1 rounded-xl w-fit transition-colors">
           {(['ALL', 'PENDING', 'PARTIAL', 'DELIVERED'] as const).map(tab => (
             <button 
               key={tab} 
               onClick={() => setFilter(tab)} 
-              className={`px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filter === tab ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              className={`px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filter === tab ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
             >
               {tab === 'ALL' ? 'TODOS' : STATUS_LABELS[tab].substring(2)}
             </button>
           ))}
         </nav>
 
+        {/* LISTADO DE PEDIDOS */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           {filteredOrders.length === 0 ? (
             <div className="col-span-full py-20 text-center opacity-30">
                <span className="text-6xl mb-4 block">🚚</span>
-               <p className="text-xs font-black uppercase tracking-widest text-slate-900">No hay pedidos registrados</p>
+               <p className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">No hay pedidos registrados</p>
             </div>
           ) : (
             filteredOrders.map(order => (
-              <div key={order.id} className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden flex flex-col hover:border-blue-200 transition-colors">
-                <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-start">
+              <div key={order.id} className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden flex flex-col hover:border-blue-200 dark:hover:border-blue-500/50 transition-colors duration-300">
+                <div className="p-6 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-start transition-colors">
                   
-                  {/* LADO IZQUIERDO: Info y Plata */}
+                  {/* LADO IZQUIERDO */}
                   <div>
-                    <span className="text-[9px] font-black uppercase text-blue-600 bg-blue-100 px-2 py-1 rounded-md mb-2 inline-block">
+                    <span className="text-[9px] font-black uppercase text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 px-2 py-1 rounded-md mb-2 inline-block transition-colors">
                       {order.businessUnit.replace('_', ' ')}
                     </span>
-                    <h3 className="text-xl font-black text-slate-900 leading-tight">{order.customerName}</h3>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase mt-1 italic">Vence: {new Date(order.dueDate).toLocaleDateString('es-AR')}</p>
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white leading-tight transition-colors">{order.customerName}</h3>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase mt-1 italic transition-colors">Vence: {new Date(order.dueDate).toLocaleDateString('es-AR')}</p>
                     
                     {/* PANEL FINANCIERO AUTOMÁTICO */}
-                    <div className="mt-3 flex items-center gap-3 border-t border-slate-200 pt-3">
-                      <div className="text-[10px] font-bold text-slate-500">Total: <span className="text-slate-900">${order.totalAmount || 0}</span></div>
-                      <div className="text-[10px] font-bold text-slate-500">Seña: <span className="text-emerald-600">${order.advancePayment || 0}</span></div>
+                    <div className="mt-3 flex items-center gap-3 border-t border-slate-200 dark:border-slate-700 pt-3 transition-colors">
+                      <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Total: <span className="text-slate-900 dark:text-white transition-colors">${order.totalAmount || 0}</span></div>
+                      <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Seña: <span className="text-emerald-600 dark:text-emerald-400 transition-colors">${order.advancePayment || 0}</span></div>
                       
                       {((order.totalAmount || 0) - (order.advancePayment || 0)) > 0 ? (
-                        <div className="text-[10px] font-black text-rose-600 bg-rose-100 px-2 py-1 rounded-md border border-rose-200 animate-pulse shadow-sm">
+                        <div className="text-[10px] font-black text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/30 px-2 py-1 rounded-md border border-rose-200 dark:border-rose-800 animate-pulse shadow-sm transition-colors">
                           DEBE: ${ (order.totalAmount || 0) - (order.advancePayment || 0) }
                         </div>
                       ) : (order.totalAmount > 0) ? (
-                        <div className="text-[10px] font-black text-emerald-600 bg-emerald-100 px-2 py-1 rounded-md border border-emerald-200 shadow-sm">
+                        <div className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30 px-2 py-1 rounded-md border border-emerald-200 dark:border-emerald-800 shadow-sm transition-colors">
                           PAGADO TOTAL
                         </div>
                       ) : null}
@@ -178,12 +181,12 @@ export const OrdersDashboard = () => {
 
                   {/* LADO DERECHO: Botones */}
                   <div className="flex flex-col items-end gap-2">
-                    <span className={`px-3 py-1.5 text-[10px] font-black rounded-lg border shadow-sm ${STATUS_COLORS[order.status]}`}>
+                    <span className={`px-3 py-1.5 text-[10px] font-black rounded-lg border shadow-sm transition-colors ${STATUS_COLORS[order.status]}`}>
                       {STATUS_LABELS[order.status]}
                     </span>
                     <button 
                       onClick={() => handlePrintRemito(order)}
-                      className="flex items-center gap-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-[10px] font-bold uppercase transition-colors shadow-sm"
+                      className="flex items-center gap-1 px-3 py-1.5 bg-slate-800 dark:bg-slate-700 hover:bg-slate-700 dark:hover:bg-slate-600 text-white rounded-lg text-[10px] font-bold uppercase transition-colors shadow-sm"
                     >
                       🖨️ Remito
                     </button>
@@ -194,7 +197,7 @@ export const OrdersDashboard = () => {
                 <div className="p-6 space-y-6 flex-1">
                   {order.items.map((item: any) => (
                     <div key={item.id} className="space-y-3">
-                      <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest border-b border-slate-100 pb-2">{item.productName}</h4>
+                      <h4 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest border-b border-slate-100 dark:border-slate-700 pb-2 transition-colors">{item.productName}</h4>
                       <div className="space-y-2">
                         {item.variations.map((variation: any) => {
                           const delivered = variation.quantityDelivered || 0;
@@ -203,13 +206,13 @@ export const OrdersDashboard = () => {
                           const desc = `Talle ${variation.size} - ${variation.color}`;
 
                           return (
-                            <div key={variation.id} className="bg-slate-50 border border-slate-100 p-3 rounded-xl flex items-center justify-between gap-4">
+                            <div key={variation.id} className="bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700 p-3 rounded-xl flex items-center justify-between gap-4 transition-colors">
                               <div className="flex-1">
                                 <div className="flex justify-between items-end mb-2">
-                                  <p className="text-[10px] font-bold text-slate-700 uppercase">{desc}</p>
-                                  <span className="text-[10px] font-black text-slate-900">{delivered} <span className="text-slate-400">/ {variation.quantityOrdered}</span></span>
+                                  <p className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase transition-colors">{desc}</p>
+                                  <span className="text-[10px] font-black text-slate-900 dark:text-white transition-colors">{delivered} <span className="text-slate-400 dark:text-slate-500">/ {variation.quantityOrdered}</span></span>
                                 </div>
-                                <div className="w-full bg-slate-200 rounded-full h-1.5">
+                                <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 transition-colors">
                                   <div className={`h-1.5 rounded-full transition-all duration-500 ${progress >= 100 ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${progress}%` }}></div>
                                 </div>
                               </div>
@@ -217,12 +220,12 @@ export const OrdersDashboard = () => {
                               {pending > 0 ? (
                                 <button 
                                   onClick={() => handleDeliverVariation(order.id, item.id, variation.id, pending, desc)}
-                                  className="px-4 py-2 bg-slate-900 hover:bg-blue-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest transition-all"
+                                  className="px-4 py-2 bg-slate-900 dark:bg-slate-700 hover:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-lg text-[9px] font-black uppercase tracking-widest transition-all"
                                 >
                                   Entregar
                                 </button>
                               ) : (
-                                <span className="px-4 py-2 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-lg text-[9px] font-black uppercase tracking-widest">
+                                <span className="px-4 py-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors">
                                   OK
                                 </span>
                               )}
@@ -238,8 +241,9 @@ export const OrdersDashboard = () => {
           )}
         </div>
 
+        {/* MODAL FORMULARIO */}
         {showForm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm p-4 transition-colors">
             <OrderForm 
               onSubmitSuccess={handleCreateOrder} 
               onCancel={() => setShowForm(false)} 
@@ -248,10 +252,9 @@ export const OrdersDashboard = () => {
         )}
       </div>
 
-      {/* ZONA DE IMPRESIÓN */}
+      {/* ZONA DE IMPRESIÓN (Queda intacta porque el papel siempre es blanco) */}
       {orderToPrint && (
         <div className="hidden print:block w-full bg-white text-black p-4">
-          
           <div className="flex justify-between items-start border-b-2 border-black pb-6 mb-8">
             <div>
               <h1 className="text-5xl font-black tracking-tighter uppercase" style={{ fontFamily: 'serif' }}>RAÍCES</h1>
@@ -308,7 +311,6 @@ export const OrdersDashboard = () => {
               </p>
             </div>
           </div>
-
         </div>
       )}
     </>

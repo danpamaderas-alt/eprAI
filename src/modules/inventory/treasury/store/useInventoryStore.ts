@@ -1,93 +1,71 @@
 import { create } from 'zustand';
 import { supabase } from '../../../../lib/supabase';
-import { type Product, type ProductFormValues } from '../schemas/productSchema';
 
-interface InventoryState {
-  products: Product[];
-  isLoading: boolean;
-  fetchProducts: () => Promise<void>;
-  addProduct: (data: ProductFormValues) => Promise<void>;
-  deleteProduct: (id: string) => Promise<void>;
-  updateProductStock: (id: string, newStock: number) => Promise<void>;
+export interface Variation { id: string; size: string; color: string; stock: number; }
+
+export interface Product {
+  id: string; sku: string; name: string; category: string; price: number;
+  cost?: number; notes?: string; location?: string; stock: number;
+  minStock: number; status: 'ACTIVE' | 'LOW_STOCK' | 'OUT_OF_STOCK';
+  variations?: Variation[];
 }
 
-const determineStatus = (stock: number, minStock: number): 'ACTIVE' | 'LOW_STOCK' | 'OUT_OF_STOCK' => {
-  if (stock <= 0) return 'OUT_OF_STOCK';
-  if (stock <= minStock) return 'LOW_STOCK';
-  return 'ACTIVE';
-};
+interface InventoryStore {
+  products: Product[]; isLoading: boolean;
+  fetchProducts: () => Promise<void>;
+  addProduct: (productData: any) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
+  updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
+  updateProductStock: (id: string, newStock: number, variationId?: string) => Promise<void>;
+}
 
-export const useInventoryStore = create<InventoryState>((set, get) => ({
-  products: [],
-  isLoading: false,
+export const useInventoryStore = create<InventoryStore>((set, get) => ({
+  products: [], isLoading: false,
 
   fetchProducts: async () => {
     set({ isLoading: true });
     try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        // IMPORTANTE: Asegúrate que en SQL se llame "createdAt" con comillas
-        .order('createdAt', { ascending: false }); 
-
+      // AQUÍ ESTÁ EL createdAt CORREGIDO
+      const { data, error } = await supabase.from('products').select('*').order('createdAt', { ascending: false });
       if (error) throw error;
-      set({ products: data as Product[], isLoading: false });
-    } catch (error) {
-      set({ isLoading: false });
-      console.error('[Inventory Store] Error al cargar:', error);
-    }
+      set({ products: data as Product[] });
+    } catch (error) { console.error(error); } finally { set({ isLoading: false }); }
   },
 
   addProduct: async (productData) => {
-    // Calculamos el stock sumando las variantes
-    const totalStock = productData.variations?.length > 0 
-      ? productData.variations.reduce((acc, v) => acc + (Number(v.stock) || 0), 0)
-      : (productData.stock || 0);
-
-    const status = determineStatus(totalStock, productData.minStock);
-
-    const { data, error } = await supabase
-      .from('products')
-      .insert([{ 
-        sku: productData.sku,
-        name: productData.name,
-        category: productData.category,
-        price: productData.price,
-        minStock: productData.minStock, // Nombre exacto del SQL
-        stock: totalStock, 
-        status,
-        variations: productData.variations 
-      }])
-      .select()
-      .single();
-
+    const { data, error } = await supabase.from('products').insert([productData]).select().single();
     if (error) throw error;
     set((state) => ({ products: [data as Product, ...state.products] }));
+  },
+
+  updateProduct: async (id, updates) => {
+    const { error } = await supabase.from('products').update(updates).eq('id', id);
+    if (error) throw error;
+    set((state) => ({ products: state.products.map(p => p.id === id ? { ...p, ...updates } : p) }));
+  },
+
+  updateProductStock: async (id, newStock, variationId) => {
+    const product = get().products.find(p => p.id === id);
+    if (!product) return;
+
+    let updatedVariations = product.variations;
+    let totalStock = newStock;
+
+    if (variationId && product.variations) {
+      updatedVariations = product.variations.map(v => v.id === variationId ? { ...v, stock: newStock } : v);
+      totalStock = updatedVariations.reduce((acc, v) => acc + v.stock, 0);
+    }
+
+    const newStatus = totalStock <= 0 ? 'OUT_OF_STOCK' : totalStock <= product.minStock ? 'LOW_STOCK' : 'ACTIVE';
+    const { error } = await supabase.from('products').update({ stock: totalStock, status: newStatus, variations: updatedVariations }).eq('id', id);
+    if (error) throw error;
+    
+    set((state) => ({ products: state.products.map(p => p.id === id ? { ...p, stock: totalStock, status: newStatus, variations: updatedVariations } : p) }));
   },
 
   deleteProduct: async (id) => {
     const { error } = await supabase.from('products').delete().eq('id', id);
     if (error) throw error;
     set((state) => ({ products: state.products.filter(p => p.id !== id) }));
-  },
-
-  updateProductStock: async (id, newStock) => {
-    const product = get().products.find(p => p.id === id);
-    if (!product) return;
-
-    const newStatus = determineStatus(newStock, product.minStock);
-
-    const { error } = await supabase
-      .from('products')
-      .update({ stock: newStock, status: newStatus })
-      .eq('id', id);
-
-    if (error) throw error;
-
-    set((state) => ({
-      products: state.products.map(p => 
-        p.id === id ? { ...p, stock: newStock, status: newStatus } : p
-      )
-    }));
   }
 }));

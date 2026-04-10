@@ -27,7 +27,6 @@ export const TreasuryDashboard = () => {
     fetchTransactions();
   }, [fetchTransactions]);
 
-  // OPTIMIZACIÓN CRÍTICA: Iteración en O(n) estricta usando bucle nativo
   const balances = useMemo(() => {
     const calc = { TOTAL: 0, MERCADO_PAGO: 0, BANCO: 0, EFECTIVO: 0, PENDIENTE: 0 };
     
@@ -39,36 +38,27 @@ export const TreasuryDashboard = () => {
 
       if (tx.status === 'PENDING') {
         calc.PENDIENTE += val;
-        continue; // Cortocircuito de evaluación: Si es pendiente, saltamos a la siguiente iteración
+        continue; 
       }
 
       calc.TOTAL += val;
       
-      // Ramificación excluyente: Una vez hallado, no se evalúan las demás cuentas
       switch (tx.paymentMethod) {
-        case 'MERCADO_PAGO':
-          calc.MERCADO_PAGO += val;
-          break;
-        case 'BANCO':
-          calc.BANCO += val;
-          break;
-        case 'EFECTIVO':
-          calc.EFECTIVO += val;
-          break;
+        case 'MERCADO_PAGO': calc.MERCADO_PAGO += val; break;
+        case 'BANCO': calc.BANCO += val; break;
+        case 'EFECTIVO': calc.EFECTIVO += val; break;
       }
     }
     
     return calc;
   }, [transactions]);
 
-  // CRÍTICO CORREGIDO: Manejador asíncrono con control de fallos
   const handleAddTransaction = async (data: any) => {
     try {
       await addTransaction(data);
       setShowForm(false);
     } catch (error) {
       console.error('[Treasury Error] Falla al registrar movimiento:', error);
-      // El store o este catch deben emitir una alerta visual estricta (Swal).
     }
   };
 
@@ -77,8 +67,10 @@ export const TreasuryDashboard = () => {
       
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight italic">Tesorería</h1>
-          <p className="text-slate-500 text-sm font-medium uppercase tracking-widest mt-1">Control de flujos y conciliación bancaria.</p>
+          {/* MODO OSCURO: dark:text-white */}
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight italic transition-colors">Tesorería</h1>
+          {/* MODO OSCURO: dark:text-slate-400 */}
+          <p className="text-slate-500 dark:text-slate-400 text-sm font-medium uppercase tracking-widest mt-1 transition-colors">Control de flujos y conciliación bancaria.</p>
         </div>
         {!showForm && (
           <button 
@@ -101,33 +93,36 @@ export const TreasuryDashboard = () => {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-slate-900 p-6 rounded-2xl shadow-xl text-white relative overflow-hidden group border-l-8 border-blue-500">
+        {/* TARJETA TOTAL: Ya era oscura, la hacemos apenitas más profunda con dark:bg-slate-950 */}
+        <div className="bg-slate-900 dark:bg-slate-950 p-6 rounded-2xl shadow-xl text-white relative overflow-hidden group border-l-8 border-blue-500 transition-colors duration-300">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Liquidez Real</p>
           <h3 className="text-3xl font-black">{formatCurrency(balances.TOTAL)}</h3>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm border-l-8 border-sky-400">
+        {/* TARJETAS COMUNES: Pasan de bg-white a dark:bg-slate-800 */}
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm border-l-8 border-sky-400 transition-colors duration-300">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Mercado Pago</p>
-          <h3 className="text-2xl font-black text-slate-800">{formatCurrency(balances.MERCADO_PAGO)}</h3>
+          <h3 className="text-2xl font-black text-slate-800 dark:text-white">{formatCurrency(balances.MERCADO_PAGO)}</h3>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm border-l-8 border-emerald-500">
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm border-l-8 border-emerald-500 transition-colors duration-300">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Banco Galicia</p>
-          <h3 className="text-2xl font-black text-slate-800">{formatCurrency(balances.BANCO)}</h3>
+          <h3 className="text-2xl font-black text-slate-800 dark:text-white">{formatCurrency(balances.BANCO)}</h3>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm border-l-8 border-amber-500">
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm border-l-8 border-amber-500 transition-colors duration-300">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Caja Fuerte (EFE)</p>
-          <h3 className="text-2xl font-black text-slate-800">{formatCurrency(balances.EFECTIVO)}</h3>
+          <h3 className="text-2xl font-black text-slate-800 dark:text-white">{formatCurrency(balances.EFECTIVO)}</h3>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/30">
+      {/* CONTENEDOR DE LA TABLA: Pasa a dark:bg-slate-800 */}
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors duration-300">
+        <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/30 dark:bg-slate-800/80 transition-colors duration-300">
           <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.15em]">Libro Mayor Detallado</h2>
           
           {balances.PENDIENTE !== 0 && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 border border-rose-100 text-rose-600 rounded-lg animate-pulse" role="alert">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-lg animate-pulse transition-colors" role="alert">
               <span className="text-[10px] font-black uppercase">Pendientes: {formatCurrency(balances.PENDIENTE)}</span>
             </div>
           )}

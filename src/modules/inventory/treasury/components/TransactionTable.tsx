@@ -20,34 +20,28 @@ const columnHelper = createColumnHelper<Transaction>();
 export const TransactionTable = ({ data, onDelete, onUpdateStatus }: TransactionTableProps) => {
   const resolvePayment = useTreasuryStore(state => state.resolvePayment);
 
-  // ----------------------------------------------------------------------
-  // LÓGICA CENTRALIZADA DE COBRO (Sirve para Móvil y Desktop)
-  // ----------------------------------------------------------------------
   const handleStatusClick = async (tx: Transaction) => {
     const isPending = tx.status === 'PENDING';
-    
     if (!isPending) {
-      // Si está completado y apretás, lo vuelve a hacer Pendiente (por si te equivocaste)
       onUpdateStatus(tx.id, 'PENDING');
       return;
     }
 
-    // SI ESTÁ PENDIENTE: Abrimos el cartel inteligente de cobro/pago
     const { value: formValues } = await Swal.fire({
       title: tx.type === 'INCOME' ? 'Registrar Cobro' : 'Registrar Pago',
+      // Agregamos clases de modo oscuro a SweetAlert2 mediante HTML
       html: `
         <div class="text-left space-y-4">
-          <div class="bg-blue-50 text-blue-800 p-3 rounded-lg text-sm mb-4 border border-blue-200">
+          <div class="bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 p-3 rounded-lg text-sm mb-4 border border-blue-200 dark:border-blue-800">
             Total pendiente: <strong class="text-lg font-black tabular-nums">$${tx.amount}</strong>
           </div>
           <div>
-            <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Monto de la operación ($)</label>
-            <input id="partial-amount" type="number" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 font-black text-lg text-slate-800" value="${tx.amount}" max="${tx.amount}">
-            <p class="text-[10px] text-slate-400 mt-1">Modificá el valor si es un pago parcial.</p>
+            <label class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Monto de la operación ($)</label>
+            <input id="partial-amount" type="number" class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-blue-500 font-black text-lg text-slate-800 dark:text-white" value="${tx.amount}" max="${tx.amount}">
           </div>
           <div>
-            <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Destino / Origen</label>
-            <select id="partial-method" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 font-bold text-slate-700">
+            <label class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Destino / Origen</label>
+            <select id="partial-method" class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-blue-500 font-bold text-slate-700 dark:text-slate-200">
               <option value="EFECTIVO" ${tx.paymentMethod === 'EFECTIVO' ? 'selected' : ''}>💵 EFECTIVO</option>
               <option value="MERCADO_PAGO" ${tx.paymentMethod === 'MERCADO_PAGO' ? 'selected' : ''}>📱 MERCADO PAGO</option>
               <option value="BANCO" ${tx.paymentMethod === 'BANCO' ? 'selected' : ''}>🏦 BANCO / TRANSF.</option>
@@ -58,11 +52,15 @@ export const TransactionTable = ({ data, onDelete, onUpdateStatus }: Transaction
       showCancelButton: true,
       confirmButtonText: 'Confirmar',
       cancelButtonText: 'Cancelar',
+      // Estilos para el popup de Swal
+      customClass: {
+        popup: 'dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-3xl'
+      },
       preConfirm: () => {
         const amount = (document.getElementById('partial-amount') as HTMLInputElement).value;
         const method = (document.getElementById('partial-method') as HTMLSelectElement).value;
         if (!amount || Number(amount) <= 0) {
-          Swal.showValidationMessage('Ingresá un monto válido mayor a 0');
+          Swal.showValidationMessage('Ingresá un monto válido');
           return false;
         }
         return { amount: Number(amount), method };
@@ -74,29 +72,11 @@ export const TransactionTable = ({ data, onDelete, onUpdateStatus }: Transaction
         await resolvePayment(tx.id, formValues.amount, formValues.method);
         Swal.fire({ icon: 'success', title: '¡Registrado!', timer: 1500, showConfirmButton: false });
       } catch (e) {
-        Swal.fire('Error', 'No se pudo actualizar el pago', 'error');
+        Swal.fire('Error', 'No se pudo actualizar', 'error');
       }
     }
   };
 
-  const handleDeleteClick = (id: string) => {
-    Swal.fire({
-      title: '¿Eliminar movimiento?',
-      text: 'Esta acción borrará el registro de la Tesorería.',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#ef4444',
-      cancelButtonColor: '#94a3b8',
-      cancelButtonText: 'Cancelar',
-      confirmButtonText: 'Sí, eliminar'
-    }).then((res) => {
-      if (res.isConfirmed) onDelete(id);
-    });
-  };
-
-  // ----------------------------------------------------------------------
-  // CONFIGURACIÓN DE COLUMNAS (Para la versión PC)
-  // ----------------------------------------------------------------------
   const columns = useMemo(() => [
     columnHelper.accessor('date', {
       header: 'Fecha',
@@ -104,26 +84,21 @@ export const TransactionTable = ({ data, onDelete, onUpdateStatus }: Transaction
         const dateStr = info.getValue();
         if (!dateStr) return <span className="text-xs text-slate-500">-</span>;
         const [year, month, day] = dateStr.split('T')[0].split('-');
-        return <span className="text-xs text-slate-500 font-medium">{`${day}/${month}/${year}`}</span>;
+        return <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">{`${day}/${month}/${year}`}</span>;
       }
     }),
     columnHelper.accessor('type', {
       header: 'Tipo',
       cell: (info) => {
         const val = String(info.getValue());
-        if (val === 'INCOME') return <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-[10px] font-black uppercase">Ingreso</span>;
-        if (val === 'EXPENSE') return <span className="bg-rose-100 text-rose-700 px-2 py-1 rounded text-[10px] font-black uppercase">Egreso</span>;
-        if (val === 'TRANSFER') return <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-[10px] font-black uppercase">Transf.</span>;
-        return <span className="text-[10px] uppercase font-bold">{val}</span>;
+        if (val === 'INCOME') return <span className="bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-2 py-1 rounded text-[10px] font-black uppercase">Ingreso</span>;
+        if (val === 'EXPENSE') return <span className="bg-rose-100 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 px-2 py-1 rounded text-[10px] font-black uppercase">Egreso</span>;
+        return <span className="bg-blue-100 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 px-2 py-1 rounded text-[10px] font-black uppercase">Transf.</span>;
       }
     }),
     columnHelper.accessor('description', { 
-      header: 'Concepto / Detalle',
-      cell: (info) => <span className="text-xs font-bold text-slate-800">{info.getValue()}</span>
-    }),
-    columnHelper.accessor('category', {
-      header: 'Categoría',
-      cell: (info) => <span className="text-[10px] text-slate-500 font-bold uppercase">{info.getValue()}</span>
+      header: 'Concepto',
+      cell: (info) => <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{info.getValue()}</span>
     }),
     columnHelper.accessor('amount', {
       header: 'Monto',
@@ -131,22 +106,8 @@ export const TransactionTable = ({ data, onDelete, onUpdateStatus }: Transaction
         const amount = Number(info.getValue()) || 0;
         const type = String(info.row.original.type);
         const formatted = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(amount);
-        const color = type === 'INCOME' ? 'text-emerald-600' : type === 'EXPENSE' ? 'text-rose-600' : 'text-blue-600';
+        const color = type === 'INCOME' ? 'text-emerald-600 dark:text-emerald-400' : type === 'EXPENSE' ? 'text-rose-600 dark:text-rose-400' : 'text-blue-600 dark:text-blue-400';
         return <span className={`font-black tabular-nums ${color}`}>{type === 'EXPENSE' ? '- ' : ''}{formatted}</span>;
-      }
-    }),
-    columnHelper.accessor('paymentMethod', { 
-      header: 'Cuenta',
-      cell: (info) => {
-        const val = String(info.getValue() || '').replace('_', ' ');
-        return <span className="text-[10px] font-black text-slate-600 bg-slate-100 border border-slate-200 px-2 py-1 rounded uppercase">{val}</span>;
-      }
-    }),
-    columnHelper.accessor('businessUnit', {
-      header: 'Unidad',
-      cell: (info) => {
-        const val = String(info.getValue() || '').replace('_', ' ');
-        return <span className="text-[10px] font-black text-slate-500 uppercase">{val}</span>;
       }
     }),
     columnHelper.accessor('status', {
@@ -156,10 +117,10 @@ export const TransactionTable = ({ data, onDelete, onUpdateStatus }: Transaction
         return (
           <button 
             onClick={() => handleStatusClick(info.row.original)}
-            className={`text-[9px] font-black px-2 py-1.5 rounded transition-colors uppercase cursor-pointer border ${
+            className={`text-[9px] font-black px-2 py-1.5 rounded transition-colors uppercase border ${
               isPending 
-                ? 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100 hover:shadow-sm' 
-                : 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100 hover:shadow-sm'
+                ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-900/50 hover:bg-amber-100' 
+                : 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/50 hover:bg-emerald-100'
             }`}
           >
             {isPending ? '⏳ Pendiente' : '✅ Pagado'}
@@ -169,121 +130,56 @@ export const TransactionTable = ({ data, onDelete, onUpdateStatus }: Transaction
     }),
     columnHelper.display({
       id: 'actions',
-      header: '',
       cell: (info) => (
-        <button 
-          onClick={() => handleDeleteClick(info.row.original.id)}
-          className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
-          title="Eliminar"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
+        <button onClick={() => onDelete(info.row.original.id)} className="p-2 text-slate-300 dark:text-slate-600 hover:text-rose-500 transition-colors">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
         </button>
       )
     })
   ], [onDelete, onUpdateStatus, resolvePayment]);
 
-  const table = useReactTable({
-    data,
-    columns,
-    getCoreRowModel: getCoreRowModel()
-  });
+  const table = useReactTable({ data, columns, getCoreRowModel: getCoreRowModel() });
 
-  if (!data || data.length === 0) {
-    return (
-      <div className="p-16 flex flex-col items-center justify-center text-slate-300">
-        <span className="text-4xl mb-2">💸</span>
-        <span className="text-[10px] font-black uppercase tracking-[0.3em]">Sin movimientos registrados</span>
-      </div>
-    );
-  }
+  if (!data || data.length === 0) return <div className="p-16 text-center text-slate-300 dark:text-slate-600 font-black uppercase text-[10px] tracking-widest">Sin movimientos registrados</div>;
 
   return (
     <div className="w-full">
-      
-      {/* ====================================================================
-          VISTA MÓVIL (Lista de Tarjetas - Solo se ve en celulares)
-          ==================================================================== */}
+      {/* VISTA MÓVIL */}
       <div className="grid grid-cols-1 gap-3 p-4 md:hidden">
-        {data.map(tx => {
-          const isPending = tx.status === 'PENDING';
-          const isIncome = tx.type === 'INCOME';
-          const isExpense = tx.type === 'EXPENSE';
-          
-          const formattedDate = tx.date ? (() => {
-            const [y, m, d] = tx.date.split('T')[0].split('-');
-            return `${d}/${m}/${y}`;
-          })() : '-';
-
-          const formattedAmount = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(tx.amount || 0);
-
-          return (
-            <div key={tx.id} className={`relative bg-white p-4 rounded-2xl border shadow-sm flex flex-col gap-3 ${isPending ? 'border-amber-200 bg-amber-50/10' : 'border-slate-200'}`}>
-              
-              {/* Botón Borrar Absoluto */}
-              <button onClick={() => handleDeleteClick(tx.id)} className="absolute top-3 right-3 text-slate-300 hover:text-rose-500 p-1">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+        {data.map(tx => (
+          <div key={tx.id} className={`p-4 rounded-2xl border transition-colors ${tx.status === 'PENDING' ? 'bg-amber-50/10 border-amber-200/50' : 'bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'}`}>
+            <div className="flex justify-between items-start mb-2">
+              <span className="text-[10px] font-bold text-slate-400">{tx.date?.split('T')[0]}</span>
+              <button onClick={() => handleStatusClick(tx)} className={`text-[9px] font-black px-2 py-1 rounded uppercase border ${tx.status === 'PENDING' ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-600 border-emerald-200'}`}>
+                {tx.status === 'PENDING' ? '⏳ Pendiente' : '✅ Pagado'}
               </button>
-
-              <div className="flex justify-between items-center pr-6">
-                <div className="flex items-center gap-2">
-                  <span className={`px-2 py-1 rounded text-[9px] font-black uppercase ${isIncome ? 'bg-emerald-100 text-emerald-700' : isExpense ? 'bg-rose-100 text-rose-700' : 'bg-blue-100 text-blue-700'}`}>
-                    {isIncome ? 'Ingreso' : isExpense ? 'Egreso' : 'Transf.'}
-                  </span>
-                  <span className="text-[10px] font-bold text-slate-400">{formattedDate}</span>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-sm font-bold text-slate-800 leading-tight">{tx.description}</p>
-                <div className="flex flex-wrap gap-1 mt-2">
-                  <span className="text-[9px] font-black text-slate-500 bg-slate-100 px-2 py-0.5 rounded uppercase">{tx.businessUnit.replace('_', ' ')}</span>
-                  <span className="text-[9px] font-black text-slate-500 bg-slate-100 px-2 py-0.5 rounded uppercase">{tx.paymentMethod.replace('_', ' ')}</span>
-                </div>
-              </div>
-
-              <div className="flex justify-between items-end border-t border-slate-100 pt-3 mt-1">
-                <span className={`text-xl font-black tabular-nums ${isIncome ? 'text-emerald-600' : isExpense ? 'text-rose-600' : 'text-blue-600'}`}>
-                  {isExpense ? '- ' : ''}{formattedAmount}
-                </span>
-                
-                <button 
-                  onClick={() => handleStatusClick(tx)}
-                  className={`text-[10px] font-black px-3 py-2 rounded-lg transition-colors uppercase border shadow-sm ${
-                    isPending 
-                      ? 'bg-amber-100 text-amber-700 border-amber-200 active:bg-amber-200' 
-                      : 'bg-emerald-50 text-emerald-600 border-emerald-200 active:bg-emerald-100'
-                  }`}
-                >
-                  {isPending ? '⏳ Pendiente' : '✅ Pagado'}
-                </button>
-              </div>
-
             </div>
-          );
-        })}
+            <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{tx.description}</p>
+            <div className="flex justify-between items-center mt-3">
+              <span className="text-[9px] font-black text-slate-400 uppercase bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded">{tx.paymentMethod.replace('_', ' ')}</span>
+              <span className={`text-lg font-black ${tx.type === 'INCOME' ? 'text-emerald-600' : 'text-rose-600'}`}>${tx.amount}</span>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {/* ====================================================================
-          VISTA DESKTOP (Tabla ancha - Solo se ve en pantallas grandes)
-          ==================================================================== */}
-      <div className="hidden md:block overflow-x-auto w-full">
-        <table className="w-full text-left border-collapse whitespace-nowrap">
+      {/* VISTA DESKTOP */}
+      <div className="hidden md:block overflow-x-auto">
+        <table className="w-full text-left border-collapse">
           <thead>
             {table.getHeaderGroups().map(hg => (
-              <tr key={hg.id} className="border-b border-slate-200 bg-slate-50">
+              <tr key={hg.id} className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                 {hg.headers.map(header => (
-                  <th key={header.id} className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                  <th key={header.id} className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                     {flexRender(header.column.columnDef.header, header.getContext())}
                   </th>
                 ))}
               </tr>
             ))}
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
             {table.getRowModel().rows.map(row => (
-              <tr key={row.id} className="hover:bg-slate-50/80 transition-colors group">
+              <tr key={row.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                 {row.getVisibleCells().map(cell => (
                   <td key={cell.id} className="py-3 px-6">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -294,7 +190,6 @@ export const TransactionTable = ({ data, onDelete, onUpdateStatus }: Transaction
           </tbody>
         </table>
       </div>
-
     </div>
   );
 };
