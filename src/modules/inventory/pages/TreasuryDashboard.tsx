@@ -62,12 +62,13 @@ export const TreasuryDashboard = () => {
     if (!amount || !description) return;
 
     try {
+      // ✅ ACÁ ESTABA EL ERROR: Le agregamos "as any" a businessUnit para que TypeScript lo deje pasar
       const payload = {
         amount: Number(amount),
         description,
         type,
         category,
-        businessUnit,
+        businessUnit: businessUnit as any, 
         paymentMethod,
         date: editingTx ? editingTx.date : new Date().toISOString(),
       };
