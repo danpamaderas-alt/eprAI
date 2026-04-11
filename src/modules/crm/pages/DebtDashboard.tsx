@@ -46,6 +46,7 @@ export const DebtDashboard = () => {
       setIsFormOpen(false);
       setNewCustomerId(''); setNewAmount(''); setNewDesc('');
     } catch (error) {
+      console.error(error); // <-- Agregás esta línea
       Swal.fire('Error', 'No se pudo crear la deuda', 'error');
     }
   };
@@ -68,6 +69,7 @@ export const DebtDashboard = () => {
       setSelectedDebt(null);
       setPayAmount('');
     } catch (error) {
+      console.error(error); // <-- Agregás esta línea
       Swal.fire('Error', 'No se pudo procesar el pago', 'error');
     }
   };
