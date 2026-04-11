@@ -19,11 +19,14 @@ interface Product {
   sku: string;
   stock: number; 
   price: number;
+  variations?: { id: string; size: string; color: string; stock: number }[]; // AGREGADO: Soporte para talles
 }
 
 interface CartItem {
   product: Product;
   quantity: number;
+  variationId?: string; // AGREGADO: Para saber qué talle eligió
+  variationLabel?: string; // AGREGADO: Para mostrar el nombre del talle en el ticket
 }
 
 interface SaleTicket {
@@ -42,7 +45,6 @@ export const SalesDashboard = () => {
   const { customers, fetchCustomers } = useCrmStore();
   
   const [searchTerm, setSearchTerm] = useState('');
-  // ADVERTENCIA CORREGIDA: Diferimiento de estado para evitar bloqueos del UI thread
   const deferredSearchTerm = useDeferredValue(searchTerm);
   
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -51,12 +53,14 @@ export const SalesDashboard = () => {
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [lastSale, setLastSale] = useState<SaleTicket | null>(null);
 
+  // NUEVO: Estado para abrir la ventanita de talles
+  const [modalProduct, setModalProduct] = useState<Product | null>(null);
+
   useEffect(() => {
     fetchProducts();
     fetchCustomers();
   }, [fetchProducts, fetchCustomers]);
 
-  // Filtrado vinculado al valor diferido, asegurando 60 FPS al teclear
   const filteredProducts = useMemo(() => {
     const term = deferredSearchTerm.toLowerCase().trim();
     if (!term) return products;
@@ -66,32 +70,67 @@ export const SalesDashboard = () => {
     );
   }, [products, deferredSearchTerm]);
 
-  // OPTIMIZACIÓN: Tipado estricto en lugar de 'any'
-  const addToCart = (product: Product) => {
-    const stockDisponible = Number(product.stock) || 0;
-    if (stockDisponible <= 0) {
+  // NUEVA FUNCIÓN: Decide si abre el modal o agrega directo al carrito
+  const handleProductClick = (product: Product) => {
+    const totalStock = product.variations?.length 
+      ? product.variations.reduce((acc, v) => acc + v.stock, 0) 
+      : (Number(product.stock) || 0);
+
+    if (totalStock <= 0) {
       Swal.fire({ icon: 'error', title: 'Sin Stock', text: 'No hay unidades.', timer: 1500, showConfirmButton: false });
       return;
     }
 
+    if (product.variations && product.variations.length > 0) {
+      setModalProduct(product); // Abre la ventana de talles
+    } else {
+      addToCart(product); // Agrega directo si no tiene talles
+    }
+  };
+
+  // FUNCIÓN ACTUALIZADA: Ahora recibe el talle (variationId) si aplica
+  const addToCart = (product: Product, variationId?: string, variationLabel?: string) => {
+    let stockDisponible = Number(product.stock) || 0;
+    
+    // Si elegimos un talle, el stock disponible es el de ESE talle
+    if (variationId && product.variations) {
+      const v = product.variations.find(x => x.id === variationId);
+      if (v) stockDisponible = Number(v.stock) || 0;
+    }
+
+    if (stockDisponible <= 0) {
+      Swal.fire({ icon: 'error', title: 'Sin Stock', text: 'No hay unidades de este talle.', timer: 1500, showConfirmButton: false });
+      return;
+    }
+
     setCart(prev => {
-      const existing = prev.find(item => item.product.id === product.id);
+      // Busca si YA está en el carrito ese producto CON ese mismo talle
+      const existing = prev.find(item => item.product.id === product.id && item.variationId === variationId);
+      
       if (existing) {
-        if (existing.quantity >= stockDisponible) return prev;
-        return prev.map(item => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
+        if (existing.quantity >= stockDisponible) {
+          Swal.fire({ icon: 'warning', title: 'Límite', text: 'Stock máximo alcanzado.', timer: 1500, showConfirmButton: false });
+          return prev;
+        }
+        return prev.map(item => 
+          (item.product.id === product.id && item.variationId === variationId) 
+            ? { ...item, quantity: item.quantity + 1 } 
+            : item
+        );
       }
-      return [...prev, { product, quantity: 1 }];
+      
+      return [...prev, { product, quantity: 1, variationId, variationLabel }];
     });
+
+    setModalProduct(null); // Cerramos el modal si estaba abierto
   };
 
-  const removeFromCart = (productId: string) => {
-    setCart(prev => prev.filter(item => item.product.id !== productId));
+  const removeFromCart = (productId: string, variationId?: string) => {
+    setCart(prev => prev.filter(item => !(item.product.id === productId && item.variationId === variationId)));
   };
 
-  // Cálculo O(n) unificado
   const { subtotal, totalItems } = useMemo(() => {
-    let sum = 0;
-    let count = 0;
+    let sum = 0; let count = 0;
     for (let i = 0; i < cart.length; i++) {
       sum += (Number(cart[i].product.price) || 0) * cart[i].quantity;
       count += cart[i].quantity;
@@ -104,28 +143,31 @@ export const SalesDashboard = () => {
 
     const selectedCustomer = customers.find((c: Customer) => c.id === selectedCustomerId);
     const customerName = selectedCustomer ? selectedCustomer.name : 'Consumidor Final';
-    const itemsDescription = cart.map(item => `${item.product.name} (x${item.quantity})`).join(', ');
+    const itemsDescription = cart.map(item => `${item.product.name} ${item.variationLabel ? `(${item.variationLabel})` : ''} (x${item.quantity})`).join(', ');
 
     try {
-      // INSTRUCCIÓN INFLEXIBLE: Esto debe ser reemplazado por una llamada a un RPC en Supabase.
-      // await supabase.rpc('process_checkout', { payload });
-      
-      // Mantenemos la lógica temporal, pero paralelizando las I/O operations
       const transactionPromise = addTransaction({
         type: 'INCOME',
         amount: subtotal,
         description: `VENTA: ${customerName} | ${itemsDescription}`.substring(0, 100),
         category: 'VENTA',
         date: new Date().toISOString(),
-        businessUnit: businessUnit as any, // Asume que el store confía en esto. Debería ser tipado.
+        businessUnit: businessUnit as any, 
         paymentMethod: paymentMethod as any, 
         status: 'COMPLETED'                  
       });
 
-      // Disparamos actualizaciones de stock en paralelo, reduciendo el TTI (Time to Interactive)
+      // LÓGICA ACTUALIZADA: Descuenta el stock del talle específico
       const stockUpdates = cart.map(item => {
-        const newStock = (Number(item.product.stock) || 0) - item.quantity;
-        return updateProductStock(item.product.id, newStock);
+        let newStock = 0;
+        if (item.variationId && item.product.variations) {
+           const variant = item.product.variations.find(v => v.id === item.variationId);
+           newStock = (Number(variant?.stock) || 0) - item.quantity;
+        } else {
+           newStock = (Number(item.product.stock) || 0) - item.quantity;
+        }
+        // Le pasamos el variationId a tu store de inventario
+        return updateProductStock(item.product.id, Math.max(0, newStock), item.variationId);
       });
 
       await Promise.all([transactionPromise, ...stockUpdates]);
@@ -160,7 +202,7 @@ export const SalesDashboard = () => {
   };
 
   return (
-    <div className="animate-in fade-in duration-500">
+    <div className="animate-in fade-in duration-500 relative">
       <div className="space-y-6 print:hidden">
         <header>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight italic">Punto de Venta</h1>
@@ -182,26 +224,30 @@ export const SalesDashboard = () => {
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-[600px] overflow-y-auto pr-2">
-              {filteredProducts.map(product => (
-                <button 
-                  key={product.id} 
-                  disabled={(Number(product.stock) || 0) <= 0}
-                  onClick={() => addToCart(product)}
-                  className={`text-left bg-white p-4 rounded-2xl border-2 transition-all flex flex-col justify-between h-40 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400
-                    ${(Number(product.stock) || 0) <= 0 ? 'opacity-50 grayscale border-slate-100 cursor-not-allowed' : 'border-transparent hover:border-blue-500 hover:shadow-xl active:scale-95'}`}
-                >
-                  <div>
-                    <div className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded inline-block mb-2 uppercase">{product.sku}</div>
-                    <h3 className="font-bold text-slate-800 leading-tight text-xs line-clamp-2" title={product.name}>{product.name}</h3>
-                  </div>
-                  <div className="flex justify-between items-end mt-auto">
-                    <span className="text-sm font-black text-slate-900">{formatCurrency(Number(product.price))}</span>
-                    <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${(Number(product.stock) || 0) > 5 ? 'bg-slate-100 text-slate-700' : 'bg-rose-100 text-rose-600'}`}>
-                      {product.stock} un.
-                    </span>
-                  </div>
-                </button>
-              ))}
+              {filteredProducts.map(product => {
+                const totalStock = product.variations?.length ? product.variations.reduce((acc, v) => acc + v.stock, 0) : (Number(product.stock) || 0);
+
+                return (
+                  <button 
+                    key={product.id} 
+                    disabled={totalStock <= 0}
+                    onClick={() => handleProductClick(product)}
+                    className={`text-left bg-white p-4 rounded-2xl border-2 transition-all flex flex-col justify-between h-40 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400
+                      ${totalStock <= 0 ? 'opacity-50 grayscale border-slate-100 cursor-not-allowed' : 'border-transparent hover:border-blue-500 hover:shadow-xl active:scale-95'}`}
+                  >
+                    <div>
+                      <div className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded inline-block mb-2 uppercase">{product.sku}</div>
+                      <h3 className="font-bold text-slate-800 leading-tight text-xs line-clamp-2" title={product.name}>{product.name}</h3>
+                    </div>
+                    <div className="flex justify-between items-end mt-auto">
+                      <span className="text-sm font-black text-slate-900">{formatCurrency(Number(product.price))}</span>
+                      <span className={`text-[10px] font-bold px-2 py-1 rounded-lg ${totalStock > 5 ? 'bg-slate-100 text-slate-700' : 'bg-rose-100 text-rose-600'}`}>
+                        {totalStock} un.
+                      </span>
+                    </div>
+                  </button>
+                )
+              })}
               {filteredProducts.length === 0 && (
                  <div className="col-span-full py-10 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">No se encontraron productos</div>
               )}
@@ -220,18 +266,19 @@ export const SalesDashboard = () => {
               {cart.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-slate-300 opacity-50 italic text-xs uppercase tracking-widest">Carrito Vacío</div>
               ) : (
-                cart.map((item) => (
-                  <div key={item.product.id} className="flex justify-between items-start">
+                cart.map((item, index) => (
+                  <div key={`${item.product.id}-${item.variationId || index}`} className="flex justify-between items-start">
                     <div className="flex-1">
                       <p className="text-xs font-black text-slate-800 uppercase leading-none">{item.product.name}</p>
+                      {/* MOSTRAR EL TALLE SI LO TIENE */}
+                      {item.variationLabel && <p className="text-[9px] font-black text-blue-600 mt-1">{item.variationLabel}</p>}
                       <p className="text-[10px] text-slate-400 font-bold mt-1">{formatCurrency(Number(item.product.price))} × {item.quantity}</p>
                     </div>
                     <div className="flex items-center gap-3 ml-4">
                       <p className="font-black text-slate-900 text-xs tabular-nums">{formatCurrency(Number(item.product.price) * item.quantity)}</p>
                       <button 
-                        onClick={() => removeFromCart(item.product.id)} 
+                        onClick={() => removeFromCart(item.product.id, item.variationId)} 
                         className="text-slate-300 hover:text-rose-500 transition-colors focus:outline-none"
-                        aria-label="Remover del carrito"
                       >
                         ✕
                       </button>
@@ -307,6 +354,44 @@ export const SalesDashboard = () => {
         </div>
       </div>
 
+      {/* ========================================= */}
+      {/* VENTANITA EMERGENTE (MODAL) PARA ELEGIR TALLE */}
+      {/* ========================================= */}
+      {modalProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 print:hidden">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <div>
+                <h3 className="font-black text-slate-800 text-lg uppercase leading-tight">{modalProduct.name}</h3>
+                <p className="text-xs font-bold text-slate-400">Elegí el talle a vender</p>
+              </div>
+              <button onClick={() => setModalProduct(null)} className="w-8 h-8 rounded-full bg-slate-200 text-slate-500 font-bold hover:bg-rose-100 hover:text-rose-600">✕</button>
+            </div>
+            
+            <div className="p-6 max-h-[60vh] overflow-y-auto space-y-3">
+              {modalProduct.variations?.map((v) => (
+                <button
+                  key={v.id}
+                  disabled={v.stock <= 0}
+                  onClick={() => addToCart(modalProduct, v.id, `${v.size} | ${v.color}`)}
+                  className={`w-full flex justify-between items-center p-4 rounded-xl border-2 transition-all 
+                    ${v.stock <= 0 ? 'border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed' : 'border-slate-200 hover:border-blue-500 hover:shadow-md'}`}
+                >
+                  <div className="text-left">
+                    <span className="font-black text-slate-800 uppercase text-sm">{v.size}</span>
+                    <span className="ml-2 text-xs font-bold text-slate-500 uppercase">| {v.color}</span>
+                  </div>
+                  <span className={`text-[10px] font-black px-2 py-1 rounded-lg ${v.stock > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-600'}`}>
+                    Stock: {v.stock}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TICKET DE VENTA (Quedó idéntico al tuyo) */}
       {lastSale && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-md overflow-y-auto">
           <div className="bg-white p-8 w-full max-w-sm rounded-3xl shadow-2xl mx-4 my-8 animate-in zoom-in-95 duration-200">
@@ -326,7 +411,9 @@ export const SalesDashboard = () => {
               <div className="space-y-2 text-left pt-2">
                 {lastSale.items.map((item, i) => (
                   <div key={i} className="flex justify-between text-[11px]">
-                    <span className="truncate pr-4 italic">{item.quantity} × {item.product.name}</span>
+                    <span className="truncate pr-4 italic">
+                      {item.quantity} × {item.product.name} {item.variationLabel ? `(${item.variationLabel})` : ''}
+                    </span>
                     <span className="font-bold tabular-nums">{formatCurrency(Number(item.product.price) * item.quantity)}</span>
                   </div>
                 ))}

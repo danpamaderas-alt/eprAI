@@ -1,145 +1,212 @@
-import { useMemo, useEffect, useState } from 'react';
-import { TransactionForm } from '../treasury/components/TransactionForm';
-import { TransactionTable } from '../treasury/components/TransactionTable';
-import { useTreasuryStore } from '../treasury/store/useTreasuryStore';
+import { useState, useEffect, useMemo } from 'react';
+import { useTreasuryStore, type Transaction } from '../treasury/store/useTreasuryStore';
+import Swal from 'sweetalert2';
 
-const ARS_FORMATTER = new Intl.NumberFormat('es-AR', { 
-  style: 'currency', 
-  currency: 'ARS', 
-  maximumFractionDigits: 0 
-});
-
-const formatCurrency = (val: number): string => ARS_FORMATTER.format(val);
+const ARS = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 
 export const TreasuryDashboard = () => {
-  const { 
-    transactions = [], 
-    addTransaction, 
-    deleteTransaction, 
-    updateTransactionStatus, 
-    fetchTransactions,
-    isLoading 
-  } = useTreasuryStore();
-
-  const [showForm, setShowForm] = useState(false);
+  const { transactions, fetchTransactions, addTransaction, updateTransaction, deleteTransaction, isLoading } = useTreasuryStore();
+  
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+  
+  // Estados del Formulario
+  const [amount, setAmount] = useState('');
+  const [description, setDescription] = useState('');
+  const [type, setType] = useState<'INCOME' | 'EXPENSE'>('EXPENSE');
+  const [category, setCategory] = useState('GASTOS_GENERALES');
+  const [businessUnit, setBusinessUnit] = useState('GENERAL');
+  const [paymentMethod, setPaymentMethod] = useState<'MERCADO_PAGO' | 'BANCO' | 'EFECTIVO'>('EFECTIVO');
 
   useEffect(() => {
     fetchTransactions();
   }, [fetchTransactions]);
 
+  // CALCULAMOS LOS SALDOS AUTOMÁTICAMENTE
   const balances = useMemo(() => {
-    const calc = { TOTAL: 0, MERCADO_PAGO: 0, BANCO: 0, EFECTIVO: 0, PENDIENTE: 0 };
-    
-    for (let i = 0; i < transactions.length; i++) {
-      const tx = transactions[i];
-      const amount = Number(tx.amount) || 0;
-      const isIncome = tx.type === 'INCOME';
-      const val = isIncome ? amount : -amount;
+    let mp = 0; let banco = 0; let efectivo = 0; let total = 0;
 
-      if (tx.status === 'PENDING') {
-        calc.PENDIENTE += val;
-        continue; 
+    transactions.forEach(tx => {
+      if (tx.status === 'COMPLETED') {
+        const value = tx.type === 'INCOME' ? tx.amount : -tx.amount;
+        total += value;
+        if (tx.paymentMethod === 'MERCADO_PAGO') mp += value;
+        else if (tx.paymentMethod === 'BANCO') banco += value;
+        else if (tx.paymentMethod === 'EFECTIVO') efectivo += value;
       }
+    });
 
-      calc.TOTAL += val;
-      
-      switch (tx.paymentMethod) {
-        case 'MERCADO_PAGO': calc.MERCADO_PAGO += val; break;
-        case 'BANCO': calc.BANCO += val; break;
-        case 'EFECTIVO': calc.EFECTIVO += val; break;
-      }
-    }
-    
-    return calc;
+    return { mp, banco, efectivo, total };
   }, [transactions]);
 
-  const handleAddTransaction = async (data: any) => {
+  const handleOpenEdit = (tx: Transaction) => {
+    setEditingTx(tx);
+    setAmount(tx.amount.toString());
+    setDescription(tx.description);
+    setType(tx.type as 'INCOME' | 'EXPENSE');
+    setCategory(tx.category);
+    setBusinessUnit(tx.businessUnit);
+    setPaymentMethod(tx.paymentMethod);
+    setIsFormOpen(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const resetForm = () => {
+    setEditingTx(null); setAmount(''); setDescription(''); setType('EXPENSE'); 
+    setCategory('GASTOS_GENERALES'); setBusinessUnit('GENERAL'); setPaymentMethod('EFECTIVO');
+    setIsFormOpen(false);
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!amount || !description) return;
+
     try {
-      await addTransaction(data);
-      setShowForm(false);
+      const payload = {
+        amount: Number(amount),
+        description,
+        type,
+        category,
+        businessUnit,
+        paymentMethod,
+        date: editingTx ? editingTx.date : new Date().toISOString(),
+      };
+
+      if (editingTx) {
+        await updateTransaction(editingTx.id, payload);
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Movimiento Editado', showConfirmButton: false, timer: 2000 });
+      } else {
+        await addTransaction(payload);
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Movimiento Registrado', showConfirmButton: false, timer: 2000 });
+      }
+      resetForm();
     } catch (error) {
-      console.error('[Treasury Error] Falla al registrar movimiento:', error);
+      Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo guardar el movimiento.' });
     }
+  };
+
+  const handleDelete = (id: string) => {
+    Swal.fire({ title: '¿Eliminar movimiento?', text: 'Esto recalculará tu caja.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' })
+    .then(async (res) => {
+      if (res.isConfirmed) {
+        await deleteTransaction(id);
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Eliminado', showConfirmButton: false, timer: 2000 });
+      }
+    });
   };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex justify-between items-center">
         <div>
-          {/* MODO OSCURO: dark:text-white */}
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight italic transition-colors">Tesorería</h1>
-          {/* MODO OSCURO: dark:text-slate-400 */}
-          <p className="text-slate-500 dark:text-slate-400 text-sm font-medium uppercase tracking-widest mt-1 transition-colors">Control de flujos y conciliación bancaria.</p>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white italic">Tesorería General</h1>
+          <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">Flujo de fondos y cuentas</p>
         </div>
-        {!showForm && (
-          <button 
-            onClick={() => setShowForm(true)} 
-            className="group flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-400"
-          >
-            <span className="text-xl group-hover:rotate-90 transition-transform duration-300" aria-hidden="true">+</span>
-            NUEVO MOVIMIENTO
+        {!isFormOpen && (
+          <button onClick={() => setIsFormOpen(true)} className="px-6 py-3 bg-slate-900 text-white font-black rounded-xl shadow-lg active:scale-95 transition-all">
+            + REGISTRAR MOVIMIENTO
           </button>
         )}
       </div>
 
-      {showForm && (
-        <div className="animate-in slide-in-from-top-4 duration-300">
-          <TransactionForm 
-            onSubmitSuccess={handleAddTransaction} 
-            onCancel={() => setShowForm(false)} 
-          />
+      {/* TARJETAS DE SALDOS */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
+          <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Saldo Total</p>
+          <p className={`text-4xl font-black mt-2 tabular-nums tracking-tighter ${balances.total >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{ARS.format(balances.total)}</p>
         </div>
-      )}
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* TARJETA TOTAL: Ya era oscura, la hacemos apenitas más profunda con dark:bg-slate-950 */}
-        <div className="bg-slate-900 dark:bg-slate-950 p-6 rounded-2xl shadow-xl text-white relative overflow-hidden group border-l-8 border-blue-500 transition-colors duration-300">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Liquidez Real</p>
-          <h3 className="text-3xl font-black">{formatCurrency(balances.TOTAL)}</h3>
+        <div className="bg-[#009EE3]/10 p-6 rounded-3xl border border-[#009EE3]/20">
+          <p className="text-[10px] font-black uppercase text-[#009EE3] tracking-widest">Mercado Pago</p>
+          <p className="text-3xl font-black text-slate-900 mt-2 tabular-nums">{ARS.format(balances.mp)}</p>
         </div>
-
-        {/* TARJETAS COMUNES: Pasan de bg-white a dark:bg-slate-800 */}
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm border-l-8 border-sky-400 transition-colors duration-300">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Mercado Pago</p>
-          <h3 className="text-2xl font-black text-slate-800 dark:text-white">{formatCurrency(balances.MERCADO_PAGO)}</h3>
+        <div className="bg-slate-100 p-6 rounded-3xl border border-slate-200">
+          <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Banco</p>
+          <p className="text-3xl font-black text-slate-900 mt-2 tabular-nums">{ARS.format(balances.banco)}</p>
         </div>
-
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm border-l-8 border-emerald-500 transition-colors duration-300">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Banco Galicia</p>
-          <h3 className="text-2xl font-black text-slate-800 dark:text-white">{formatCurrency(balances.BANCO)}</h3>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm border-l-8 border-amber-500 transition-colors duration-300">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Caja Fuerte (EFE)</p>
-          <h3 className="text-2xl font-black text-slate-800 dark:text-white">{formatCurrency(balances.EFECTIVO)}</h3>
+        <div className="bg-emerald-50 p-6 rounded-3xl border border-emerald-100">
+          <p className="text-[10px] font-black uppercase text-emerald-600 tracking-widest">Efectivo</p>
+          <p className="text-3xl font-black text-slate-900 mt-2 tabular-nums">{ARS.format(balances.efectivo)}</p>
         </div>
       </div>
 
-      {/* CONTENEDOR DE LA TABLA: Pasa a dark:bg-slate-800 */}
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors duration-300">
-        <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/30 dark:bg-slate-800/80 transition-colors duration-300">
-          <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.15em]">Libro Mayor Detallado</h2>
+      {/* FORMULARIO DE INGRESO/EGRESO */}
+      {isFormOpen && (
+        <form onSubmit={handleSave} className="bg-white p-6 rounded-3xl shadow-xl border border-slate-200 space-y-4">
+          <h2 className="text-xl font-black italic">{editingTx ? '✏️ Editar Movimiento' : '💸 Nuevo Movimiento'}</h2>
           
-          {balances.PENDIENTE !== 0 && (
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 text-rose-600 dark:text-rose-400 rounded-lg animate-pulse transition-colors" role="alert">
-              <span className="text-[10px] font-black uppercase">Pendientes: {formatCurrency(balances.PENDIENTE)}</span>
-            </div>
-          )}
-        </div>
-
-        {isLoading ? (
-          <div className="p-20 flex flex-col items-center justify-center gap-4">
-            <div className="w-10 h-10 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin" aria-hidden="true"></div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronizando con Supabase...</p>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <select value={type} onChange={(e: any) => setType(e.target.value)} className={`p-3 rounded-xl font-black text-xs outline-none border ${type === 'INCOME' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-rose-50 text-rose-600 border-rose-200'}`}>
+              <option value="INCOME">INGRESO (+)</option>
+              <option value="EXPENSE">EGRESO (-)</option>
+            </select>
+            <input type="number" placeholder="Monto $" value={amount} onChange={(e) => setAmount(e.target.value)} className="p-3 rounded-xl border border-slate-200 font-bold outline-none focus:border-blue-500" required />
+            <input type="text" placeholder="Descripción (Ej: Pago Luz)" value={description} onChange={(e) => setDescription(e.target.value)} className="md:col-span-2 p-3 rounded-xl border border-slate-200 font-bold outline-none focus:border-blue-500" required />
           </div>
-        ) : (
-          <TransactionTable 
-            data={transactions} 
-            onDelete={deleteTransaction} 
-            onUpdateStatus={updateTransactionStatus} 
-          />
-        )}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <select value={paymentMethod} onChange={(e: any) => setPaymentMethod(e.target.value)} className="p-3 rounded-xl border border-slate-200 text-xs font-bold outline-none">
+              <option value="EFECTIVO">EFECTIVO</option>
+              <option value="MERCADO_PAGO">MERCADO PAGO</option>
+              <option value="BANCO">BANCO (TRANSFERENCIA)</option>
+            </select>
+            <select value={businessUnit} onChange={(e: any) => setBusinessUnit(e.target.value)} className="p-3 rounded-xl border border-slate-200 text-xs font-bold outline-none">
+              <option value="GENERAL">GENERAL</option>
+              <option value="ROJO_SHOWROOM">ROJO SHOWROOM</option>
+              <option value="RAICES">RAÍCES</option>
+              <option value="UNIFORMES">UNIFORMES</option>
+              <option value="RJ_CO">RJ&Co.</option>
+              <option value="BITA_IT">BITA IT</option>
+            </select>
+            <input type="text" placeholder="Categoría (Ej: Proveedores)" value={category} onChange={(e) => setCategory(e.target.value)} className="p-3 rounded-xl border border-slate-200 font-bold text-xs outline-none" />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <button type="button" onClick={resetForm} className="px-6 py-2 text-xs font-black uppercase text-slate-400">Cancelar</button>
+            <button type="submit" className="px-8 py-3 bg-blue-600 text-white rounded-xl font-black text-xs uppercase shadow-lg shadow-blue-500/30">Guardar</button>
+          </div>
+        </form>
+      )}
+
+      {/* TABLA DE MOVIMIENTOS */}
+      <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+        {isLoading && <p className="p-4 text-center text-slate-400 font-bold">Cargando movimientos...</p>}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse whitespace-nowrap">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-100">
+                <th className="py-4 px-6 text-[9px] font-black text-slate-400 uppercase tracking-widest">Fecha</th>
+                <th className="py-4 px-6 text-[9px] font-black text-slate-400 uppercase tracking-widest">Descripción / Unidad</th>
+                <th className="py-4 px-6 text-[9px] font-black text-slate-400 uppercase tracking-widest">Cuenta</th>
+                <th className="py-4 px-6 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Monto</th>
+                <th className="py-4 px-6"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {transactions.map(tx => (
+                <tr key={tx.id} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="py-3 px-6 text-xs font-bold text-slate-500">{new Date(tx.date).toLocaleDateString('es-AR')}</td>
+                  <td className="py-3 px-6">
+                    <p className="font-black text-xs text-slate-800">{tx.description}</p>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase">{tx.businessUnit} • {tx.category}</p>
+                  </td>
+                  <td className="py-3 px-6"><span className="text-[9px] font-black bg-slate-100 text-slate-600 px-2 py-1 rounded uppercase tracking-widest">{tx.paymentMethod.replace('_', ' ')}</span></td>
+                  <td className={`py-3 px-6 text-right font-black tabular-nums ${tx.type === 'INCOME' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {tx.type === 'INCOME' ? '+' : '-'}{ARS.format(tx.amount)}
+                  </td>
+                  <td className="py-3 px-6 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button onClick={() => handleOpenEdit(tx)} className="text-slate-400 hover:text-blue-500">✏️</button>
+                      <button onClick={() => handleDelete(tx.id)} className="text-slate-400 hover:text-rose-500">🗑️</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {transactions.length === 0 && !isLoading && (
+                <tr><td colSpan={5} className="py-10 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">Aún no hay movimientos registrados</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
