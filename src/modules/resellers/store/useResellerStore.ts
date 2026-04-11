@@ -6,7 +6,7 @@ export interface Reseller {
   id: string;
   name: string;
   phone: string;
-  createdAt: string;
+  created_at: string;
 }
 
 export interface ResellerTransaction {
@@ -47,7 +47,7 @@ export const useResellerStore = create<ResellerState>((set) => ({
   },
 
   addReseller: async (name, phone) => {
-    const newReseller: Reseller = { id: crypto.randomUUID(), name, phone, createdAt: new Date().toISOString() };
+    const newReseller: Reseller = { id: crypto.randomUUID(), name, phone, created_at: new Date().toISOString() };
     const { error } = await supabase.from('resellers').insert([newReseller]);
     if (!error) {
       set((state) => ({ resellers: [...state.resellers, newReseller] }));

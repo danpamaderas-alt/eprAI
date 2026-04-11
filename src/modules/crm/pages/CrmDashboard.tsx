@@ -18,7 +18,7 @@ export const CrmDashboard = () => {
   const { customers, fetchCustomers, addCustomer, deleteCustomer, isLoading } = useCrmStore();
   const [showForm, setShowForm] = useState(false);
 
-  const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<Omit<Customer, 'id' | 'createdAt'>>({
+  const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<Omit<Customer, 'id' | 'created_at'>>({
     defaultValues: {
       type: 'MINORISTA',
       name: '',
@@ -33,7 +33,7 @@ export const CrmDashboard = () => {
     fetchCustomers();
   }, [fetchCustomers]);
 
-  const onSubmit = async (data: Omit<Customer, 'id' | 'createdAt'>) => {
+  const onSubmit = async (data: Omit<Customer, 'id' | 'created_at'>) => {
     try {
       await addCustomer(data);
       setShowForm(false);

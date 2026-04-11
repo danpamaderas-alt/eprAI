@@ -7,7 +7,7 @@ interface OrderState {
   orders: Order[];
   isLoading: boolean;
   fetchOrders: () => Promise<void>;
-  addOrder: (order: Omit<Order, 'id' | 'createdAt'>) => Promise<void>;
+  addOrder: (order: Omit<Order, 'id' | 'created_at'>) => Promise<void>;
   registerPartialDelivery: (orderId: string, delivery: Omit<DeliveryLog, 'id'>) => Promise<void>;
 }
 
@@ -22,7 +22,7 @@ export const useOrderStore = create<OrderState>((set, get) => ({
       const { data, error } = await supabase
         .from('orders')
         .select('*')
-        .order('createdAt', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       
@@ -38,7 +38,7 @@ export const useOrderStore = create<OrderState>((set, get) => ({
   addOrder: async (orderData) => {
     const newOrder = {
       ...orderData,
-      // No mandamos ID ni createdAt porque Supabase los genera automáticamente con el SQL que corrimos
+      // No mandamos ID ni created_at porque Supabase los genera automáticamente con el SQL que corrimos
     };
     
     try {

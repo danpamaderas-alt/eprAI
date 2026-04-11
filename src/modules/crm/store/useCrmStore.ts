@@ -1,78 +1,55 @@
 import { create } from 'zustand';
-import { supabase } from '../../../lib/supabase';
+import { supabase } from '../../../lib/supabase'; // ✅ CORREGIDO: Tres niveles para llegar a lib
 
-// PK y Timestamps son ahora responsabilidad estricta del Backend
 export interface Customer {
   id: string;
   name: string;
-  phone: string;
-  email: string;
-  company: string;
-  type: 'MINORISTA' | 'MAYORISTA' | 'GOBIERNO';
-  notes: string;
-  createdAt: string;
+  email?: string;
+  phone?: string;
+  company?: string;
+  notes?: string;
 }
 
-interface CrmState {
+interface CrmStore {
   customers: Customer[];
   isLoading: boolean;
   fetchCustomers: () => Promise<void>;
-  addCustomer: (data: Omit<Customer, 'id' | 'createdAt'>) => Promise<void>;
+  addCustomer: (data: Partial<Customer>) => Promise<void>;
+  updateCustomer: (id: string, updates: Partial<Customer>) => Promise<void>;
   deleteCustomer: (id: string) => Promise<void>;
 }
 
-export const useCrmStore = create<CrmState>((set) => ({
+export const useCrmStore = create<CrmStore>((set) => ({
   customers: [],
   isLoading: false,
 
   fetchCustomers: async () => {
     set({ isLoading: true });
-    
-    const { data, error } = await supabase
-      .from('customers')
-      .select('*')
-      .order('createdAt', { ascending: false });
-
-    if (error) {
-      set({ isLoading: false });
-      console.error('[Store Error] Falla al hidratar clientes:', error);
-      throw error; // Delegamos el manejo del fallo a la capa de UI
-    }
-
-    set({ customers: data || [], isLoading: false });
+    try {
+      const { data, error } = await supabase.from('customers').select('*').order('name', { ascending: true });
+      if (error) throw error;
+      set({ customers: data as Customer[] });
+    } catch (error) { console.error(error); } finally { set({ isLoading: false }); }
   },
 
   addCustomer: async (data) => {
-    // Delega ID y CreatedAt a PostgreSQL. Retorna el registro confirmado en disco.
-    const { data: insertedCustomer, error } = await supabase
-      .from('customers')
-      .insert([data])
-      .select()
-      .single();
+    const { data: newCustomer, error } = await supabase.from('customers').insert([data]).select().single();
+    if (error) throw error;
+    set((state) => ({ customers: [...state.customers, newCustomer as Customer] }));
+  },
 
-    if (error) {
-      console.error('[Store Error] Falla en mutación de inserción:', error);
-      throw error;
-    }
-
-    // Sincronización estricta: Solo actualizamos el estado con la verdad de la BBDD
-    if (insertedCustomer) {
-      set((state) => ({ customers: [insertedCustomer, ...state.customers] }));
-    }
+  updateCustomer: async (id, updates) => {
+    const { error } = await supabase.from('customers').update(updates).eq('id', id);
+    if (error) throw error;
+    // Actualiza la pantalla sin tener que refrescar
+    set((state) => ({
+      customers: state.customers.map((c) => (c.id === id ? { ...c, ...updates } : c)),
+    }));
   },
 
   deleteCustomer: async (id) => {
-    const { error } = await supabase
-      .from('customers')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.error('[Store Error] Falla en mutación de borrado:', error);
-      throw error;
-    }
-
-    // Solo eliminamos del DOM si la BBDD confirmó el borrado (Evita desincronización)
-    set((state) => ({ customers: state.customers.filter(c => c.id !== id) }));
-  }
+    const { error } = await supabase.from('customers').delete().eq('id', id);
+    if (error) throw error;
+    set((state) => ({ customers: state.customers.filter((c) => c.id !== id) }));
+  },
 }));

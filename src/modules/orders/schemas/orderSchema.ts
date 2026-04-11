@@ -51,5 +51,5 @@ export type OrderFormValues = z.infer<typeof orderSchema>;
 
 export interface Order extends OrderFormValues {
   id: string;
-  createdAt: string;
+  created_at: string;
 }

@@ -15,6 +15,7 @@ interface InventoryStore {
   fetchProducts: () => Promise<void>;
   addProduct: (productData: any) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
+  deleteVariation: (productId: string, variationId: string) => Promise<void>;
   updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
   updateProductStock: (id: string, newStock: number, variationId?: string) => Promise<void>;
 }
@@ -25,8 +26,8 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
   fetchProducts: async () => {
     set({ isLoading: true });
     try {
-      // AQUÍ ESTÁ EL createdAt CORREGIDO
-      const { data, error } = await supabase.from('products').select('*').order('createdAt', { ascending: false });
+      // Usamos created_at (estándar Supabase)
+      const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
       if (error) throw error;
       set({ products: data as Product[] });
     } catch (error) { console.error(error); } finally { set({ isLoading: false }); }
@@ -47,7 +48,6 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
   updateProductStock: async (id, newStock, variationId) => {
     const product = get().products.find(p => p.id === id);
     if (!product) return;
-
     let updatedVariations = product.variations;
     let totalStock = newStock;
 
@@ -59,7 +59,6 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     const newStatus = totalStock <= 0 ? 'OUT_OF_STOCK' : totalStock <= product.minStock ? 'LOW_STOCK' : 'ACTIVE';
     const { error } = await supabase.from('products').update({ stock: totalStock, status: newStatus, variations: updatedVariations }).eq('id', id);
     if (error) throw error;
-    
     set((state) => ({ products: state.products.map(p => p.id === id ? { ...p, stock: totalStock, status: newStatus, variations: updatedVariations } : p) }));
   },
 
@@ -67,5 +66,15 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     const { error } = await supabase.from('products').delete().eq('id', id);
     if (error) throw error;
     set((state) => ({ products: state.products.filter(p => p.id !== id) }));
+  },
+
+  deleteVariation: async (productId, variationId) => {
+    const product = get().products.find(p => p.id === productId);
+    if (!product || !product.variations) return;
+    const newVars = product.variations.filter(v => v.id !== variationId);
+    const newStock = newVars.reduce((acc, v) => acc + v.stock, 0);
+    const { error } = await supabase.from('products').update({ variations: newVars, stock: newStock }).eq('id', productId);
+    if (error) throw error;
+    set((state) => ({ products: state.products.map(p => p.id === productId ? { ...p, variations: newVars, stock: newStock } : p) }));
   }
 }));
