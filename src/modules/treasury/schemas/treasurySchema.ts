@@ -3,7 +3,10 @@ import { z } from 'zod';
 // Validador para crear o editar una Cuenta (Banco/Billetera)
 export const accountSchema = z.object({
   name: z.string().min(1, 'El nombre de la cuenta es obligatorio'),
-  type: z.enum(['BANK', 'WALLET', 'CASH'], { required_error: 'Seleccioná el tipo de cuenta' }),
+  // ✅ CORREGIDO: Usamos "message" en lugar de "required_error"
+  type: z.enum(['BANK', 'WALLET', 'CASH'], { 
+    message: 'Seleccioná el tipo de cuenta' 
+  }),
   balance: z.number().optional().default(0), // Para cargar el saldo inicial
 });
 

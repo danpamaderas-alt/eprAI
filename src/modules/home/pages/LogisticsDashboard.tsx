@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useLogisticsStore, type Delivery } from '../logistics/store/useLogisticsStore';
+import { useLogisticsStore } from '../../logistics/store/useLogisticsStore';
 import Swal from 'sweetalert2';
 
 export const LogisticsDashboard = () => {

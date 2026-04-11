@@ -8,6 +8,8 @@ export interface Customer {
   phone?: string;
   company?: string;
   notes?: string;
+  type?: string; // ✅ ACÁ ESTÁ EL PARCHE
+  created_at?: string;
 }
 
 interface CrmStore {
