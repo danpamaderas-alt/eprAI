@@ -23,14 +23,22 @@ export const useCrmStore = create<CrmStore>((set) => ({
   customers: [],
   isLoading: false,
 
-  fetchCustomers: async () => {
-    set({ isLoading: true });
-    try {
-      const { data, error } = await supabase.from('customers').select('*').order('name', { ascending: true });
-      if (error) throw error;
-      set({ customers: data as Customer[] });
-    } catch (error) { console.error(error); } finally { set({ isLoading: false }); }
-  },
+ fetchCustomers: async () => {
+  set({ isLoading: true });
+  try {
+    const { data, error } = await supabase
+      .from('customers')
+      .select('*')
+      .order('created_at', { ascending: false }); // ✅ UNIFICADO
+
+    if (error) throw error;
+    set({ customers: data as Customer[] });
+  } catch (error) { 
+    console.error("Error en CRM:", error); 
+  } finally { 
+    set({ isLoading: false }); 
+  }
+},
 
   addCustomer: async (data) => {
     const { data: newCustomer, error } = await supabase.from('customers').insert([data]).select().single();
