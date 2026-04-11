@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useDeferredValue } from 'react';
 import { useInventoryStore } from '../treasury/store/useInventoryStore';
 import { useTreasuryStore } from '../treasury/store/useTreasuryStore';
 import { useCrmStore, type Customer } from '../../crm/store/useCrmStore';
+import { useLogisticsStore } from '../../logistics/store/useLogisticsStore';
 import Swal from 'sweetalert2';
 
 // OPTIMIZACIÓN CRÍTICA: Instancia en memoria estática
@@ -19,14 +20,14 @@ interface Product {
   sku: string;
   stock: number; 
   price: number;
-  variations?: { id: string; size: string; color: string; stock: number }[]; // AGREGADO: Soporte para talles
+  variations?: { id: string; size: string; color: string; stock: number }[];
 }
 
 interface CartItem {
   product: Product;
   quantity: number;
-  variationId?: string; // AGREGADO: Para saber qué talle eligió
-  variationLabel?: string; // AGREGADO: Para mostrar el nombre del talle en el ticket
+  variationId?: string;
+  variationLabel?: string;
 }
 
 interface SaleTicket {
@@ -43,6 +44,7 @@ export const SalesDashboard = () => {
   const { products, fetchProducts, updateProductStock } = useInventoryStore();
   const { addTransaction } = useTreasuryStore();
   const { customers, fetchCustomers } = useCrmStore();
+  const { addDelivery } = useLogisticsStore(); // 🔥 AGREGADO: Función para crear envíos
   
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearchTerm = useDeferredValue(searchTerm);
@@ -53,13 +55,28 @@ export const SalesDashboard = () => {
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [lastSale, setLastSale] = useState<SaleTicket | null>(null);
 
-  // NUEVO: Estado para abrir la ventanita de talles
   const [modalProduct, setModalProduct] = useState<Product | null>(null);
+
+  // 🔥 AGREGADO: Estados para manejar el envío
+  const [deliveryType, setDeliveryType] = useState<'LOCAL' | 'SHIPPING'>('LOCAL');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [deliveryZone, setDeliveryZone] = useState('BERISSO');
+  const [deliveryPhone, setDeliveryPhone] = useState('');
 
   useEffect(() => {
     fetchProducts();
     fetchCustomers();
   }, [fetchProducts, fetchCustomers]);
+
+  // 🔥 AGREGADO: Autocompleta el teléfono si elegís un cliente que ya lo tiene agendado
+  useEffect(() => {
+    if (selectedCustomerId) {
+      const c = customers.find((x: any) => x.id === selectedCustomerId);
+      if (c && c.phone) setDeliveryPhone(c.phone);
+    } else {
+      setDeliveryPhone('');
+    }
+  }, [selectedCustomerId, customers]);
 
   const filteredProducts = useMemo(() => {
     const term = deferredSearchTerm.toLowerCase().trim();
@@ -70,7 +87,6 @@ export const SalesDashboard = () => {
     );
   }, [products, deferredSearchTerm]);
 
-  // NUEVA FUNCIÓN: Decide si abre el modal o agrega directo al carrito
   const handleProductClick = (product: Product) => {
     const totalStock = product.variations?.length 
       ? product.variations.reduce((acc, v) => acc + v.stock, 0) 
@@ -82,17 +98,15 @@ export const SalesDashboard = () => {
     }
 
     if (product.variations && product.variations.length > 0) {
-      setModalProduct(product); // Abre la ventana de talles
+      setModalProduct(product);
     } else {
-      addToCart(product); // Agrega directo si no tiene talles
+      addToCart(product);
     }
   };
 
-  // FUNCIÓN ACTUALIZADA: Ahora recibe el talle (variationId) si aplica
   const addToCart = (product: Product, variationId?: string, variationLabel?: string) => {
     let stockDisponible = Number(product.stock) || 0;
     
-    // Si elegimos un talle, el stock disponible es el de ESE talle
     if (variationId && product.variations) {
       const v = product.variations.find(x => x.id === variationId);
       if (v) stockDisponible = Number(v.stock) || 0;
@@ -104,7 +118,6 @@ export const SalesDashboard = () => {
     }
 
     setCart(prev => {
-      // Busca si YA está en el carrito ese producto CON ese mismo talle
       const existing = prev.find(item => item.product.id === product.id && item.variationId === variationId);
       
       if (existing) {
@@ -122,7 +135,7 @@ export const SalesDashboard = () => {
       return [...prev, { product, quantity: 1, variationId, variationLabel }];
     });
 
-    setModalProduct(null); // Cerramos el modal si estaba abierto
+    setModalProduct(null);
   };
 
   const removeFromCart = (productId: string, variationId?: string) => {
@@ -141,6 +154,12 @@ export const SalesDashboard = () => {
   const processSale = async () => {
     if (cart.length === 0) return;
 
+    // 🔥 AGREGADO: Validar que ponga la dirección si es con envío
+    if (deliveryType === 'SHIPPING' && !deliveryAddress.trim()) {
+      Swal.fire({ icon: 'warning', title: 'Falta Dirección', text: 'Por favor, ingresá la dirección para el envío.' });
+      return;
+    }
+
     const selectedCustomer = customers.find((c: Customer) => c.id === selectedCustomerId);
     const customerName = selectedCustomer ? selectedCustomer.name : 'Consumidor Final';
     const itemsDescription = cart.map(item => `${item.product.name} ${item.variationLabel ? `(${item.variationLabel})` : ''} (x${item.quantity})`).join(', ');
@@ -157,7 +176,20 @@ export const SalesDashboard = () => {
         status: 'COMPLETED'                  
       });
 
-      // LÓGICA ACTUALIZADA: Descuenta el stock del talle específico
+      // 🔥 AGREGADO: Promesa para guardar en la hoja de ruta si es envío
+      let deliveryPromise = Promise.resolve(); 
+      if (deliveryType === 'SHIPPING') {
+        deliveryPromise = addDelivery({
+          customer_name: customerName,
+          address: deliveryAddress,
+          zone: deliveryZone,
+          phone: deliveryPhone,
+          items_description: itemsDescription,
+          notes: `Generado desde Ventas (${businessUnit})`,
+          status: 'PENDING'
+        }) as any; // Casteo por las dudas según cómo esté tipado tu store
+      }
+
       const stockUpdates = cart.map(item => {
         let newStock = 0;
         if (item.variationId && item.product.variations) {
@@ -166,11 +198,11 @@ export const SalesDashboard = () => {
         } else {
            newStock = (Number(item.product.stock) || 0) - item.quantity;
         }
-        // Le pasamos el variationId a tu store de inventario
         return updateProductStock(item.product.id, Math.max(0, newStock), item.variationId);
       });
 
-      await Promise.all([transactionPromise, ...stockUpdates]);
+      // 🔥 AGREGADO: Metemos la promesa del delivery junto con todo lo demás
+      await Promise.all([transactionPromise, deliveryPromise, ...stockUpdates]);
 
       setLastSale({
         items: [...cart],
@@ -185,6 +217,11 @@ export const SalesDashboard = () => {
       setCart([]);
       setSelectedCustomerId('');
       setSearchTerm('');
+      
+      // 🔥 AGREGADO: Limpiamos los campos de envío
+      setDeliveryType('LOCAL');
+      setDeliveryAddress('');
+      
       Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Venta Procesada', showConfirmButton: false, timer: 2000 });
 
     } catch (err) {
@@ -270,7 +307,6 @@ export const SalesDashboard = () => {
                   <div key={`${item.product.id}-${item.variationId || index}`} className="flex justify-between items-start">
                     <div className="flex-1">
                       <p className="text-xs font-black text-slate-800 uppercase leading-none">{item.product.name}</p>
-                      {/* MOSTRAR EL TALLE SI LO TIENE */}
                       {item.variationLabel && <p className="text-[9px] font-black text-blue-600 mt-1">{item.variationLabel}</p>}
                       <p className="text-[10px] text-slate-400 font-bold mt-1">{formatCurrency(Number(item.product.price))} × {item.quantity}</p>
                     </div>
@@ -288,7 +324,7 @@ export const SalesDashboard = () => {
               )}
             </div>
 
-            <div className="p-6 border-t border-slate-100 space-y-5 bg-slate-50/50">
+            <div className="p-6 border-t border-slate-100 space-y-5 bg-slate-50/50 overflow-y-auto">
               <div className="space-y-1">
                 <label htmlFor="select-customer" className="text-[9px] font-black text-blue-600 uppercase tracking-[0.2em] ml-1">Cliente (CRM)</label>
                 <select 
@@ -334,6 +370,51 @@ export const SalesDashboard = () => {
                   </select>
                 </div>
               </div>
+
+              {/* 🔥 AGREGADO: SECTOR DE ENVÍO */}
+              <div className="space-y-1 bg-white p-3 rounded-xl border border-slate-200 mt-2">
+                <label className="text-[9px] font-black text-slate-800 uppercase tracking-[0.2em] ml-1">Entrega</label>
+                <select 
+                  className="w-full text-[10px] p-2.5 rounded-lg border border-slate-100 bg-slate-50 font-bold outline-none text-slate-700" 
+                  value={deliveryType} 
+                  onChange={e => setDeliveryType(e.target.value as any)}
+                >
+                  <option value="LOCAL">🏪 RETIRA EN LOCAL</option>
+                  <option value="SHIPPING">🚚 ENVÍO A DOMICILIO</option>
+                </select>
+
+                {deliveryType === 'SHIPPING' && (
+                  <div className="mt-3 space-y-2 animate-in slide-in-from-top-2">
+                    <input 
+                      type="text" 
+                      placeholder="Dirección exacta (Ej: Calle 12 N° 345)" 
+                      value={deliveryAddress} 
+                      onChange={e => setDeliveryAddress(e.target.value)} 
+                      className="w-full text-xs p-2.5 rounded-lg border border-blue-200 bg-blue-50/30 outline-none focus:border-blue-500 font-bold" 
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <select 
+                        value={deliveryZone} 
+                        onChange={e => setDeliveryZone(e.target.value)} 
+                        className="w-full text-[10px] p-2.5 rounded-lg border border-blue-200 bg-blue-50/30 font-bold outline-none"
+                      >
+                        <option value="BERISSO">Berisso</option>
+                        <option value="LA_PLATA">La Plata</option>
+                        <option value="ENSENADA">Ensenada</option>
+                        <option value="LOS_HORNOS">Los Hornos</option>
+                      </select>
+                      <input 
+                        type="text" 
+                        placeholder="Teléfono (Para avisos)" 
+                        value={deliveryPhone} 
+                        onChange={e => setDeliveryPhone(e.target.value)} 
+                        className="w-full text-xs p-2.5 rounded-lg border border-blue-200 bg-blue-50/30 outline-none font-bold" 
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+              {/* FIN SECTOR DE ENVÍO */}
 
               <div className="pt-2">
                 <div className="flex justify-between items-end mb-4">
@@ -391,7 +472,7 @@ export const SalesDashboard = () => {
         </div>
       )}
 
-      {/* TICKET DE VENTA (Quedó idéntico al tuyo) */}
+      {/* TICKET DE VENTA */}
       {lastSale && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-md overflow-y-auto">
           <div className="bg-white p-8 w-full max-w-sm rounded-3xl shadow-2xl mx-4 my-8 animate-in zoom-in-95 duration-200">
