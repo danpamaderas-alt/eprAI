@@ -23,15 +23,22 @@ interface InventoryStore {
 export const useInventoryStore = create<InventoryStore>((set, get) => ({
   products: [], isLoading: false,
 
-  fetchProducts: async () => {
-    set({ isLoading: true });
-    try {
-      // Usamos created_at (estándar Supabase)
-      const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-      if (error) throw error;
-      set({ products: data as Product[] });
-    } catch (error) { console.error(error); } finally { set({ isLoading: false }); }
-  },
+fetchProducts: async () => {
+  set({ isLoading: true });
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .order('created_at', { ascending: false }); // ✅ AHORA SIEMPRE ES ASÍ
+
+    if (error) throw error;
+    set({ products: data as Product[] });
+  } catch (error) { 
+    console.error("Error:", error); 
+  } finally { 
+    set({ isLoading: false }); 
+  }
+},
 
   addProduct: async (productData) => {
     const { data, error } = await supabase.from('products').insert([productData]).select().single();
