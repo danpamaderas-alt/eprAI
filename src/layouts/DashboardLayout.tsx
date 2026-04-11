@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { path: '/ventas', label: 'Ventas', icon: '💰' },
   { path: '/pedidos', label: 'Hoja de Ruta', icon: '📋' },
   { path: '/clientes', label: 'Clientes CRM', icon: '🤝' },
+  { path: '/cuentas-corrientes', label: 'Cuentas Cor.', icon: '💳' },
   { path: '/revendedores', label: 'Revendedores', icon: '🚚' },
 ];
 

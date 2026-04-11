@@ -1,22 +1,56 @@
 import { useEffect, useState } from 'react';
 import { useDebtStore, type Debt } from '../store/useDebtStore';
+import { useCrmStore } from '../store/useCrmStore'; // Traemos a los clientes del CRM
 import Swal from 'sweetalert2';
 
 const ARS = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 
 export const DebtDashboard = () => {
-  const { debts, fetchDebts, addPayment, isLoading } = useDebtStore();
-  const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
+  const { debts, fetchDebts, createDebt, addPayment, isLoading } = useDebtStore();
+  const { customers, fetchCustomers } = useCrmStore(); // Lista de clientes
   
-  // Estados para el pago
+  const [selectedDebt, setSelectedDebt] = useState<Debt | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  
+  // Estados para NUEVA deuda
+  const [newCustomerId, setNewCustomerId] = useState('');
+  const [newAmount, setNewAmount] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+
+  // Estados para COBRAR deuda
   const [payAmount, setPayAmount] = useState('');
   const [payMethod, setPayMethod] = useState('EFECTIVO');
   const [businessUnit, setBusinessUnit] = useState('GENERAL');
 
+  // Al abrir la pantalla, buscamos deudas y clientes
   useEffect(() => {
     fetchDebts();
-  }, [fetchDebts]);
+    fetchCustomers();
+  }, [fetchDebts, fetchCustomers]);
 
+  // 1. FUNCIÓN PARA CREAR UNA DEUDA NUEVA
+  const handleCreateDebt = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCustomerId || !newAmount) return;
+
+    try {
+      await createDebt({
+        customer_id: newCustomerId,
+        total_amount: Number(newAmount),
+        remaining_balance: Number(newAmount), // Arranca debiendo el total
+        description: newDesc || 'Saldo pendiente',
+        status: 'PENDING'
+      });
+      
+      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Deuda registrada', showConfirmButton: false, timer: 2000 });
+      setIsFormOpen(false);
+      setNewCustomerId(''); setNewAmount(''); setNewDesc('');
+    } catch (error) {
+      Swal.fire('Error', 'No se pudo crear la deuda', 'error');
+    }
+  };
+
+  // 2. FUNCIÓN PARA COBRAR UN PAGO
   const handleCharge = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDebt || !payAmount) return;
@@ -30,7 +64,7 @@ export const DebtDashboard = () => {
         selectedDebt.customers?.name || 'Cliente'
       );
       
-      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Pago registrado y enviado a Tesorería', showConfirmButton: false, timer: 2500 });
+      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Pago enviado a Tesorería', showConfirmButton: false, timer: 2500 });
       setSelectedDebt(null);
       setPayAmount('');
     } catch (error) {
@@ -42,11 +76,61 @@ export const DebtDashboard = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div>
-        <h1 className="text-3xl font-black text-slate-900 tracking-tight italic">Cuentas Corrientes</h1>
-        <p className="text-slate-500 text-sm font-medium uppercase tracking-widest">Gestión de saldos y cobros parciales.</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight italic">Cuentas Corrientes</h1>
+          <p className="text-slate-500 text-sm font-medium uppercase tracking-widest">Gestión de saldos y cobros parciales.</p>
+        </div>
+        
+        {/* BOTÓN MAGICO PARA ABRIR EL FORMULARIO */}
+        {!isFormOpen && !selectedDebt && (
+          <button 
+            onClick={() => setIsFormOpen(true)} 
+            className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl shadow-lg transition-all"
+          >
+            + NUEVA DEUDA
+          </button>
+        )}
       </div>
 
+      {/* FORMULARIO: CREAR DEUDA */}
+      {isFormOpen && (
+        <form onSubmit={handleCreateDebt} className="bg-white p-6 rounded-3xl shadow-xl border border-slate-200 animate-in slide-in-from-top-4">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="font-black text-lg italic">📝 Registrar Nuevo Saldo Deudor</h2>
+            <button type="button" onClick={() => setIsFormOpen(false)} className="text-slate-400 hover:text-rose-500 font-bold">✕ Cerrar</button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Cliente</label>
+              <select value={newCustomerId} onChange={e => setNewCustomerId(e.target.value)} className="w-full p-3 rounded-xl border border-slate-200 font-bold outline-none focus:border-blue-500" required>
+                <option value="">-- Seleccionar Cliente --</option>
+                {customers.map(c => (
+                  <option key={c.id} value={c.id}>{c.name} {c.company ? `(${c.company})` : ''}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Monto Total ($)</label>
+              <input type="number" value={newAmount} onChange={e => setNewAmount(e.target.value)} placeholder="Ej: 50000" className="w-full p-3 rounded-xl border border-slate-200 font-bold outline-none focus:border-blue-500" required />
+            </div>
+
+            <div>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Concepto</label>
+              <input type="text" value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Ej: Mercadería fiada" className="w-full p-3 rounded-xl border border-slate-200 font-bold outline-none focus:border-blue-500" required />
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end">
+             <button type="submit" className="px-8 py-3 bg-blue-600 text-white font-black rounded-xl hover:bg-blue-700 transition-all shadow-lg">
+                GUARDAR DEUDA
+             </button>
+          </div>
+        </form>
+      )}
+
+      {/* FORMULARIO: COBRAR DEUDA (El azul que ya teníamos) */}
       {selectedDebt && (
         <form onSubmit={handleCharge} className="bg-blue-600 p-6 rounded-3xl shadow-xl shadow-blue-600/20 text-white animate-in slide-in-from-top-4">
           <div className="flex justify-between items-center mb-4">
@@ -88,6 +172,7 @@ export const DebtDashboard = () => {
         </form>
       )}
 
+      {/* LA TABLA DE DEUDORES */}
       <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden min-h-[400px]">
         {isLoading ? (
            <p className="p-8 text-center text-slate-400 font-bold uppercase tracking-widest">Buscando deudores...</p>
@@ -113,14 +198,14 @@ export const DebtDashboard = () => {
                   <td className="py-4 px-6 font-bold text-slate-400">{ARS.format(debt.total_amount)}</td>
                   <td className="py-4 px-6 font-black text-rose-600 text-base">{ARS.format(debt.remaining_balance)}</td>
                   <td className="py-4 px-6 text-right">
-                    <button onClick={() => setSelectedDebt(debt)} className="px-4 py-2 bg-slate-900 text-white text-xs font-black rounded-lg uppercase tracking-widest hover:bg-blue-600 transition-colors">
+                    <button onClick={() => { setSelectedDebt(debt); setIsFormOpen(false); }} className="px-4 py-2 bg-slate-900 text-white text-xs font-black rounded-lg uppercase tracking-widest hover:bg-blue-600 transition-colors">
                       Cobrar
                     </button>
                   </td>
                 </tr>
               ))}
               {pendingDebts.length === 0 && (
-                <tr><td colSpan={5} className="py-20 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Nadie te debe plata en este momento 👏</td></tr>
+                <tr><td colSpan={5} className="py-20 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">NADIE TE DEBE PLATA EN ESTE MOMENTO 👏</td></tr>
               )}
             </tbody>
           </table>
