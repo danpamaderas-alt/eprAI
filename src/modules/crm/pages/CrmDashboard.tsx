@@ -10,7 +10,9 @@ const BADGE_STYLES: Record<string, string> = {
   MINORISTA: 'bg-emerald-50 text-emerald-700 border-emerald-200',
 };
 
-const getBadgeStyle = (type: string): string => {
+// ✅ CORREGIDO: Le decimos a TypeScript que el tipo puede venir vacío (opcional)
+const getBadgeStyle = (type?: string): string => {
+  if (!type) return BADGE_STYLES.MINORISTA; // Si no tiene tipo, es minorista por defecto
   return BADGE_STYLES[type] || BADGE_STYLES.MINORISTA;
 };
 
@@ -39,7 +41,6 @@ export const CrmDashboard = () => {
       setShowForm(false);
       reset();
     } catch (error: any) {
-      // ADVERTENCIA CORREGIDA: Error expuesto para auditoría y debug
       console.error('[CRM Mutation Error] Falla al insertar cliente:', error);
       Swal.fire({
         icon: 'error',
@@ -50,7 +51,6 @@ export const CrmDashboard = () => {
     }
   };
 
-  // CRÍTICO CORREGIDO: Confirmación explícita obligatoria antes de destrucción
   const handleDelete = useCallback(async (id: string, name: string) => {
     const result = await Swal.fire({
       title: '¿Eliminar cliente?',
@@ -224,8 +224,9 @@ export const CrmDashboard = () => {
                     <p className="text-[10px] text-slate-400">{c.email || 'Sin correo'}</p>
                   </td>
                   <td className="py-4 px-6">
+                    {/* ✅ CORREGIDO: Usamos el escudo y mostramos el tipo real o el default */}
                     <span className={`px-2.5 py-1 text-[9px] font-black rounded-md border shadow-sm ${getBadgeStyle(c.type)}`}>
-                      {c.type}
+                      {c.type || 'MINORISTA'}
                     </span>
                   </td>
                   <td className="py-4 px-6 text-right">

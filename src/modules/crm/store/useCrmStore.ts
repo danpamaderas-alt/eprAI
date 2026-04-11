@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { supabase } from '../../../lib/supabase'; // ✅ CORREGIDO: Tres niveles para llegar a lib
+import { supabase } from '../../../lib/supabase'; // ✅ 3 niveles justos
 
 export interface Customer {
   id: string;
@@ -8,7 +8,7 @@ export interface Customer {
   phone?: string;
   company?: string;
   notes?: string;
-  type?: string; // ✅ ACÁ ESTÁ EL PARCHE
+  type?: string; // ✅ Tipo de cliente opcional
   created_at?: string;
 }
 
@@ -25,33 +25,39 @@ export const useCrmStore = create<CrmStore>((set) => ({
   customers: [],
   isLoading: false,
 
- fetchCustomers: async () => {
-  set({ isLoading: true });
-  try {
-    const { data, error } = await supabase
-      .from('customers')
-      .select('*')
-      .order('created_at', { ascending: false }); // ✅ UNIFICADO
-
-    if (error) throw error;
-    set({ customers: data as Customer[] });
-  } catch (error) { 
-    console.error("Error en CRM:", error); 
-  } finally { 
-    set({ isLoading: false }); 
-  }
-},
+  fetchCustomers: async () => {
+    set({ isLoading: true });
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .order('created_at', { ascending: false }); // ✅ Orden correcto
+      if (error) throw error;
+      set({ customers: data as Customer[] });
+    } catch (error) { 
+      console.error(error); 
+    } finally { 
+      set({ isLoading: false }); 
+    }
+  },
 
   addCustomer: async (data) => {
-    const { data: newCustomer, error } = await supabase.from('customers').insert([data]).select().single();
+    const { data: newCustomer, error } = await supabase
+      .from('customers')
+      .insert([data])
+      .select()
+      .single();
     if (error) throw error;
-    set((state) => ({ customers: [...state.customers, newCustomer as Customer] }));
+    // Agrega el nuevo cliente arriba de todo
+    set((state) => ({ customers: [newCustomer as Customer, ...state.customers] }));
   },
 
   updateCustomer: async (id, updates) => {
-    const { error } = await supabase.from('customers').update(updates).eq('id', id);
+    const { error } = await supabase
+      .from('customers')
+      .update(updates)
+      .eq('id', id);
     if (error) throw error;
-    // Actualiza la pantalla sin tener que refrescar
     set((state) => ({
       customers: state.customers.map((c) => (c.id === id ? { ...c, ...updates } : c)),
     }));
