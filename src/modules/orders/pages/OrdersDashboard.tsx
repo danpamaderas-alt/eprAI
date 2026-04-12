@@ -3,11 +3,11 @@ import { useOrderStore } from '../store/useOrderStore';
 import Swal from 'sweetalert2';
 import { OrderForm } from '../components/OrderForm';
 
-// Ajustamos los colores para que se vean bien tanto en claro como en oscuro
+// Ajustamos los colores
 const STATUS_COLORS: Record<string, string> = { 
-  PENDING: 'bg-rose-100 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-900/50', 
-  PARTIAL: 'bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900/50', 
-  DELIVERED: 'bg-emerald-100 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/50',
+  PENDING: 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-800', 
+  PARTIAL: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800', 
+  DELIVERED: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
   CANCELLED: 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'
 };
 
@@ -18,6 +18,132 @@ const STATUS_LABELS: Record<string, string> = {
   CANCELLED: '🚫 CANCELADO'
 };
 
+// ==========================================
+// COMPONENTE DE TARJETA DESPLEGABLE
+// ==========================================
+const OrderCard = ({ order, onDeliver, onPrint }: { order: any, onDeliver: Function, onPrint: Function }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const totalAmount = order.totalAmount || 0;
+  const advancePayment = order.advancePayment || 0;
+  const debt = totalAmount - advancePayment;
+
+  return (
+    <div className={`bg-white dark:bg-slate-800 rounded-3xl border transition-all duration-300 shadow-sm hover:shadow-md ${isExpanded ? 'border-blue-400 dark:border-blue-500' : 'border-slate-200 dark:border-slate-700'}`}>
+      
+      {/* CABECERA (Siempre visible) */}
+      <div 
+        onClick={() => setIsExpanded(!isExpanded)} 
+        className="p-6 cursor-pointer flex flex-col md:flex-row justify-between items-start md:items-center gap-4 select-none"
+      >
+        <div>
+          <span className="text-[9px] font-black uppercase text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 px-2 py-1 rounded-md mb-2 inline-block">
+            {order.businessUnit.replace('_', ' ')}
+          </span>
+          <h3 className="text-xl font-black text-slate-900 dark:text-white leading-tight flex items-center gap-2">
+            {order.customerName}
+            <span className={`px-2 py-0.5 text-[9px] font-black rounded-md border ${STATUS_COLORS[order.status]}`}>
+              {STATUS_LABELS[order.status]}
+            </span>
+          </h3>
+          <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase mt-1 italic">
+            Vence: {new Date(order.dueDate).toLocaleDateString('es-AR')}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end">
+          <div className="text-right">
+            <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Total: <span className="text-slate-900 dark:text-white">${totalAmount}</span></div>
+            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Seña: ${advancePayment}</div>
+            {debt > 0 ? (
+              <div className="text-[10px] mt-1 font-black text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/30 px-2 py-0.5 rounded-md border border-rose-200 dark:border-rose-800">
+                DEBE: ${debt}
+              </div>
+            ) : totalAmount > 0 ? (
+              <div className="text-[10px] mt-1 font-black text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800">
+                PAGADO
+              </div>
+            ) : null}
+          </div>
+          <button className="text-slate-400 dark:text-slate-500 p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors">
+            {isExpanded ? '🔼' : '🔽'}
+          </button>
+        </div>
+      </div>
+
+      {/* DETALLE (Solo visible si está expandido) */}
+      {isExpanded && (
+        <div className="border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-6 rounded-b-3xl space-y-6 animate-in slide-in-from-top-2">
+          
+          <div className="flex justify-end pb-4 border-b border-slate-200 dark:border-slate-700">
+             <button 
+                onClick={(e) => { e.stopPropagation(); onPrint(order); }}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-800 dark:bg-slate-700 hover:bg-slate-700 text-white rounded-xl text-[10px] font-black uppercase transition-colors shadow-sm"
+              >
+                🖨️ Imprimir Remito
+              </button>
+          </div>
+
+          {order.items.map((item: any) => (
+            <div key={item.id} className="space-y-3">
+              <h4 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">{item.productName}</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {item.variations.map((variation: any) => {
+                  const delivered = variation.quantityDelivered || 0;
+                  const pending = variation.quantityOrdered - delivered;
+                  const progress = Math.round((delivered / variation.quantityOrdered) * 100);
+                  const desc = `Talle ${variation.size} - ${variation.color}`;
+
+                  return (
+                    <div key={variation.id} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-2xl flex flex-col justify-between gap-3 shadow-sm">
+                      
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-xs font-black text-slate-700 dark:text-slate-300 uppercase">{desc}</p>
+                          
+                          {/* 🔥 CARTELITO "RESTAN" */}
+                          {pending > 0 && delivered > 0 && (
+                            <span className="inline-block mt-1 text-[9px] font-black bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 px-2 py-0.5 rounded-md border border-rose-200 dark:border-rose-800 animate-pulse">
+                              ⚠️ FALTAN {pending}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs font-black text-slate-900 dark:text-white">
+                          {delivered} <span className="text-slate-400">/ {variation.quantityOrdered}</span>
+                        </span>
+                      </div>
+                      
+                      <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2">
+                        <div className={`h-2 rounded-full transition-all duration-500 ${progress >= 100 ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${progress}%` }}></div>
+                      </div>
+
+                      {pending > 0 ? (
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); onDeliver(order.id, item.id, variation.id, pending, desc); }}
+                          className="w-full mt-2 py-2 bg-slate-900 dark:bg-blue-600 hover:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                        >
+                          Registrar Entrega
+                        </button>
+                      ) : (
+                        <div className="w-full mt-2 py-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800 rounded-xl text-center text-[10px] font-black uppercase tracking-widest">
+                          Entregado ✅
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ==========================================
+// PANTALLA PRINCIPAL
+// ==========================================
 export const OrdersDashboard = () => {
   const { orders = [], fetchOrders, addOrder, registerPartialDelivery } = useOrderStore();
   const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'PARTIAL' | 'DELIVERED'>('ALL');
@@ -33,6 +159,17 @@ export const OrdersDashboard = () => {
     window.addEventListener('afterprint', handleAfterPrint);
     return () => window.removeEventListener('afterprint', handleAfterPrint);
   }, []);
+
+  // 🧠 LÓGICA DE ALERTAS INTELIGENTES
+  const alerts = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    
+    return {
+      urgent: orders.filter(o => o.status !== 'DELIVERED' && o.status !== 'CANCELLED' && o.dueDate <= today),
+      highDebt: orders.filter(o => o.status !== 'DELIVERED' && o.status !== 'CANCELLED' && (o.totalAmount - o.advancePayment) > (o.totalAmount * 0.5)),
+      partial: orders.filter(o => o.status === 'PARTIAL')
+    };
+  }, [orders]);
 
   const handlePrintRemito = (order: any) => {
     setOrderToPrint(order);
@@ -115,7 +252,6 @@ export const OrdersDashboard = () => {
 
       <div className="animate-in fade-in duration-500 space-y-6 print:hidden">
         
-        {/* ENCABEZADO */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm transition-colors duration-300">
           <div>
             <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight transition-colors">Hoja de Ruta</h1>
@@ -129,119 +265,75 @@ export const OrdersDashboard = () => {
           </button>
         </header>
 
-        {/* FILTROS */}
-        <nav className="flex bg-slate-200/50 dark:bg-slate-800/50 p-1 rounded-xl w-fit transition-colors">
-          {(['ALL', 'PENDING', 'PARTIAL', 'DELIVERED'] as const).map(tab => (
-            <button 
-              key={tab} 
-              onClick={() => setFilter(tab)} 
-              className={`px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${filter === tab ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
-            >
-              {tab === 'ALL' ? 'TODOS' : STATUS_LABELS[tab].substring(2)}
-            </button>
-          ))}
+        {/* 🔔 SECCIÓN DE ALERTAS RÁPIDAS */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {alerts.urgent.length > 0 && (
+            <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 p-4 rounded-3xl flex items-center gap-4 animate-pulse">
+              <span className="text-2xl">🚨</span>
+              <div>
+                <p className="text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest">Urgente</p>
+                <p className="text-sm font-black text-rose-900 dark:text-rose-100">{alerts.urgent.length} Vencidos o para Hoy</p>
+              </div>
+            </div>
+          )}
+
+          {alerts.highDebt.length > 0 && (
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-4 rounded-3xl flex items-center gap-4">
+              <span className="text-2xl">💰</span>
+              <div>
+                <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest">Cobro</p>
+                <p className="text-sm font-black text-amber-900 dark:text-amber-100">{alerts.highDebt.length} Con Deuda Mayor al 50%</p>
+              </div>
+            </div>
+          )}
+
+          {alerts.partial.length > 0 && (
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4 rounded-3xl flex items-center gap-4">
+              <span className="text-2xl">🚚</span>
+              <div>
+                <p className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">Logística</p>
+                <p className="text-sm font-black text-blue-900 dark:text-blue-100">{alerts.partial.length} En Proceso de Entrega</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <nav className="flex bg-slate-200/50 dark:bg-slate-800/50 p-1 rounded-xl w-fit transition-colors overflow-x-auto">
+          {(['ALL', 'PENDING', 'PARTIAL', 'DELIVERED'] as const).map(tab => {
+            const count = tab === 'ALL' ? orders.length : orders.filter(o => o.status === tab).length;
+            return (
+              <button 
+                key={tab} 
+                onClick={() => setFilter(tab)} 
+                className={`px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap flex items-center gap-2 ${filter === tab ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'}`}
+              >
+                {tab === 'ALL' ? 'TODOS' : STATUS_LABELS[tab].substring(2)}
+                <span className={`px-1.5 py-0.5 rounded-full text-[8px] ${filter === tab ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300' : 'bg-slate-200 dark:bg-slate-800'}`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </nav>
 
-        {/* LISTADO DE PEDIDOS */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-4">
           {filteredOrders.length === 0 ? (
-            <div className="col-span-full py-20 text-center opacity-30">
+            <div className="py-20 text-center opacity-30">
                <span className="text-6xl mb-4 block">🚚</span>
                <p className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">No hay pedidos registrados</p>
             </div>
           ) : (
             filteredOrders.map(order => (
-              <div key={order.id} className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden flex flex-col hover:border-blue-200 dark:hover:border-blue-500/50 transition-colors duration-300">
-                <div className="p-6 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-start transition-colors">
-                  
-                  {/* LADO IZQUIERDO */}
-                  <div>
-                    <span className="text-[9px] font-black uppercase text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 px-2 py-1 rounded-md mb-2 inline-block transition-colors">
-                      {order.businessUnit.replace('_', ' ')}
-                    </span>
-                    <h3 className="text-xl font-black text-slate-900 dark:text-white leading-tight transition-colors">{order.customerName}</h3>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase mt-1 italic transition-colors">Vence: {new Date(order.dueDate).toLocaleDateString('es-AR')}</p>
-                    
-                    {/* PANEL FINANCIERO AUTOMÁTICO */}
-                    <div className="mt-3 flex items-center gap-3 border-t border-slate-200 dark:border-slate-700 pt-3 transition-colors">
-                      <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Total: <span className="text-slate-900 dark:text-white transition-colors">${order.totalAmount || 0}</span></div>
-                      <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Seña: <span className="text-emerald-600 dark:text-emerald-400 transition-colors">${order.advancePayment || 0}</span></div>
-                      
-                      {((order.totalAmount || 0) - (order.advancePayment || 0)) > 0 ? (
-                        <div className="text-[10px] font-black text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/30 px-2 py-1 rounded-md border border-rose-200 dark:border-rose-800 animate-pulse shadow-sm transition-colors">
-                          DEBE: ${ (order.totalAmount || 0) - (order.advancePayment || 0) }
-                        </div>
-                      ) : (order.totalAmount > 0) ? (
-                        <div className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30 px-2 py-1 rounded-md border border-emerald-200 dark:border-emerald-800 shadow-sm transition-colors">
-                          PAGADO TOTAL
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  {/* LADO DERECHO: Botones */}
-                  <div className="flex flex-col items-end gap-2">
-                    <span className={`px-3 py-1.5 text-[10px] font-black rounded-lg border shadow-sm transition-colors ${STATUS_COLORS[order.status]}`}>
-                      {STATUS_LABELS[order.status]}
-                    </span>
-                    <button 
-                      onClick={() => handlePrintRemito(order)}
-                      className="flex items-center gap-1 px-3 py-1.5 bg-slate-800 dark:bg-slate-700 hover:bg-slate-700 dark:hover:bg-slate-600 text-white rounded-lg text-[10px] font-bold uppercase transition-colors shadow-sm"
-                    >
-                      🖨️ Remito
-                    </button>
-                  </div>
-                </div>
-
-                {/* DETALLE DE LOS ARTÍCULOS */}
-                <div className="p-6 space-y-6 flex-1">
-                  {order.items.map((item: any) => (
-                    <div key={item.id} className="space-y-3">
-                      <h4 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest border-b border-slate-100 dark:border-slate-700 pb-2 transition-colors">{item.productName}</h4>
-                      <div className="space-y-2">
-                        {item.variations.map((variation: any) => {
-                          const delivered = variation.quantityDelivered || 0;
-                          const pending = variation.quantityOrdered - delivered;
-                          const progress = Math.round((delivered / variation.quantityOrdered) * 100);
-                          const desc = `Talle ${variation.size} - ${variation.color}`;
-
-                          return (
-                            <div key={variation.id} className="bg-slate-50 dark:bg-slate-800/80 border border-slate-100 dark:border-slate-700 p-3 rounded-xl flex items-center justify-between gap-4 transition-colors">
-                              <div className="flex-1">
-                                <div className="flex justify-between items-end mb-2">
-                                  <p className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase transition-colors">{desc}</p>
-                                  <span className="text-[10px] font-black text-slate-900 dark:text-white transition-colors">{delivered} <span className="text-slate-400 dark:text-slate-500">/ {variation.quantityOrdered}</span></span>
-                                </div>
-                                <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 transition-colors">
-                                  <div className={`h-1.5 rounded-full transition-all duration-500 ${progress >= 100 ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${progress}%` }}></div>
-                                </div>
-                              </div>
-
-                              {pending > 0 ? (
-                                <button 
-                                  onClick={() => handleDeliverVariation(order.id, item.id, variation.id, pending, desc)}
-                                  className="px-4 py-2 bg-slate-900 dark:bg-slate-700 hover:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-lg text-[9px] font-black uppercase tracking-widest transition-all"
-                                >
-                                  Entregar
-                                </button>
-                              ) : (
-                                <span className="px-4 py-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors">
-                                  OK
-                                </span>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <OrderCard 
+                key={order.id} 
+                order={order} 
+                onDeliver={handleDeliverVariation} 
+                onPrint={handlePrintRemito} 
+              />
             ))
           )}
         </div>
 
-        {/* MODAL FORMULARIO */}
         {showForm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm p-4 transition-colors">
             <OrderForm 
@@ -252,7 +344,7 @@ export const OrdersDashboard = () => {
         )}
       </div>
 
-      {/* ZONA DE IMPRESIÓN (Queda intacta porque el papel siempre es blanco) */}
+      {/* TU REMITO ORIGINAL (Intacto) */}
       {orderToPrint && (
         <div className="hidden print:block w-full bg-white text-black p-4">
           <div className="flex justify-between items-start border-b-2 border-black pb-6 mb-8">

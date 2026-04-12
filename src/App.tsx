@@ -17,10 +17,20 @@ import { CrmDashboard } from './modules/crm/pages/CrmDashboard';
 import { DebtDashboard } from './modules/crm/pages/DebtDashboard';
 import { ResellersDashboard } from './modules/resellers/pages/ResellersDashboard';
 
+// ✅ ACÁ IMPORTAMOS EL CEREBRO CENTRAL
+import { useCatalogStore } from './store/useCatalogStore';
+
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
 
+  // ✅ EL HOOK TIENE QUE ESTAR ACÁ ADENTRO, en la raíz del componente
+  const { fetchAllCatalogs } = useCatalogStore();
+
   useEffect(() => {
+    // 1. Apenas arranca, descargamos los catálogos (Talles, Clientes, etc)
+    fetchAllCatalogs();
+
+    // 2. Controlamos la sesión (el patovica de seguridad)
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
@@ -32,16 +42,14 @@ export default function App() {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [fetchAllCatalogs]); // Agregamos la dependencia por seguridad
 
   return (
     <BrowserRouter>
       <Routes>
         {!session ? (
-          // Si no hay sesión, cualquier ruta te tira al Login
           <Route path="*" element={<LoginPage />} />
         ) : (
-          // ✅ ACÁ ESTÁ EL ARREGLO: El Layout ahora proyecta las pantallas correctamente
           <Route element={<DashboardLayout />}>
             <Route path="/" element={<Navigate to="/inicio" replace />} />
             <Route path="/inicio" element={<HomeDashboard />} />
@@ -52,8 +60,6 @@ export default function App() {
             <Route path="/clientes" element={<CrmDashboard />} />
             <Route path="/cuentas-corrientes" element={<DebtDashboard />} />
             <Route path="/revendedores" element={<ResellersDashboard />} />
-            
-            {/* Por si entra a un link que no existe */}
             <Route path="*" element={<Navigate to="/inicio" replace />} />
           </Route>
         )}

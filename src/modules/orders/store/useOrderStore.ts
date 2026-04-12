@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import { supabase } from '../../../lib/supabase'; // Asegurate de que esta ruta coincida con tu archivo supabase.ts
+import { supabase } from '../../../lib/supabase';
 import { type Order, type DeliveryLog } from '../schemas/orderSchema';
+import { useCatalogStore } from '../../../store/useCatalogStore'; // ⬅️ Importamos el cerebro del stock
 import Swal from 'sweetalert2';
 
 interface OrderState {
@@ -15,50 +16,59 @@ export const useOrderStore = create<OrderState>((set, get) => ({
   orders: [],
   isLoading: false,
 
-  // 1. TRAER PEDIDOS DE LA BASE DE DATOS
   fetchOrders: async () => {
     set({ isLoading: true });
     try {
       const { data, error } = await supabase
         .from('orders')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('due_date', { ascending: true });
 
       if (error) throw error;
       
-      // Supabase nos devuelve los JSONB perfectamente formateados
-      set({ orders: data as Order[], isLoading: false });
+      const mappedOrders = data.map(d => ({
+        id: d.id,
+        customerName: d.customer_name,
+        businessUnit: d.business_unit,
+        status: d.status,
+        dueDate: d.due_date,
+        totalAmount: Number(d.total_amount) || 0,
+        advancePayment: Number(d.advance_payment) || 0,
+        items: d.items || [],
+        deliveryHistory: d.delivery_history || [],
+        created_at: d.created_at
+      }));
+
+      set({ orders: mappedOrders as Order[], isLoading: false });
     } catch (error) {
       console.error('Error cargando pedidos:', error);
       set({ isLoading: false });
     }
   },
 
-  // 2. GUARDAR UN NUEVO PEDIDO EN LA NUBE
   addOrder: async (orderData) => {
-    const newOrder = {
-      ...orderData,
-      // No mandamos ID ni created_at porque Supabase los genera automáticamente con el SQL que corrimos
+    const dbData = {
+      customer_name: orderData.customerName,
+      business_unit: orderData.businessUnit,
+      status: orderData.status || 'PENDING',
+      due_date: orderData.dueDate,
+      total_amount: orderData.totalAmount || 0,
+      advance_payment: orderData.advancePayment || 0,
+      items: orderData.items,
+      delivery_history: orderData.deliveryHistory || []
     };
     
     try {
-      const { data, error } = await supabase
-        .from('orders')
-        .insert([newOrder])
-        .select()
-        .single();
-
+      const { error } = await supabase.from('orders').insert([dbData]);
       if (error) throw error;
-
-      // Actualizamos la pantalla al instante con el dato real de la base de datos
-      set((state) => ({ orders: [data as Order, ...state.orders] }));
+      get().fetchOrders(); 
     } catch (error) {
       console.error('Error guardando pedido:', error);
       Swal.fire('Error', 'No se pudo guardar el pedido en la nube', 'error');
+      throw error;
     }
   },
 
-  // 3. REGISTRAR UNA ENTREGA PARCIAL Y ACTUALIZAR LA NUBE
   registerPartialDelivery: async (orderId, deliveryData) => {
     const currentOrder = get().orders.find(o => o.id === orderId);
     if (!currentOrder) return;
@@ -70,14 +80,15 @@ export const useOrderStore = create<OrderState>((set, get) => ({
 
     let isOrderFullyDelivered = true;
 
-    // Calculamos las nuevas cantidades
+    // 1. Calculamos las nuevas cantidades y preparamos el descuento de stock
     const updatedItems = currentOrder.items.map(item => {
       const updatedVariations = item.variations.map(variation => {
+        // Buscamos si esta variante específica se entregó en este remito
         const deliveredThisTime = newLog.itemsDelivered.find(
           d => d.itemId === item.id && d.variationId === variation.id
         )?.quantity || 0;
 
-        const totalDelivered = variation.quantityDelivered + deliveredThisTime;
+        const totalDelivered = (variation.quantityDelivered || 0) + deliveredThisTime;
         
         if (totalDelivered < variation.quantityOrdered) {
           isOrderFullyDelivered = false;
@@ -90,33 +101,45 @@ export const useOrderStore = create<OrderState>((set, get) => ({
     });
 
     const newStatus = isOrderFullyDelivered ? 'DELIVERED' : 'PARTIAL';
-    const newDeliveryHistory = [...currentOrder.deliveryHistory, newLog];
+    const newDeliveryHistory = [...(currentOrder.deliveryHistory || []), newLog];
 
     try {
-      // Mandamos la actualización a Supabase
+      // 2. 🔥 MAGIA: DESCONTAR DEL GALPÓN REAL
+      // Recorremos lo que se entregó "ahora" para bajar el stock
+ // 2. 🔥 MAGIA: DESCONTAR DEL GALPÓN REAL
+      for (const delivered of deliveryData.itemsDelivered) {
+        const item = currentOrder.items.find((i: any) => i.id === delivered.itemId) as any;
+        
+        // Si el item del pedido tiene los IDs de producto, talle y color...
+        if (item && item.productId && item.sizeId && item.colorId) {
+          await useCatalogStore.getState().updateStock(
+            item.productId,
+            item.sizeId,
+            item.colorId,
+            -delivered.quantity
+          );
+        }
+      }
+
+      // 3. Actualizamos Supabase con la nueva historia de entrega
       const { error } = await supabase
         .from('orders')
         .update({
           items: updatedItems,
-          deliveryHistory: newDeliveryHistory,
+          delivery_history: newDeliveryHistory,
           status: newStatus
         })
         .eq('id', orderId);
 
       if (error) throw error;
 
-      // Si Supabase dijo que OK, actualizamos la pantalla
-      set((state) => ({
-        orders: state.orders.map(order => 
-          order.id === orderId 
-            ? { ...order, items: updatedItems, deliveryHistory: newDeliveryHistory, status: newStatus } 
-            : order
-        )
-      }));
+      // 4. Refrescamos para ver los cambios en la Hoja de Ruta
+      get().fetchOrders();
 
     } catch (error) {
-      console.error('Error actualizando entrega:', error);
-      Swal.fire('Error', 'Hubo un problema de conexión al registrar la entrega', 'error');
+      console.error('Error en proceso de entrega/stock:', error);
+      Swal.fire('Error', 'No se pudo registrar la entrega o descontar stock', 'error');
+      throw error;
     }
   }
 }));

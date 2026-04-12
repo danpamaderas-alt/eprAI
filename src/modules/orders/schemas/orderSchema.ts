@@ -48,7 +48,6 @@ export type ItemVariation = z.infer<typeof itemVariationSchema>;
 export type OrderItem = z.infer<typeof orderItemSchema>;
 export type DeliveryLog = z.infer<typeof deliveryLogSchema>;
 export type OrderFormValues = z.infer<typeof orderSchema>;
-
 export interface Order extends OrderFormValues {
   id: string;
   created_at: string;

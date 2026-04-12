@@ -1,199 +1,132 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useTreasuryStore } from '../../inventory/treasury/store/useTreasuryStore';
-import { useInventoryStore } from '../../inventory/treasury/store/useInventoryStore';
-
-// OPTIMIZACIÓN CRÍTICA: Instancia extraída fuera del render. Se crea una sola vez en la memoria.
-const ARS_FORMATTER = new Intl.NumberFormat('es-AR', { 
-  style: 'currency', 
-  currency: 'ARS', 
-  maximumFractionDigits: 0 
-});
-
-const formatCurrency = (val: number): string => ARS_FORMATTER.format(val);
+import { useEffect, useMemo } from 'react';
+import { useOrderStore } from '../../orders/store/useOrderStore';
+import { useCatalogStore } from '../../../store/useCatalogStore';
+import { useNavigate } from 'react-router-dom';
 
 export const HomeDashboard = () => {
-  const { transactions, fetchTransactions } = useTreasuryStore();
-  const { products, fetchProducts } = useInventoryStore();
-  
-  const [selectedUnit, setSelectedUnit] = useState<string>('ALL');
+  const navigate = useNavigate();
+  const { orders, fetchOrders } = useOrderStore();
+  // 🧠 Traemos los clientes para ver sus saldos reales
+  const { products, customers } = useCatalogStore();
 
   useEffect(() => {
-    fetchTransactions();
-    fetchProducts();
-  }, [fetchTransactions, fetchProducts]);
+    fetchOrders();
+  }, [fetchOrders]);
 
-  // Procesamiento altamente optimizado en una sola pasada O(n)
-  const { totalIncome, totalExpense, balance, lowStockCount, recentTransactions } = useMemo(() => {
-    let income = 0;
-    let expense = 0;
-    const recent = [];
+  // 🧠 Lógica Maestra: Calculamos los números reales del negocio
+  const stats = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
     
-    // CRÍTICO: Evaluación basada en UTC estricto. Evita desfases por zona horaria.
-    // Asume que la base de datos envía formato ISO 'YYYY-MM-DDTHH:mm:ss.sssZ'
-    const currentYearMonth = new Date().toISOString().substring(0, 7); 
-
-    // 1. Cálculo unificado de transacciones (O(n) - 1 Pasada)
-    for (let i = 0; i < transactions.length; i++) {
-      const t = transactions[i];
-
-      // Almacenamos recientes sin importar filtro (Asume orden DESC desde DB)
-      if (recent.length < 5) {
-        recent.push(t);
-      }
-
-      // Filtro de estado y unidad de negocio
-      if (t.status !== 'COMPLETED') continue;
-      if (selectedUnit !== 'ALL' && t.businessUnit !== selectedUnit) continue;
-
-      // Filtro de fecha ultrarrápido (Evita asignar memoria con 'new Date()')
-      if (!t.date.startsWith(currentYearMonth)) continue;
-
-      const amount = Number(t.amount) || 0;
-      if (t.type === 'INCOME') {
-        income += amount;
-      } else if (t.type === 'EXPENSE') {
-        expense += amount;
-      }
-    }
-
-    // 2. Cálculo unificado de stock (O(n) - 1 Pasada)
-    let lowStock = 0;
-    for (let i = 0; i < products.length; i++) {
-      const p = products[i];
-      if ((Number(p.stock) || 0) <= (Number(p.minStock) || 0)) {
-        lowStock++;
-      }
-    }
-
+    // 1. Ingresos: Sigue siendo la suma de señas recibidas en pedidos actuales
+    const totalIncome = orders.reduce((acc, o) => acc + (o.advancePayment || 0), 0);
+    
+    // 2. SALDO EN LA CALLE: Suma total de los balances de todas las Cuentas Corrientes
+    const totalInStreet = customers.reduce((acc, c) => acc + (Number(c.balance) || 0), 0);
+    
     return {
-      totalIncome: income,
-      totalExpense: expense,
-      balance: income - expense,
-      lowStockCount: lowStock,
-      recentTransactions: recent
+      totalIncome,
+      totalInStreet,
+      urgentCount: orders.filter(o => o.status !== 'DELIVERED' && o.status !== 'CANCELLED' && o.dueDate <= today).length,
+      partialCount: orders.filter(o => o.status === 'PARTIAL').length,
+      pendingCount: orders.filter(o => o.status === 'PENDING').length
     };
-  }, [transactions, products, selectedUnit]);
+  }, [orders, customers]); // ⬅️ IMPORTANTE: Se actualiza si cambian pedidos o clientes
 
   return (
-    <div className="animate-in fade-in duration-500 space-y-8">
+    <div className="space-y-8 animate-in fade-in duration-500">
       
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+      {/* ENCABEZADO */}
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Panel de Control</h1>
-          <p className="text-slate-500 text-sm font-medium uppercase tracking-widest mt-1">Resumen Financiero Mensual</p>
-        </div>
-        
-        <div className="flex flex-col space-y-1">
-          <label htmlFor="business-unit-filter" className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] ml-1">
-            Filtro de Negocio
-          </label>
-          <select 
-            id="business-unit-filter"
-            value={selectedUnit}
-            onChange={(e) => setSelectedUnit(e.target.value)}
-            className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:border-blue-500 cursor-pointer appearance-none min-w-[200px]"
-          >
-            <option value="ALL">🌐 TODAS LAS UNIDADES</option>
-            <option value="GENERAL">🏠 GENERAL</option>
-            <option value="ROJO_SHOWROOM">👗 ROJO SHOWROOM</option>
-            <option value="RAICES">🌱 RAÍCES</option>
-            <option value="UNIFORMES">👕 UNIFORMES</option>
-            <option value="RJ_CO">💼 RJ & CO.</option>
-            <option value="BITA_IT">💻 BITA IT</option>
-          </select>
+          <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter italic">Panel de Control</h1>
+          <p className="text-slate-500 dark:text-slate-400 font-medium uppercase tracking-widest text-xs mt-1">Gestión Centralizada Raíces</p>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* TARJETAS DE DINERO RECONECTADAS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xl shadow-emerald-500/5 relative overflow-hidden group">
-          <div className="absolute -right-6 -top-6 w-24 h-24 bg-emerald-50 rounded-full group-hover:scale-150 transition-transform duration-500" aria-hidden="true"></div>
-          <div className="relative z-10">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center text-lg shadow-sm" aria-hidden="true">📥</div>
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Ingresos (Mes)</h3>
-            </div>
-            <p className="text-3xl font-black text-slate-900 tracking-tighter">{formatCurrency(totalIncome)}</p>
+        {/* CAJA REAL */}
+        <div className="bg-white dark:bg-slate-800 p-8 rounded-[40px] shadow-sm border border-slate-100 dark:border-slate-700">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Ingresos (Caja Señas)</p>
+          <p className="text-4xl font-black text-slate-900 dark:text-white">${stats.totalIncome.toLocaleString('es-AR')}</p>
+          <div className="mt-4 flex items-center gap-2 text-emerald-500 font-bold text-xs">
+             <span>↑ Cobros operativos de pedidos</span>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xl shadow-rose-500/5 relative overflow-hidden group">
-          <div className="absolute -right-6 -top-6 w-24 h-24 bg-rose-50 rounded-full group-hover:scale-150 transition-transform duration-500" aria-hidden="true"></div>
-          <div className="relative z-10">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center text-lg shadow-sm" aria-hidden="true">📤</div>
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Egresos (Mes)</h3>
-            </div>
-            <p className="text-3xl font-black text-slate-900 tracking-tighter">{formatCurrency(totalExpense)}</p>
+        {/* SALDO EN LA CALLE REAL (CUENTAS CORRIENTES) */}
+        <div className="bg-white dark:bg-slate-800 p-8 rounded-[40px] shadow-sm border border-slate-100 dark:border-slate-700 border-l-4 border-l-rose-500">
+          <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-2">Saldo en la Calle (Ctas. Ctes.)</p>
+          <p className="text-4xl font-black text-slate-900 dark:text-white">${stats.totalInStreet.toLocaleString('es-AR')}</p>
+          <div className="mt-4 flex items-center gap-2 text-rose-400 font-bold text-xs">
+             <span>⚠ Deuda total acumulada de clientes</span>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xl shadow-blue-500/5 relative overflow-hidden group">
-          <div className="absolute -right-6 -top-6 w-24 h-24 bg-blue-50 rounded-full group-hover:scale-150 transition-transform duration-500" aria-hidden="true"></div>
-          <div className="relative z-10">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center text-lg shadow-sm" aria-hidden="true">⚖️</div>
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Balance Neto</h3>
-            </div>
-            <p className={`text-3xl font-black tracking-tighter ${balance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-              {formatCurrency(balance)}
-            </p>
-          </div>
+        {/* STOCK */}
+        <div className="bg-slate-900 p-8 rounded-[40px] shadow-xl border border-slate-800">
+          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Artículos en Catálogo</p>
+          <p className="text-4xl font-black text-white">{products.length} <span className="text-lg text-slate-500">SKU</span></p>
+          <button onClick={() => navigate('/inventario')} className="mt-4 text-xs font-black text-blue-400 uppercase tracking-widest hover:text-white transition-colors">Ver Inventario →</button>
         </div>
-
-        <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800 shadow-xl relative overflow-hidden group">
-          <div className="absolute -right-6 -top-6 w-24 h-24 bg-slate-800 rounded-full group-hover:scale-150 transition-transform duration-500" aria-hidden="true"></div>
-          <div className="relative z-10">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-amber-500/20 text-amber-500 rounded-xl flex items-center justify-center text-lg shadow-sm" aria-hidden="true">⚠️</div>
-              <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Alertas de Stock</h3>
-            </div>
-            <p className="text-3xl font-black text-white tracking-tighter">
-              {lowStockCount} <span className="text-sm font-medium text-slate-500 tracking-normal uppercase">productos</span>
-            </p>
-          </div>
-        </div>
-
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* SECCIÓN CENTRAL: HOJA DE RUTA */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
-        <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm min-h-[320px] flex items-center justify-center relative overflow-hidden">
-           <div className="text-center z-10">
-              <span className="text-4xl mb-2 block" aria-hidden="true">📈</span>
-              <p className="text-xs font-black uppercase tracking-widest text-slate-400">Espacio reservado para gráfico de ingresos</p>
-           </div>
-           <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-slate-50 to-transparent pointer-events-none"></div>
-        </div>
-        
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm min-h-[320px] flex flex-col">
-          <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-4">Últimos Movimientos</h3>
-          
-          <div className="flex-1 flex flex-col gap-3 overflow-y-auto pr-2">
-            {recentTransactions.length === 0 ? (
-              <div className="flex-1 flex items-center justify-center border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50/50">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-300">Sin movimientos</p>
+        <div className="bg-white dark:bg-slate-800 p-8 rounded-[40px] border border-slate-100 dark:border-slate-700 shadow-sm">
+          <div className="flex justify-between items-center mb-8">
+            <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase italic">Monitoreo de Entregas</h3>
+            <button onClick={() => navigate('/pedidos')} className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase">Ir a Hoja de Ruta</button>
+          </div>
+
+          <div className="space-y-4">
+            <div className={`p-4 rounded-3xl flex justify-between items-center border transition-all ${stats.urgentCount > 0 ? 'bg-rose-50 border-rose-100 dark:bg-rose-900/20 dark:border-rose-900/50 animate-pulse' : 'bg-slate-50 border-slate-100 dark:bg-slate-800'}`}>
+              <div className="flex items-center gap-4">
+                <span className="text-2xl">{stats.urgentCount > 0 ? '🚨' : '✅'}</span>
+                <div>
+                  <p className="font-black text-slate-900 dark:text-white text-sm">Vencidos / Para Hoy</p>
+                  <p className="text-xs text-slate-500">Prioridad de taller</p>
+                </div>
               </div>
-            ) : (
-              recentTransactions.map(t => (
-                <div key={t.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-blue-200 transition-colors">
-                  <div className="flex-1 truncate pr-3">
-                    <p className="text-[11px] font-bold text-slate-800 truncate" title={t.description}>{t.description}</p>
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{t.category}</p>
+              <span className={`text-xl font-black ${stats.urgentCount > 0 ? 'text-rose-600' : 'text-slate-400'}`}>{stats.urgentCount}</span>
+            </div>
+
+            <div className="p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 rounded-3xl flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <span className="text-2xl">📦</span>
+                <div>
+                  <p className="font-black text-slate-900 dark:text-white text-sm">En Proceso (Parcial)</p>
+                  <p className="text-xs text-slate-500">Mercadería saliendo</p>
+                </div>
+              </div>
+              <span className="text-xl font-black text-amber-600">{stats.partialCount}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ÚLTIMOS MOVIMIENTOS */}
+        <div className="bg-white dark:bg-slate-800 p-8 rounded-[40px] border border-slate-100 dark:border-slate-700 shadow-sm">
+           <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase italic mb-8">Actividad Reciente</h3>
+           <div className="space-y-6">
+              {orders.slice(0, 4).map(o => (
+                <div key={o.id} className="flex justify-between items-center border-b border-slate-50 dark:border-slate-700 pb-4">
+                  <div>
+                    <p className="text-xs font-black text-slate-800 dark:text-white uppercase leading-none">{o.customerName}</p>
+                    <p className="text-[9px] text-slate-400 font-bold uppercase mt-1">Pedido #{o.id?.substring(0,5)}</p>
                   </div>
-                  <div className="text-right whitespace-nowrap">
-                    <p className={`text-xs font-black tabular-nums ${t.type === 'INCOME' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                      {t.type === 'EXPENSE' ? '- ' : ''}{formatCurrency(Number(t.amount) || 0)}
-                    </p>
+                  <div className="text-right">
+                    <p className="text-sm font-black text-emerald-500">+ ${o.advancePayment?.toLocaleString('es-AR')}</p>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase">SEÑA</p>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+              {orders.length === 0 && <p className="text-center py-10 text-slate-400 font-bold text-xs uppercase">Sin actividad</p>}
+           </div>
         </div>
 
       </div>
-
     </div>
   );
 };

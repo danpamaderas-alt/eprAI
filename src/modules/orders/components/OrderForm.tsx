@@ -1,289 +1,271 @@
-import { memo, useState } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
-import type { Resolver } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { orderSchema, type OrderFormValues } from '../schemas/orderSchema';
+import { useState } from 'react';
+import { useCatalogStore } from '../../../store/useCatalogStore';
+import Swal from 'sweetalert2';
 
-interface OrderFormProps {
-  onSubmitSuccess: (data: OrderFormValues) => void;
-  onCancel: () => void;
-}
+export const OrderForm = ({ onSubmitSuccess, onCancel }: { onSubmitSuccess: Function, onCancel: Function }) => {
+  const { 
+    customers, businessUnits, products, sizes, colors, personalizationTypes,
+    addCustomer, addProduct, addSize, addColor, addPersonalizationType 
+  } = useCatalogStore();
 
-export const OrderForm = ({ onSubmitSuccess, onCancel }: OrderFormProps) => {
-  const { register, control, handleSubmit, formState: { errors } } = useForm<OrderFormValues>({
-    resolver: zodResolver(orderSchema) as unknown as Resolver<OrderFormValues>,
-    defaultValues: {
-      customerName: '',
-      businessUnit: 'GENERAL',
-      status: 'PENDING',
-      dueDate: new Date().toISOString().split('T')[0],
-      totalAmount: 0,
-      advancePayment: 0,
-      items: [{ 
-        id: crypto.randomUUID(),
-        productName: '', 
-        variations: [] 
-      }],
-      deliveryHistory: []
-    }
-  });
-
-  const { fields: itemFields, append, remove } = useFieldArray({ control, name: "items" });
-
-  const inputClass = "w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none font-bold text-slate-900 dark:text-white transition-colors focus:border-blue-500 dark:focus:border-blue-500";
-  const labelClass = "text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase ml-1 transition-colors";
-
-  return (
-    <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto transition-colors duration-300">
-      <header className="bg-slate-900 dark:bg-slate-950 px-6 sm:px-8 py-5 sm:py-6 text-white flex justify-between items-center sticky top-0 z-20 border-b border-slate-800">
-        <h2 className="text-lg sm:text-xl font-black uppercase italic tracking-wide">Hoja de Ruta / Pedido</h2>
-        <button type="button" onClick={onCancel} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-800 hover:bg-rose-500 hover:text-white transition-colors font-bold">✕</button>
-      </header>
-
-      <form onSubmit={handleSubmit(onSubmitSuccess)} className="p-4 sm:p-8 space-y-8">
-        
-        {/* FILA SUPERIOR: Cliente, Total y Seña */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="space-y-1.5">
-            <label className={labelClass}>Cliente / Destinatario</label>
-            <input 
-              {...register('customerName')}
-              className={`${inputClass} ${errors.customerName ? 'border-rose-500 dark:border-rose-500' : ''}`} 
-              placeholder="Ej: Registro Provincial..."
-            />
-          </div>
-          
-          <div className="space-y-1.5">
-            <label className={labelClass}>Total Pedido ($)</label>
-            <input 
-              type="number"
-              {...register('totalAmount', { valueAsNumber: true })}
-              className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none font-black text-blue-600 dark:text-blue-400 transition-colors focus:border-blue-500" 
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className={labelClass}>Seña / Adelanto ($)</label>
-            <input 
-              type="number"
-              {...register('advancePayment', { valueAsNumber: true })}
-              className="w-full px-4 py-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl outline-none font-black text-emerald-600 dark:text-emerald-400 transition-colors focus:border-emerald-500" 
-            />
-          </div>
-        </div>
-
-        {/* LISTA DE ARTÍCULOS */}
-        <div className="space-y-6">
-          {itemFields.map((item, index) => (
-            <div key={item.id} className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 sm:p-6 relative shadow-sm transition-colors">
-              <button 
-                type="button" 
-                onClick={() => remove(index)}
-                className="absolute -top-3 -right-3 w-8 h-8 flex items-center justify-center bg-rose-500 text-white rounded-full shadow-lg font-bold hover:scale-110 transition-transform"
-              >✕</button>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase ml-1 transition-colors">Sector / Rubro</label>
-                  <input 
-                    {...register(`items.${index}.sector` as any)}
-                    placeholder="Ej: Indumentaria, Merchandising..."
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl font-black shadow-inner transition-colors focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase ml-1 transition-colors">Nombre del Producto / Artículo</label>
-                  <input 
-                    {...register(`items.${index}.productName` as const)}
-                    placeholder="Ej: Remera Lisa Algodón..."
-                    className="w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl font-black shadow-inner transition-colors focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-              </div>
-
-              <VariationFields nestIndex={index} control={control} register={register} />
-            </div>
-          ))}
-        </div>
-
-        <button 
-          type="button"
-          onClick={() => append({ 
-            id: crypto.randomUUID(), 
-            productName: '', 
-            variations: [] 
-          })}
-          className="w-full py-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl text-slate-400 dark:text-slate-500 font-black uppercase text-[10px] hover:border-blue-500 dark:hover:border-blue-400 transition-all hover:bg-slate-50 dark:hover:bg-slate-800"
-        >
-          + Agregar otro artículo al pedido
-        </button>
-
-        <div className="flex justify-end gap-4 border-t border-slate-100 dark:border-slate-700 pt-6">
-          <button type="submit" className="w-full sm:w-auto px-12 py-4 bg-blue-600 hover:bg-blue-500 transition-colors text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-blue-500/20 active:scale-95">
-            Confirmar Pedido
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-};
-
-// COMPONENTE SECUNDARIO PARA TALLES Y COLORES
-const VariationFields = memo(({ nestIndex, control, register }: { nestIndex: number, control: any, register: any }) => {
-  const { fields, append, remove } = useFieldArray({ control, name: `items.${nestIndex}.variations` });
-
-  const [quickColor, setQuickColor] = useState('');
-  const [quickSizes, setQuickSizes] = useState<Record<string, number>>({});
-  const [customSize, setCustomSize] = useState('');
+  // Estados del pedido
+  const [customerId, setCustomerId] = useState('');
+  const [businessUnit, setBusinessUnit] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [advancePayment, setAdvancePayment] = useState('');
   
-  const [savedColors, setSavedColors] = useState<string[]>(() => {
+  // Estados del artículo
+  const [selectedProductId, setSelectedProductId] = useState('');
+  const [selectedSizeId, setSelectedSizeId] = useState('');
+  const [selectedColorId, setSelectedColorId] = useState('');
+  const [selectedPersoId, setSelectedPersoId] = useState(''); // 🆕 Personalización
+  const [quantity, setQuantity] = useState('1');
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [cartItems, setCartItems] = useState<any[]>([]);
+
+  // Estados para creación rápida
+  const [isAddingCustomer, setIsAddingCustomer] = useState(false);
+  const [isAddingProduct, setIsAddingProduct] = useState(false);
+  const [isAddingSize, setIsAddingSize] = useState(false);
+  const [isAddingColor, setIsAddingColor] = useState(false);
+  const [isAddingPerso, setIsAddingPerso] = useState(false); // 🆕
+  const [tempName, setTempName] = useState('');
+  const [tempPrice, setTempPrice] = useState('');
+
+  const handleQuickAdd = async (type: 'customer' | 'product' | 'size' | 'color' | 'perso') => {
+    if (!tempName) return;
     try {
-      const saved = localStorage.getItem('epr_saved_colors');
-      return saved ? JSON.parse(saved) : ['Negro', 'Blanco', 'Azul Marino', 'Gris Melange', 'Rojo'];
-    } catch {
-      return ['Negro', 'Blanco', 'Azul Marino', 'Gris Melange', 'Rojo'];
-    }
-  });
-
-  const handleSizeChange = (size: string, qty: number) => {
-    setQuickSizes(prev => ({ ...prev, [size]: qty }));
+      let created;
+      if (type === 'customer') {
+        created = await addCustomer({ name: tempName });
+        setCustomerId(created.id);
+        setIsAddingCustomer(false);
+      } else if (type === 'product') {
+        created = await addProduct({ name: tempName, category: 'General', base_price: Number(tempPrice) || 0 });
+        setSelectedProductId(created.id);
+        setIsAddingProduct(false);
+      } else if (type === 'size') {
+        created = await addSize(tempName);
+        setSelectedSizeId(created.id);
+        setIsAddingSize(false);
+      } else if (type === 'color') {
+        created = await addColor(tempName);
+        setSelectedColorId(created.id);
+        setIsAddingColor(false);
+      } else if (type === 'perso') {
+        created = await addPersonalizationType(tempName, Number(tempPrice) || 0);
+        setSelectedPersoId(created.id);
+        setIsAddingPerso(false);
+      }
+      setTempName(''); setTempPrice('');
+      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Agregado', showConfirmButton: false, timer: 1500 });
+    } catch (e) { Swal.fire('Error', 'No se pudo guardar', 'error'); }
   };
 
-  const handleAddBulk = () => {
-    if (!quickColor.trim()) return alert('Por favor, seleccioná o escribí un Color primero.');
+  const handleAddItem = () => {
+    if (!selectedProductId || !selectedSizeId || !selectedColorId || !quantity) return;
     
-    const sizesToAdd = Object.entries(quickSizes).filter(([_, qty]) => qty > 0);
-    if (sizesToAdd.length === 0) return alert('Ingresá al menos una cantidad en algún talle.');
+    const product = products.find(p => p.id === selectedProductId);
+    const size = sizes.find(s => s.id === selectedSizeId);
+    const color = colors.find(c => c.id === selectedColorId);
+    const perso = personalizationTypes.find(p => p.id === selectedPersoId);
 
-    sizesToAdd.forEach(([size, qty]) => {
-      append({ id: crypto.randomUUID(), size, color: quickColor.trim(), quantityOrdered: qty, quantityDelivered: 0 });
-    });
+    // Sumamos: Precio Prenda + Precio Técnica
+    const finalUnitPrice = (product?.base_price || 0) + (Number(perso?.base_price) || 0);
 
-    if (!savedColors.includes(quickColor.trim())) {
-      const newColors = [...savedColors, quickColor.trim()];
-      setSavedColors(newColors);
-      localStorage.setItem('epr_saved_colors', JSON.stringify(newColors));
+    const newItem = {
+      id: editingItemId || crypto.randomUUID(),
+      productId: selectedProductId,
+      sizeId: selectedSizeId,
+      colorId: selectedColorId,
+      persoId: selectedPersoId,
+      productName: product?.name,
+      personalization: perso?.name || 'Liso', // Para el remito
+      variations: [{
+        id: crypto.randomUUID(),
+        size: size?.name,
+        color: color?.name,
+        quantityOrdered: Number(quantity),
+        quantityDelivered: 0
+      }],
+      price: finalUnitPrice * Number(quantity)
+    };
+
+    if (editingItemId) {
+      setCartItems(cartItems.map(item => item.id === editingItemId ? newItem : item));
+      setEditingItemId(null);
+    } else {
+      setCartItems([...cartItems, newItem]);
     }
 
-    setQuickSizes({});
-    setCustomSize('');
+    setSelectedProductId(''); setSelectedSizeId(''); setSelectedColorId(''); setSelectedPersoId(''); setQuantity('1');
   };
 
-  const defaultSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Único'];
+  const handleEditClick = (item: any) => {
+    setEditingItemId(item.id);
+    setSelectedProductId(item.productId);
+    setSelectedSizeId(item.sizeId);
+    setSelectedColorId(item.colorId);
+    setSelectedPersoId(item.persoId || '');
+    setQuantity(item.variations[0].quantityOrdered.toString());
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customerId || !businessUnit || cartItems.length === 0) return;
+    onSubmitSuccess({
+      customerName: customers.find(c => c.id === customerId)?.name,
+      businessUnit, dueDate, items: cartItems, status: 'PENDING',
+      totalAmount: cartItems.reduce((acc, i) => acc + i.price, 0),
+      advancePayment: Number(advancePayment)
+    });
+  };
 
   return (
-    <div className="border-t border-slate-200 dark:border-slate-700 pt-5 mt-5 transition-colors">
+    <div className="bg-white dark:bg-slate-900 w-full max-w-5xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[95vh] overflow-hidden">
       
-      <div className="bg-blue-50/50 dark:bg-blue-900/10 p-4 sm:p-5 rounded-2xl border border-blue-100 dark:border-blue-900/30 transition-colors">
-        <h4 className="text-[10px] font-black text-blue-800 dark:text-blue-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-          ⚡ Carga Rápida de Curva (Talles y Colores)
-        </h4>
-
-        <div className="space-y-5">
-          <div>
-            <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-2 block transition-colors">1. Seleccionar Color</label>
-            <div className="flex flex-wrap gap-2 mb-3">
-              {savedColors.map(c => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setQuickColor(c)}
-                  className={`px-4 py-1.5 rounded-xl text-xs font-bold border transition-all ${
-                    quickColor === c 
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-md scale-105' 
-                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:border-blue-400 dark:hover:border-blue-500'
-                  }`}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-slate-400 font-bold uppercase hidden sm:block">Otro color:</span>
-              <input
-                value={quickColor}
-                onChange={(e) => setQuickColor(e.target.value)}
-                placeholder="Escribí un color nuevo..."
-                className="w-full md:w-1/2 px-3 py-1.5 bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-bold shadow-sm focus:outline-none focus:border-blue-500 transition-colors"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-2 block transition-colors">2. Indicar cantidades por Talle</label>
-            <div className="flex flex-wrap gap-2">
-              {defaultSizes.map(size => (
-                <div key={size} className="flex items-center gap-1 bg-white dark:bg-slate-800 pl-3 pr-1.5 py-1.5 border border-slate-200 dark:border-slate-600 rounded-xl shadow-sm hover:border-blue-300 transition-colors">
-                  <span className="w-6 text-xs font-black text-slate-700 dark:text-slate-300">{size}</span>
-                  <input
-                    type="number"
-                    min="0"
-                    value={quickSizes[size] || ''}
-                    onChange={(e) => handleSizeChange(size, parseInt(e.target.value) || 0)}
-                    placeholder="0"
-                    className="w-12 px-1 py-1 text-center bg-slate-50 dark:bg-slate-900 text-blue-600 dark:text-blue-400 border border-slate-100 dark:border-slate-700 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-                  />
-                </div>
-              ))}
-              
-              <div className="flex items-center gap-1 bg-white dark:bg-slate-800 pl-2 pr-1.5 py-1.5 border border-dashed border-slate-300 dark:border-slate-600 rounded-xl transition-colors">
-                 <input
-                   type="text"
-                   placeholder="Otro..."
-                   value={customSize}
-                   onChange={(e) => setCustomSize(e.target.value)}
-                   className="w-14 text-xs font-black text-center border-none outline-none text-slate-600 dark:text-slate-300 bg-transparent"
-                 />
-                 <input
-                    type="number"
-                    min="0"
-                    value={customSize ? (quickSizes[customSize] || '') : ''}
-                    onChange={(e) => handleSizeChange(customSize, parseInt(e.target.value) || 0)}
-                    placeholder="0"
-                    disabled={!customSize}
-                    className="w-12 px-1 py-1 text-center bg-slate-50 dark:bg-slate-900 text-blue-600 dark:text-blue-400 border border-slate-100 dark:border-slate-700 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
-                  />
-              </div>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleAddBulk}
-            className="w-full md:w-auto bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-blue-600 hover:text-white transition-all shadow-sm"
-          >
-            + Agregar a la lista del pedido
-          </button>
-        </div>
+      <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900">
+        <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase italic">📦 Pedido de Producción</h2>
+        <button onClick={() => onCancel()} className="text-slate-400 hover:text-rose-500 font-bold">✕</button>
       </div>
 
-      {fields.length > 0 && (
-        <div className="mt-6 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 transition-colors">
-          <h4 className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">Detalle a guardar</h4>
-          <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
-            {fields.map((variation, k) => (
-              <div key={variation.id} className="flex flex-wrap sm:grid sm:grid-cols-[1fr_1fr_auto_auto] gap-3 items-center bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-600 shadow-sm transition-colors">
-                <div className="flex flex-col flex-1 min-w-[100px]">
-                  <span className="text-[8px] text-slate-400 font-bold uppercase ml-1">Color</span>
-                  <input {...register(`items.${nestIndex}.variations.${k}.color` as const)} className="px-2 py-1 bg-transparent border-none text-xs font-bold text-slate-700 dark:text-slate-200 outline-none w-full" />
+      <div className="p-8 overflow-y-auto space-y-8 flex-1">
+        
+        {/* SECCIÓN 1: CLIENTE */}
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div>
+            <div className="flex justify-between mb-1">
+              <label className="text-[10px] font-black text-slate-400 uppercase">Cliente</label>
+              {!isAddingCustomer && <button type="button" onClick={() => setIsAddingCustomer(true)} className="text-[9px] font-black text-blue-600">+ NUEVO</button>}
+            </div>
+            {isAddingCustomer ? (
+              <div className="flex gap-2">
+                <input autoFocus placeholder="Nombre" value={tempName} onChange={e => setTempName(e.target.value)} className="flex-1 p-2 text-xs border rounded-lg dark:bg-slate-800" />
+                <button type="button" onClick={() => handleQuickAdd('customer')} className="bg-blue-600 text-white px-3 rounded-lg text-[10px] font-black">OK</button>
+              </div>
+            ) : (
+              <select value={customerId} onChange={e => setCustomerId(e.target.value)} className="w-full p-2.5 rounded-xl border dark:bg-slate-800 dark:text-white font-bold outline-none">
+                <option value="">Seleccionar...</option>
+                {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            )}
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block">Unidad de Negocio</label>
+            <select value={businessUnit} onChange={e => setBusinessUnit(e.target.value)} className="w-full p-2.5 rounded-xl border dark:bg-slate-800 dark:text-white font-bold outline-none">
+              <option value="">Seleccionar...</option>
+              {businessUnits.map(b => <option key={b.id} value={b.code}>{b.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block">Fecha de Entrega</label>
+            <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="w-full p-2.5 rounded-xl border dark:bg-slate-800 dark:text-white font-bold outline-none" />
+          </div>
+        </section>
+
+        {/* SECCIÓN 2: CARGA / EDICIÓN */}
+        <section className={`p-6 rounded-3xl border ${editingItemId ? 'bg-blue-50/50 border-blue-200 dark:bg-blue-900/10' : 'bg-slate-50 dark:bg-slate-800/40 border-slate-100 dark:border-slate-700'}`}>
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3 items-end">
+            
+            {/* PRODUCTO */}
+            <div className="col-span-2">
+              <div className="flex justify-between mb-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase">Prenda de Stock</label>
+                {!isAddingProduct && <button type="button" onClick={() => setIsAddingProduct(true)} className="text-[9px] font-black text-emerald-600">+ NUEVO</button>}
+              </div>
+              {isAddingProduct ? (
+                <div className="flex gap-1">
+                  <input placeholder="Nombre" value={tempName} onChange={e => setTempName(e.target.value)} className="flex-1 p-2 text-xs border rounded-lg dark:bg-slate-800" />
+                  <input placeholder="$" value={tempPrice} onChange={e => setTempPrice(e.target.value)} className="w-12 p-2 text-xs border rounded-lg dark:bg-slate-800" />
+                  <button type="button" onClick={() => handleQuickAdd('product')} className="bg-emerald-600 text-white px-2 rounded-lg text-[9px] font-black">OK</button>
                 </div>
-                <div className="flex flex-col flex-1 min-w-[80px] sm:border-l sm:border-slate-100 dark:sm:border-slate-600 sm:pl-3">
-                  <span className="text-[8px] text-slate-400 font-bold uppercase ml-1">Talle</span>
-                  <input {...register(`items.${nestIndex}.variations.${k}.size` as const)} className="px-2 py-1 bg-transparent border-none text-xs font-bold text-slate-700 dark:text-slate-200 outline-none w-full" />
+              ) : (
+                <select value={selectedProductId} onChange={e => setSelectedProductId(e.target.value)} className="w-full p-2.5 rounded-xl border dark:bg-slate-800 dark:text-white font-bold text-sm outline-none">
+                  <option value="">Elegir prenda...</option>
+                  {products.map(p => <option key={p.id} value={p.id}>{p.name} (${p.base_price})</option>)}
+                </select>
+              )}
+            </div>
+
+            {/* TÉCNICA / PERSONALIZACIÓN */}
+            <div className="col-span-1">
+              <div className="flex justify-between mb-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase">Técnica</label>
+                {!isAddingPerso && <button type="button" onClick={() => setIsAddingPerso(true)} className="text-[9px] font-black text-violet-600">+ NUEVA</button>}
+              </div>
+              {isAddingPerso ? (
+                <div className="flex gap-1">
+                  <input placeholder="Ej: Bordado" value={tempName} onChange={e => setTempName(e.target.value)} className="flex-1 p-2 text-xs border rounded-lg dark:bg-slate-800" />
+                  <input placeholder="$" value={tempPrice} onChange={e => setTempPrice(e.target.value)} className="w-12 p-2 text-xs border rounded-lg dark:bg-slate-800" />
+                  <button type="button" onClick={() => handleQuickAdd('perso')} className="bg-violet-600 text-white px-2 rounded-lg text-[9px] font-black">OK</button>
                 </div>
-                <div className="flex flex-col sm:border-l sm:border-slate-100 dark:sm:border-slate-600 sm:pl-3">
-                  <span className="text-[8px] text-slate-400 font-bold uppercase ml-1">Cant.</span>
-                  <input type="number" {...register(`items.${nestIndex}.variations.${k}.quantityOrdered` as const, { valueAsNumber: true })} className="w-16 px-2 py-1 bg-slate-100 dark:bg-slate-900 rounded text-xs font-black text-blue-600 dark:text-blue-400 outline-none text-center" />
+              ) : (
+                <select value={selectedPersoId} onChange={e => setSelectedPersoId(e.target.value)} className="w-full p-2.5 rounded-xl border dark:bg-slate-800 dark:text-white font-bold text-sm outline-none border-blue-200">
+                  <option value="">Liso</option>
+                  {personalizationTypes.map(p => <option key={p.id} value={p.id}>{p.name} (+${p.base_price})</option>)}
+                </select>
+              )}
+            </div>
+
+            {/* TALLE Y COLOR */}
+            <div className="flex gap-1">
+               <select value={selectedSizeId} onChange={e => setSelectedSizeId(e.target.value)} className="w-full p-2.5 rounded-xl border dark:bg-slate-800 text-sm font-bold">
+                  <option value="">Talle</option>
+                  {sizes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+               </select>
+               <select value={selectedColorId} onChange={e => setSelectedColorId(e.target.value)} className="w-full p-2.5 rounded-xl border dark:bg-slate-800 text-sm font-bold">
+                  <option value="">Color</option>
+                  {colors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+               </select>
+            </div>
+
+            {/* CANTIDAD Y BOTÓN */}
+            <div className="flex gap-2">
+              <input type="number" min="1" value={quantity} onChange={e => setQuantity(e.target.value)} className="w-16 p-2.5 rounded-xl border dark:bg-slate-800 font-black text-center" />
+              <button type="button" onClick={handleAddItem} className={`flex-1 rounded-xl font-black text-white text-lg shadow-lg ${editingItemId ? 'bg-blue-600' : 'bg-slate-900 dark:bg-blue-600'}`}>
+                {editingItemId ? '✔️' : '+'}
+              </button>
+            </div>
+          </div>
+
+          {/* LISTA (CARRITO) */}
+          <div className="mt-6 space-y-2">
+            {cartItems.map((item, index) => (
+              <div key={item.id} className="flex justify-between items-center bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex items-center gap-4">
+                  <span className="bg-slate-100 dark:bg-slate-700 text-slate-500 px-2 py-1 rounded-lg text-[10px] font-black">{item.variations[0].quantityOrdered}x</span>
+                  <div>
+                    <p className="font-black text-xs text-slate-800 dark:text-white uppercase leading-none">{item.productName}</p>
+                    <p className="text-[9px] font-bold text-blue-500 uppercase mt-1">Estampa: {item.personalization} — {item.variations[0].size}/{item.variations[0].color}</p>
+                  </div>
                 </div>
-                <button type="button" onClick={() => remove(k)} className="w-8 h-8 flex items-center justify-center bg-rose-50 dark:bg-rose-500/10 text-rose-500 dark:text-rose-400 rounded-lg hover:bg-rose-500 hover:text-white transition-colors ml-auto sm:ml-2">
-                  ✕
-                </button>
+                <div className="flex gap-3 items-center">
+                  <span className="font-black text-xs text-slate-600 dark:text-slate-400">${item.price}</span>
+                  <button type="button" onClick={() => handleEditClick(item)} className="text-blue-500 text-xs font-black">Editar</button>
+                  <button type="button" onClick={() => setCartItems(cartItems.filter((_, i) => i !== index))} className="text-rose-400">🗑️</button>
+                </div>
               </div>
             ))}
           </div>
-        </div>
-      )}
+        </section>
+
+        {/* FOOTER: TOTALES */}
+        <section className="flex justify-between items-center pt-6 border-t">
+          <div className="text-right">
+             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Seña / Adelanto</p>
+             <input type="number" value={advancePayment} onChange={e => setAdvancePayment(e.target.value)} className="w-32 p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 text-emerald-700 font-black text-right outline-none" placeholder="0" />
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Calculado</p>
+            <p className="text-4xl font-black text-slate-900 dark:text-white">${cartItems.reduce((acc, i) => acc + i.price, 0)}</p>
+          </div>
+        </section>
+      </div>
+
+      <div className="p-6 border-t flex justify-end gap-4 bg-slate-50 dark:bg-slate-900">
+        <button type="button" onClick={() => onCancel()} className="px-8 py-3 bg-white border font-black text-[10px] uppercase rounded-2xl">Cancelar</button>
+        <button type="button" onClick={handleSubmit} disabled={cartItems.length === 0} className="px-10 py-3 bg-slate-900 dark:bg-blue-600 text-white font-black text-[10px] uppercase rounded-2xl shadow-xl shadow-blue-500/20">Confirmar Pedido</button>
+      </div>
     </div>
   );
-});
+};
