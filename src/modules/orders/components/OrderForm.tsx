@@ -26,8 +26,6 @@ export const OrderForm = ({ onSubmitSuccess, onCancel }: { onSubmitSuccess: Func
   // Estados para creación rápida
   const [isAddingCustomer, setIsAddingCustomer] = useState(false);
   const [isAddingProduct, setIsAddingProduct] = useState(false);
-  const [isAddingSize, setIsAddingSize] = useState(false);
-  const [isAddingColor, setIsAddingColor] = useState(false);
   const [isAddingPerso, setIsAddingPerso] = useState(false); // 🆕
   const [tempName, setTempName] = useState('');
   const [tempPrice, setTempPrice] = useState('');

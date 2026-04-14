@@ -12,7 +12,7 @@ export const OrderCard = ({ order }: any) => {
 
   const totalOrdered = order.items?.reduce((acc: number, item: any) => acc + item.variations.reduce((sum: number, v: any) => sum + v.quantityOrdered, 0), 0) || 0;
   const totalDelivered = order.items?.reduce((acc: number, item: any) => acc + item.variations.reduce((sum: number, v: any) => sum + v.quantityDelivered, 0), 0) || 0;
-  const progress = totalOrdered > 0 ? Math.round((totalDelivered / totalOrdered) * 100) : 0;
+  const  = totalOrdered > 0 ? Math.round((totalDelivered / totalOrdered) * 100) : 0;
 
   return (
     <>

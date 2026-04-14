@@ -46,7 +46,7 @@ export const TreasuryDashboard = () => {
     setType(tx.type as 'INCOME' | 'EXPENSE');
     setCategory(tx.category);
     setBusinessUnit(tx.businessUnit);
-    setPaymentMethod(tx.paymentMethod);
+    setPaymentMethod(e.target.value as "MERCADO_PAGO" | "BANCO" | "EFECTIVO")
     setIsFormOpen(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
