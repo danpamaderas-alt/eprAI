@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useDeferredValue } from 'react';
-import { useInventoryStore } from '../treasury/store/useInventoryStore';
+import { useCatalogStore } from "../../../store/useCatalogStore";
 import { useTreasuryStore } from '../treasury/store/useTreasuryStore';
 import { useCrmStore, type Customer } from '../../crm/store/useCrmStore';
 import { useLogisticsStore } from '../../logistics/store/useLogisticsStore';
@@ -41,7 +41,7 @@ interface SaleTicket {
 }
 
 export const SalesDashboard = () => {
-  const { products, fetchProducts, updateProductStock } = useInventoryStore();
+  const { products, fetchProducts, updateProductStock } = useCatalogStore();
   const { addTransaction } = useTreasuryStore();
   const { customers, fetchCustomers } = useCrmStore();
   const { addDelivery } = useLogisticsStore(); // 🔥 AGREGADO: Función para crear envíos

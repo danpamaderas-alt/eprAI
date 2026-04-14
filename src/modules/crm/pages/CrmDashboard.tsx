@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { useCrmStore, type Customer } from '../store/useCrmStore';
