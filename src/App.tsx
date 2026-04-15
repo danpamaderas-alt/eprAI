@@ -1,3 +1,4 @@
+import { ServicesDashboard } from './modules/inventory/pages/ServicesDashboard';
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import type { Session } from '@supabase/supabase-js';
@@ -51,6 +52,7 @@ export default function App() {
           <Route path="*" element={<LoginPage />} />
         ) : (
           <Route element={<DashboardLayout />}>
+            <Route path="servicios" element={<ServicesDashboard />} />
             <Route path="/" element={<Navigate to="/inicio" replace />} />
             <Route path="/inicio" element={<HomeDashboard />} />
             <Route path="/tesoreria" element={<TreasuryDashboard />} />
