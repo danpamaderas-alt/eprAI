@@ -39,7 +39,7 @@ export const LogisticsDashboard = () => {
       setIsFormOpen(false);
       setCustomerName(''); setAddress(''); setPhone(''); setItemsDesc(''); setNotes('');
       Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Envío Agregado', showConfirmButton: false, timer: 2000 });
-    } catch (err) { Swal.fire('Error', 'No se pudo guardar', 'error'); }
+    } catch { Swal.fire('Error', 'No se pudo guardar', 'error'); }
   };
 
   const openMaps = (address: string, zone: string) => {

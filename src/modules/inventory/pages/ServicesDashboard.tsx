@@ -62,7 +62,7 @@ export const ServicesDashboard = () => {
         if (error) throw error;
         await fetchAllCatalogs(); // Refrescamos la lista global
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Servicio Actualizado', showConfirmButton: false, timer: 1500 });
-      } catch (e) {
+      } catch {
         Swal.fire('Error', 'No se pudo actualizar el servicio en la base de datos.', 'error');
       }
     }
@@ -91,7 +91,7 @@ export const ServicesDashboard = () => {
         if (error) throw error;
         await fetchAllCatalogs();
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Servicio Eliminado', showConfirmButton: false, timer: 1500 });
-      } catch (error) {
+      } catch {
         Swal.fire('Error', 'No se pudo eliminar. Verifique su conexión.', 'error');
       }
     }
@@ -144,7 +144,7 @@ export const ServicesDashboard = () => {
       try {
         await addService(formValues);
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Servicio Creado', showConfirmButton: false, timer: 1500 });
-      } catch (error) {
+      } catch {
         Swal.fire('Error', 'Hubo un problema al crear el servicio.', 'error');
       }
     }

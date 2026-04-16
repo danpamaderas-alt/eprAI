@@ -33,7 +33,7 @@ export const LoginPage = () => {
       // el usuario retroceda a la pantalla de login usando el botón "Atrás" del navegador
       navigate('/inicio', { replace: true });
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[Security] Fallo de autenticación o de red:', error);
       
       Swal.fire({ 

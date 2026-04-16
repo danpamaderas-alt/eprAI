@@ -3,7 +3,7 @@ import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { productSchema, type ProductFormValues } from '../schemas/productSchema';
 
-interface ProductFormProps { initialData?: any; onSubmitSuccess: (data: ProductFormValues) => void; onCancel: () => void; }
+interface ProductFormProps { initialData?: ProductFormValues; onSubmitSuccess: (data: ProductFormValues) => void; onCancel: () => void; }
 
 const DEFAULT_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'ÚNICO'];
 const DEFAULT_COLORS = ['Blanco', 'Negro', 'Azul Marino', 'Rojo', 'Gris Melange', 'Verde', 'Beige'];
@@ -17,8 +17,8 @@ export const ProductForm = ({ initialData, onSubmitSuccess, onCancel }: ProductF
   const [newSize, setNewSize] = useState(''); const [newColor, setNewColor] = useState(''); const [newCat, setNewCat] = useState('');
   
   const [hasVariations, setHasVariations] = useState(!!initialData?.variations?.length);
-  const [selectedSizes, setSelectedSizes] = useState<string[]>(initialData?.variations ? [...new Set(initialData.variations.map((v:any)=>v.size))] as string[] : []);
-  const [selectedColors, setSelectedColors] = useState<string[]>(initialData?.variations ? [...new Set(initialData.variations.map((v:any)=>v.color))] as string[] : []);
+  const [selectedSizes, setSelectedSizes] = useState<string[]>(initialData?.variations ? [...new Set(initialData.variations.map((v)=>v.size))] as string[] : []);
+  const [selectedColors, setSelectedColors] = useState<string[]>(initialData?.variations ? [...new Set(initialData.variations.map((v)=>v.color))] as string[] : []);
 
   const { register, control, handleSubmit, setValue, getValues, formState: { isSubmitting } } = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),

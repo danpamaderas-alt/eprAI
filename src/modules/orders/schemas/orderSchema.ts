@@ -35,7 +35,7 @@ export const orderSchema = z.object({
   customerName: z.string().trim().min(2, 'Nombre obligatorio').max(100),
   businessUnit: z.enum(['GENERAL', 'RAICES', 'RJ_CO', 'BITA_IT', 'ROJO_SHOWROOM', 'UNIFORMES']),
   status: z.enum(['PENDING', 'PARTIAL', 'DELIVERED', 'CANCELLED']),
-  dueDate: z.string().min(1, 'Fecha obligatoria'),
+  dueDate: z.string().datetime({ message: 'Fecha inválida' }).min(1, 'Fecha obligatoria'),
   
   // LA BÓVEDA (Plata total y Seña)
   totalAmount: z.coerce.number().optional().default(0),

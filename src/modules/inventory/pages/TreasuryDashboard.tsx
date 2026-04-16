@@ -5,7 +5,7 @@ import Swal from 'sweetalert2';
 const ARS = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 
 export const TreasuryDashboard = () => {
-  const { transactions, fetchTransactions, addTransaction, updateTransaction, deleteTransaction, isLoading } = useTreasuryStore();
+  const { transactions, fetchTransactions, addTransaction, deleteTransaction, isLoading } = useTreasuryStore();
   
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
@@ -15,7 +15,7 @@ export const TreasuryDashboard = () => {
   const [description, setDescription] = useState('');
   const [type, setType] = useState<'INCOME' | 'EXPENSE'>('EXPENSE');
   const [category, setCategory] = useState('GASTOS_GENERALES');
-  const [businessUnit, setBusinessUnit] = useState('GENERAL');
+  const [businessUnit, setBusinessUnit] = useState<'GENERAL' | 'ROJO_SHOWROOM' | 'RAICES' | 'UNIFORMES' | 'RJ_CO' | 'BITA_IT'>('GENERAL');
   const [paymentMethod, setPaymentMethod] = useState<'MERCADO_PAGO' | 'BANCO' | 'EFECTIVO'>('EFECTIVO');
 
   useEffect(() => {
@@ -45,8 +45,8 @@ export const TreasuryDashboard = () => {
     setDescription(tx.description);
     setType(tx.type as 'INCOME' | 'EXPENSE');
     setCategory(tx.category);
-    setBusinessUnit(tx.businessUnit);
-    setPaymentMethod(e.target.value as "MERCADO_PAGO" | "BANCO" | "EFECTIVO")
+    setBusinessUnit(tx.businessUnit as 'GENERAL' | 'ROJO_SHOWROOM' | 'RAICES' | 'UNIFORMES' | 'RJ_CO' | 'BITA_IT');
+    setPaymentMethod(tx.paymentMethod as "MERCADO_PAGO" | "BANCO" | "EFECTIVO");
     setIsFormOpen(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -68,20 +68,21 @@ export const TreasuryDashboard = () => {
         description,
         type,
         category,
-        businessUnit: businessUnit as any, 
+        businessUnit,
         paymentMethod,
         date: editingTx ? editingTx.date : new Date().toISOString(),
       };
 
       if (editingTx) {
-        await updateTransaction(editingTx.id, payload);
+        await deleteTransaction(editingTx.id);
+        await addTransaction(payload);
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Movimiento Editado', showConfirmButton: false, timer: 2000 });
       } else {
         await addTransaction(payload);
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Movimiento Registrado', showConfirmButton: false, timer: 2000 });
       }
       resetForm();
-    } catch (error) {
+    } catch {
       Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo guardar el movimiento.' });
     }
   };
@@ -136,7 +137,7 @@ export const TreasuryDashboard = () => {
           <h2 className="text-xl font-black italic">{editingTx ? '✏️ Editar Movimiento' : '💸 Nuevo Movimiento'}</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <select value={type} onChange={(e: any) => setType(e.target.value)} className={`p-3 rounded-xl font-black text-xs outline-none border ${type === 'INCOME' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-rose-50 text-rose-600 border-rose-200'}`}>
+            <select value={type} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setType(e.target.value as 'INCOME' | 'EXPENSE')} className={`p-3 rounded-xl font-black text-xs outline-none border ${type === 'INCOME' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-rose-50 text-rose-600 border-rose-200'}`}>
               <option value="INCOME">INGRESO (+)</option>
               <option value="EXPENSE">EGRESO (-)</option>
             </select>
@@ -145,12 +146,12 @@ export const TreasuryDashboard = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <select value={paymentMethod} onChange={(e: any) => setPaymentMethod(e.target.value)} className="p-3 rounded-xl border border-slate-200 text-xs font-bold outline-none">
+            <select value={paymentMethod} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setPaymentMethod(e.target.value as "MERCADO_PAGO" | "BANCO" | "EFECTIVO")} className="p-3 rounded-xl border border-slate-200 text-xs font-bold outline-none">
               <option value="EFECTIVO">EFECTIVO</option>
               <option value="MERCADO_PAGO">MERCADO PAGO</option>
               <option value="BANCO">BANCO (TRANSFERENCIA)</option>
             </select>
-            <select value={businessUnit} onChange={(e: any) => setBusinessUnit(e.target.value)} className="p-3 rounded-xl border border-slate-200 text-xs font-bold outline-none">
+            <select value={businessUnit} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setBusinessUnit(e.target.value as 'GENERAL' | 'ROJO_SHOWROOM' | 'RAICES' | 'UNIFORMES' | 'RJ_CO' | 'BITA_IT')} className="p-3 rounded-xl border border-slate-200 text-xs font-bold outline-none">
               <option value="GENERAL">GENERAL</option>
               <option value="ROJO_SHOWROOM">ROJO SHOWROOM</option>
               <option value="RAICES">RAÍCES</option>

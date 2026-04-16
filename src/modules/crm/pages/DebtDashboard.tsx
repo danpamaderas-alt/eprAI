@@ -4,12 +4,19 @@ import Swal from 'sweetalert2';
 
 const ARS = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 
+type Customer = {
+  id: string;
+  name: string;
+  company?: string;
+  balance: number;
+};
+
 export const DebtDashboard = () => {
   // 1. Usamos el Cerebro Central unificado
   const { customers, fetchAllCatalogs, registerPayment, isLoading } = useCatalogStore();
   
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   
   // Estados para NUEVA DEUDA (Aumenta el saldo del cliente)
@@ -43,7 +50,7 @@ export const DebtDashboard = () => {
       });
       setIsFormOpen(false);
       setNewCustomerId(''); setNewAmount(''); setNewDesc('');
-    } catch (error) {
+    } catch {
       Swal.fire('Error', 'No se pudo registrar la deuda', 'error');
     }
   };
@@ -66,7 +73,7 @@ export const DebtDashboard = () => {
       });
       setSelectedCustomer(null);
       setPayAmount('');
-    } catch (error) {
+    } catch {
       Swal.fire('Error', 'No se pudo procesar el pago', 'error');
     }
   };

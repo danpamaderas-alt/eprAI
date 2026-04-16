@@ -2,16 +2,46 @@ import { useMemo } from 'react';
 import { createColumnHelper, flexRender, getCoreRowModel, useReactTable, getSortedRowModel } from '@tanstack/react-table';
 import Swal from 'sweetalert2';
 
-const ARS = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
-const columnHelper = createColumnHelper<any>();
+interface Variation {
+  id: string;
+  size: string;
+  color: string;
+  stock: number;
+}
 
-export const ProductTable = ({ data, onDelete, deleteVariation, onUpdateStock, onEditFullProduct }: any) => {
+interface ProductRow {
+  id: string;
+  sku: string;
+  name: string;
+  category: string;
+  price: number;
+  stock: number;
+  minStock: number;
+  variationId?: string;
+  displaySize: string;
+  displayColor: string;
+  displayStock: number;
+  variations?: Variation[];
+}
+
+interface ProductTableProps {
+  data: ProductRow[];
+  onDelete: (id: string) => void;
+  deleteVariation: (id: string, variationId: string) => void;
+  onUpdateStock: (id: string, stock: number, variationId?: string) => void;
+  onEditFullProduct: (product: ProductRow) => void;
+}
+
+const ARS = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+const columnHelper = createColumnHelper<ProductRow>();
+
+export const ProductTable = ({ data, onDelete, deleteVariation, onUpdateStock, onEditFullProduct }: ProductTableProps) => {
   const flatData = useMemo(() => {
-    const res: any[] = [];
+    const res: ProductRow[] = [];
     if (!data) return [];
-    data.forEach((p: any) => {
+    data.forEach((p: ProductRow) => {
       if (p.variations?.length) {
-        p.variations.forEach((v: any) => res.push({ ...p, variationId: v.id, displaySize: v.size, displayColor: v.color, displayStock: v.stock }));
+        p.variations.forEach((v: Variation) => res.push({ ...p, variationId: v.id, displaySize: v.size, displayColor: v.color, displayStock: v.stock }));
       } else {
         res.push({ ...p, displaySize: '-', displayColor: '-', displayStock: p.stock });
       }
@@ -77,7 +107,13 @@ export const ProductTable = ({ data, onDelete, deleteVariation, onUpdateStock, o
                 confirmButtonText: 'BORRAR',
                 cancelButtonText: 'CANCELAR'
               }).then((r) => {
-                if(r.isConfirmed) isVar ? deleteVariation(i.row.original.id, i.row.original.variationId) : onDelete(i.row.original.id);
+                if(r.isConfirmed) {
+                  if (isVar && i.row.original.variationId) {
+                    deleteVariation(i.row.original.id, i.row.original.variationId);
+                  } else {
+                    onDelete(i.row.original.id);
+                  }
+                }
               });
             }} 
             className="p-2 text-slate-300 hover:text-rose-500 transition-colors"
@@ -89,7 +125,7 @@ export const ProductTable = ({ data, onDelete, deleteVariation, onUpdateStock, o
     })
   ], [onDelete, deleteVariation, onUpdateStock, onEditFullProduct]);
 
-  const table = useReactTable({ data: flatData, columns, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel() });
+  const table = useMemo(() => useReactTable({ data: flatData, columns, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel() }), [flatData, columns]);
 
   return (
     <div className="overflow-x-auto">

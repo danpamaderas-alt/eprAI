@@ -49,7 +49,7 @@ export const useDebtStore = create<DebtStore>((set, get) => ({
   },
 
   // ✅ LA FUNCIÓN ESTRELLA: Cobra, descuenta y manda a tesorería
-  addPayment: async (debtId, amount, method, businessUnit, customerName) => {
+  addPayment: async (debtId: string, amount: number, method: string, businessUnit: string, customerName: string) => {
     const debt = get().debts.find(d => d.id === debtId);
     if (!debt) throw new Error("Deuda no encontrada");
 
@@ -70,7 +70,7 @@ export const useDebtStore = create<DebtStore>((set, get) => ({
       description: `Pago a cuenta - ${customerName}`,
       type: 'INCOME',
       category: 'COBRO_CUENTA_CORRIENTE',
-      businessUnit: businessUnit as any, // Mantenemos el parche anti-errores
+      businessUnit: businessUnit,
       paymentMethod: method,
       date: new Date().toISOString()
     }]);

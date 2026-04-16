@@ -21,12 +21,18 @@ const STATUS_LABELS: Record<string, string> = {
 // ==========================================
 // COMPONENTE DE TARJETA DESPLEGABLE
 // ==========================================
-const OrderCard = ({ order, onDeliver, onPrint }: { order: any, onDeliver: Function, onPrint: Function }) => {
+// ✅ AGREGAMOS la función onEdit a los props
+const OrderCard = ({ order, onDeliver, onPrint, onEdit }: { order: any, onDeliver: Function, onPrint: Function, onEdit: Function }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const totalAmount = order.totalAmount || 0;
-  const advancePayment = order.advancePayment || 0;
+  const totalAmount = order.totalAmount || order.total_amount || 0; // Compatibilidad con DB
+  const advancePayment = order.advancePayment || order.advance_payment || 0; // Compatibilidad con DB
   const debt = totalAmount - advancePayment;
+
+  // Compatibilidad de nombres con la DB (dueDate / due_date, etc)
+  const dueDate = order.dueDate || order.due_date;
+  const businessUnit = order.businessUnit || order.business_unit || '';
+  const customerName = order.customerName || order.customer_name;
 
   return (
     <div className={`bg-white dark:bg-slate-800 rounded-3xl border transition-all duration-300 shadow-sm hover:shadow-md ${isExpanded ? 'border-blue-400 dark:border-blue-500' : 'border-slate-200 dark:border-slate-700'}`}>
@@ -38,16 +44,16 @@ const OrderCard = ({ order, onDeliver, onPrint }: { order: any, onDeliver: Funct
       >
         <div>
           <span className="text-[9px] font-black uppercase text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30 px-2 py-1 rounded-md mb-2 inline-block">
-            {order.businessUnit.replace('_', ' ')}
+            {businessUnit.replace('_', ' ')}
           </span>
           <h3 className="text-xl font-black text-slate-900 dark:text-white leading-tight flex items-center gap-2">
-            {order.customerName}
+            {customerName}
             <span className={`px-2 py-0.5 text-[9px] font-black rounded-md border ${STATUS_COLORS[order.status]}`}>
               {STATUS_LABELS[order.status]}
             </span>
           </h3>
           <p className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase mt-1 italic">
-            Vence: {new Date(order.dueDate).toLocaleDateString('es-AR')}
+            Vence: {dueDate ? new Date(dueDate).toLocaleDateString('es-AR') : 'S/F'}
           </p>
         </div>
 
@@ -56,11 +62,11 @@ const OrderCard = ({ order, onDeliver, onPrint }: { order: any, onDeliver: Funct
             <div className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Total: <span className="text-slate-900 dark:text-white">${totalAmount}</span></div>
             <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Seña: ${advancePayment}</div>
             {debt > 0 ? (
-              <div className="text-[10px] mt-1 font-black text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/30 px-2 py-0.5 rounded-md border border-rose-200 dark:border-rose-800">
+              <div className="text-[10px] mt-1 font-black text-rose-600 dark:text-rose-400 bg-rose-100 dark:bg-rose-900/30 px-2 py-0.5 rounded-md border border-rose-200 dark:border-rose-800 inline-block">
                 DEBE: ${debt}
               </div>
             ) : totalAmount > 0 ? (
-              <div className="text-[10px] mt-1 font-black text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800">
+              <div className="text-[10px] mt-1 font-black text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800 inline-block">
                 PAGADO
               </div>
             ) : null}
@@ -75,7 +81,14 @@ const OrderCard = ({ order, onDeliver, onPrint }: { order: any, onDeliver: Funct
       {isExpanded && (
         <div className="border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-6 rounded-b-3xl space-y-6 animate-in slide-in-from-top-2">
           
-          <div className="flex justify-end pb-4 border-b border-slate-200 dark:border-slate-700">
+          <div className="flex justify-end gap-2 pb-4 border-b border-slate-200 dark:border-slate-700">
+             {/* ✅ BOTÓN DE EDITAR AGREGADO AQUÍ */}
+             <button 
+                onClick={(e) => { e.stopPropagation(); onEdit(order); }}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/30 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-400 rounded-xl text-[10px] font-black uppercase transition-colors shadow-sm border border-blue-200 dark:border-blue-800"
+              >
+                ✏️ Editar Pedido
+              </button>
              <button 
                 onClick={(e) => { e.stopPropagation(); onPrint(order); }}
                 className="flex items-center gap-2 px-4 py-2 bg-slate-800 dark:bg-slate-700 hover:bg-slate-700 text-white rounded-xl text-[10px] font-black uppercase transition-colors shadow-sm"
@@ -84,11 +97,11 @@ const OrderCard = ({ order, onDeliver, onPrint }: { order: any, onDeliver: Funct
               </button>
           </div>
 
-          {order.items.map((item: any) => (
+          {order.items?.map((item: any) => (
             <div key={item.id} className="space-y-3">
               <h4 className="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">{item.productName}</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {item.variations.map((variation: any) => {
+                {item.variations?.map((variation: any) => {
                   const delivered = variation.quantityDelivered || 0;
                   const pending = variation.quantityOrdered - delivered;
                   const progress = Math.round((delivered / variation.quantityOrdered) * 100);
@@ -145,9 +158,13 @@ const OrderCard = ({ order, onDeliver, onPrint }: { order: any, onDeliver: Funct
 // PANTALLA PRINCIPAL
 // ==========================================
 export const OrdersDashboard = () => {
-  const { orders = [], fetchOrders, addOrder, registerPartialDelivery } = useOrderStore();
+  const { orders = [], fetchOrders, registerPartialDelivery } = useOrderStore();
   const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'PARTIAL' | 'DELIVERED'>('ALL');
+  
+  // ✅ Estados para controlar el formulario y la edición
   const [showForm, setShowForm] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<any | null>(null);
+  
   const [orderToPrint, setOrderToPrint] = useState<any | null>(null);
 
   useEffect(() => {
@@ -165,8 +182,15 @@ export const OrdersDashboard = () => {
     const today = new Date().toISOString().split('T')[0];
     
     return {
-      urgent: orders.filter(o => o.status !== 'DELIVERED' && o.status !== 'CANCELLED' && o.dueDate <= today),
-      highDebt: orders.filter(o => o.status !== 'DELIVERED' && o.status !== 'CANCELLED' && (o.totalAmount - o.advancePayment) > (o.totalAmount * 0.5)),
+      urgent: orders.filter(o => {
+        const due = o.dueDate || o.due_date;
+        return o.status !== 'DELIVERED' && o.status !== 'CANCELLED' && due <= today;
+      }),
+      highDebt: orders.filter(o => {
+        const total = o.totalAmount || o.total_amount || 0;
+        const advance = o.advancePayment || o.advance_payment || 0;
+        return o.status !== 'DELIVERED' && o.status !== 'CANCELLED' && (total - advance) > (total * 0.5);
+      }),
       partial: orders.filter(o => o.status === 'PARTIAL')
     };
   }, [orders]);
@@ -178,15 +202,25 @@ export const OrdersDashboard = () => {
     }, 500); 
   };
 
-  const handleCreateOrder = async (data: any) => {
-    try {
-      await addOrder(data);
-      setShowForm(false);
-      Swal.fire({ icon: 'success', title: 'Pedido Creado', timer: 1500, showConfirmButton: false });
-    } catch (error) {
-      console.error('[Orders Dashboard] Error al crear pedido:', error);
-      Swal.fire('Error', 'No se pudo guardar el pedido.', 'error');
-    }
+  // ✅ Funciones para abrir el formulario
+  const handleNewOrderClick = () => {
+    setEditingOrder(null); // Nos aseguramos de que esté vacío
+    setShowForm(true);
+  };
+
+  const handleEditOrderClick = (order: any) => {
+    setEditingOrder(order); // Le pasamos el pedido a editar
+    setShowForm(true);
+  };
+
+  const handleFormClose = () => {
+    setShowForm(false);
+    setEditingOrder(null);
+  };
+
+  const handleFormSuccess = () => {
+    fetchOrders(); // Recarga la lista desde Supabase
+    handleFormClose();
   };
 
   const handleDeliverVariation = async (orderId: string, itemId: string, variationId: string, pendingQty: number, description: string) => {
@@ -258,7 +292,7 @@ export const OrdersDashboard = () => {
             <p className="text-slate-500 dark:text-slate-400 text-sm font-medium uppercase tracking-widest mt-1 transition-colors">Control de Pedidos y Entregas</p>
           </div>
           <button 
-            onClick={() => setShowForm(true)}
+            onClick={handleNewOrderClick}
             className="px-6 py-3 bg-slate-900 dark:bg-blue-600 hover:bg-blue-600 dark:hover:bg-blue-500 text-white rounded-xl font-black text-[11px] uppercase tracking-widest shadow-lg transition-all active:scale-95"
           >
             Nuevo Pedido
@@ -329,16 +363,19 @@ export const OrdersDashboard = () => {
                 order={order} 
                 onDeliver={handleDeliverVariation} 
                 onPrint={handlePrintRemito} 
+                onEdit={handleEditOrderClick} /* ✅ Pasamos la función de editar */
               />
             ))
           )}
         </div>
 
+        {/* ✅ ACTUALIZACIÓN DEL LLAMADO A ORDER FORM */}
         {showForm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm p-4 transition-colors">
             <OrderForm 
-              onSubmitSuccess={handleCreateOrder} 
-              onCancel={() => setShowForm(false)} 
+              orderToEdit={editingOrder} /* ✅ Magia: le pasamos el pedido vacío o lleno */
+              onSuccess={handleFormSuccess} 
+              onClose={handleFormClose} 
             />
           </div>
         )}
@@ -361,7 +398,7 @@ export const OrdersDashboard = () => {
 
           <div className="border border-gray-300 rounded-xl p-5 mb-8 bg-gray-50">
             <p className="text-xs font-bold uppercase text-gray-500 mb-1">Cliente / Destinatario</p>
-            <p className="text-2xl font-black uppercase">{orderToPrint.customerName}</p>
+            <p className="text-2xl font-black uppercase">{orderToPrint.customerName || orderToPrint.customer_name}</p>
           </div>
 
           <div className="mb-12">
@@ -377,8 +414,8 @@ export const OrdersDashboard = () => {
                 </tr>
               </thead>
               <tbody className="text-sm">
-                {orderToPrint.items.map((item: any) => 
-                  item.variations.map((variation: any) => (
+                {orderToPrint.items?.map((item: any) => 
+                  item.variations?.map((variation: any) => (
                     <tr key={variation.id} className="border-b border-gray-200">
                       <td className="py-3 text-center">
                         <div className="w-5 h-5 border-2 border-gray-400 rounded-sm mx-auto"></div>

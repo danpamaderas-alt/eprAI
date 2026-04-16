@@ -1,71 +1,198 @@
-import { ServicesDashboard } from './modules/inventory/pages/ServicesDashboard';
-import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import type { Session } from '@supabase/supabase-js';
+import { useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { supabase } from './lib/supabase';
+import { useThemeStore } from './store/useThemeStore';
+import { useTenantStore } from './store/useTenantStore';
 
-// Layout y Auth
-import { DashboardLayout } from './layouts/DashboardLayout';
-import { LoginPage } from './modules/auth/LoginPage';
-
-// Pantallas (Páginas)
-import { HomeDashboard } from './modules/home/pages/HomeDashboard'; 
-import { TreasuryDashboard } from './modules/inventory/pages/TreasuryDashboard';
-import { InventoryDashboard } from './modules/inventory/pages/InventoryDashboard';
+// --- IMPORTACIÓN DE PÁGINAS ---
 import { SalesDashboard } from './modules/inventory/pages/SalesDashboard';
+import { ServicesDashboard } from './modules/inventory/pages/ServicesDashboard';
 import { OrdersDashboard } from './modules/orders/pages/OrdersDashboard';
-import { CrmDashboard } from './modules/crm/pages/CrmDashboard';
-import { DebtDashboard } from './modules/crm/pages/DebtDashboard';
-import { ResellersDashboard } from './modules/resellers/pages/ResellersDashboard';
 
-// ✅ ACÁ IMPORTAMOS EL CEREBRO CENTRAL
-import { useCatalogStore } from './store/useCatalogStore';
+// ✅ INVENTARIO ENCENDIDO AQUÍ
+import { InventoryDashboard } from './modules/inventory/pages/InventoryDashboard';
 
+// Rutas apagadas por ahora:
+// import { TreasuryDashboard } from './modules/treasury/pages/TreasuryDashboard';
+// import { CrmDashboard } from './modules/crm/pages/CrmDashboard';
+
+// ==========================================
+// COMPONENTE: ESTRUCTURA PRINCIPAL (LAYOUT)
+// ==========================================
+const MainLayout = ({ children }: { children: React.ReactNode }) => {
+  const { isDarkMode, toggleDarkMode } = useThemeStore();
+  const { activeCompanyId, setActiveCompany } = useTenantStore();
+  const location = useLocation();
+
+  const isActive = (path: string) => location.pathname.startsWith(path);
+
+  return (
+    <div className={`min-h-screen flex ${isDarkMode ? 'dark bg-slate-950' : 'bg-slate-50'}`}>
+      
+      {/* --- BARRA LATERAL (SIDEBAR) --- */}
+      <aside className="w-64 flex-shrink-0 bg-slate-900 text-slate-300 flex flex-col transition-colors duration-300">
+        
+        <div className="h-20 flex items-center justify-between px-6 border-b border-slate-800">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">⚙️</span>
+            <h1 className="text-xl font-black text-white tracking-tighter">ERP <span className="text-blue-500">3.0</span></h1>
+          </div>
+          <button onClick={toggleDarkMode} className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center transition-colors">
+            {isDarkMode ? '🌙' : '☀️'}
+          </button>
+        </div>
+
+        <div className="p-4 border-b border-slate-800 bg-slate-800/50">
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Entorno de Trabajo</p>
+          <select 
+            value={activeCompanyId}
+            onChange={(e) => {
+              setActiveCompany(e.target.value);
+              window.location.href = '/'; 
+            }}
+            className="w-full p-2 bg-slate-950 border border-slate-700 text-white font-bold text-xs rounded-lg outline-none focus:border-blue-500 cursor-pointer transition-colors"
+          >
+            <option value="11111111-1111-1111-1111-111111111111">Raíces (Principal)</option>
+            <option value="22222222-2222-2222-2222-222222222222">Taller Competencia (Demo)</option>
+          </select>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
+          
+          <Link to="/inicio" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/inicio') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
+            📊 Inicio
+          </Link>
+
+          <Link to="/tesoreria" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/tesoreria') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
+            💵 Tesorería
+          </Link>
+
+          {/* LINK DE INVENTARIO */}
+          <Link to="/inventario" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/inventario') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
+            📦 Inventario
+          </Link>
+
+          <Link to="/ventas" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/ventas') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
+            💰 Ventas (Punto Venta)
+          </Link>
+          
+          <Link to="/pedidos" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/pedidos') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
+            📋 Hoja de Ruta
+          </Link>
+
+          <div className="pt-4 mt-4 border-t border-slate-800">
+             <p className="px-4 text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">CRM y Contactos</p>
+             <Link to="/clientes" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/clientes') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
+               🤝 Clientes CRM
+             </Link>
+             <Link to="/cuentas-corrientes" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/cuentas-corrientes') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
+               💳 Cuentas Corrientes
+             </Link>
+             <Link to="/revendedores" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/revendedores') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
+               🏷️ Revendedores
+             </Link>
+          </div>
+
+          <div className="pt-4 mt-4 border-t border-slate-800">
+             <p className="px-4 text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Configuración</p>
+             <Link to="/servicios" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/servicios') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
+               🛠️ Servicios Fijos
+             </Link>
+          </div>
+        </nav>
+
+        <div className="p-4 border-t border-slate-800">
+          <div className="flex items-center gap-3 px-2 mb-4">
+             <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-black text-xs">A</div>
+             <div>
+               <p className="text-xs font-bold text-white">Admin</p>
+               <p className="text-[9px] text-emerald-400 font-black uppercase tracking-widest">Online</p>
+             </div>
+          </div>
+          <button 
+            onClick={() => supabase.auth.signOut()} 
+            className="w-full py-3 bg-slate-950 hover:bg-rose-900/50 text-slate-400 hover:text-rose-500 border border-slate-800 rounded-xl font-black text-[10px] uppercase tracking-widest transition-colors"
+          >
+            Cerrar Sesión
+          </button>
+        </div>
+      </aside>
+
+      {/* --- ÁREA PRINCIPAL --- */}
+      <main className="flex-1 h-screen overflow-y-auto bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white transition-colors duration-300 p-8">
+        {children}
+      </main>
+
+    </div>
+  );
+};
+
+
+// ==========================================
+// COMPONENTE PRINCIPAL: APP (RUTAS Y LOGIN)
+// ==========================================
 export default function App() {
-  const [session, setSession] = useState<Session | null>(null);
-
-  // ✅ EL HOOK TIENE QUE ESTAR ACÁ ADENTRO, en la raíz del componente
-  const { fetchAllCatalogs } = useCatalogStore();
+  const [session, setSession] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Apenas arranca, descargamos los catálogos (Talles, Clientes, etc)
-    fetchAllCatalogs();
-
-    // 2. Controlamos la sesión (el patovica de seguridad)
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      setIsLoading(false);
     });
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
 
     return () => subscription.unsubscribe();
-  }, [fetchAllCatalogs]); // Agregamos la dependencia por seguridad
+  }, []);
+
+  if (isLoading) {
+    return <div className="h-screen w-screen bg-slate-900 flex items-center justify-center text-white font-black animate-pulse">Cargando ERP...</div>;
+  }
+
+  if (!session) {
+    return (
+      <div className="h-screen w-screen bg-slate-950 flex flex-col items-center justify-center p-4">
+        <h1 className="text-3xl font-black text-white mb-8">Raíces <span className="text-blue-500">ERP</span></h1>
+        <button 
+          onClick={() => supabase.auth.signInWithPassword({ email: 'test@test.com', password: 'password' })} 
+          className="bg-blue-600 text-white font-black px-8 py-4 rounded-2xl shadow-xl hover:bg-blue-500 transition-all active:scale-95"
+        >
+          Iniciar Sesión de Prueba
+        </button>
+      </div>
+    );
+  }
 
   return (
     <BrowserRouter>
-      <Routes>
-        {!session ? (
-          <Route path="*" element={<LoginPage />} />
-        ) : (
-          <Route element={<DashboardLayout />}>
-            <Route path="servicios" element={<ServicesDashboard />} />
-            <Route path="/" element={<Navigate to="/inicio" replace />} />
-            <Route path="/inicio" element={<HomeDashboard />} />
-            <Route path="/tesoreria" element={<TreasuryDashboard />} />
-            <Route path="/inventario" element={<InventoryDashboard />} />
-            <Route path="/ventas" element={<SalesDashboard />} />
-            <Route path="/pedidos" element={<OrdersDashboard />} />
-            <Route path="/clientes" element={<CrmDashboard />} />
-            <Route path="/cuentas-corrientes" element={<DebtDashboard />} />
-            <Route path="/revendedores" element={<ResellersDashboard />} />
-            <Route path="*" element={<Navigate to="/inicio" replace />} />
-          </Route>
-        )}
-      </Routes>
+      <MainLayout>
+        <Routes>
+          <Route path="/" element={<Navigate to="/ventas" replace />} />
+          
+          <Route path="/ventas" element={<SalesDashboard />} />
+          <Route path="/pedidos" element={<OrdersDashboard />} />
+          <Route path="/servicios" element={<ServicesDashboard />} />
+          
+          {/* ✅ RUTA DE INVENTARIO ENCENDIDA AQUÍ */}
+          <Route path="/inventario" element={<InventoryDashboard />} />
+
+          {/* Rutas en construcción */}
+          {/* <Route path="/inicio" element={<DashboardInicio />} /> */}
+          {/* <Route path="/tesoreria" element={<TreasuryDashboard />} /> */}
+          {/* <Route path="/clientes" element={<CrmDashboard />} /> */}
+
+          <Route path="*" element={
+            <div className="h-full flex flex-col items-center justify-center text-slate-400">
+              <span className="text-6xl mb-4">🚧</span>
+              <h2 className="text-xl font-black uppercase tracking-widest">Módulo en Construcción</h2>
+              <p className="text-sm mt-2">Esta sección estará disponible pronto.</p>
+            </div>
+          } />
+        </Routes>
+      </MainLayout>
     </BrowserRouter>
   );
 }

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
+import { useTenantStore } from './useTenantStore';
 
 // --- INTERFACES ---
 export interface CatalogItem { id: string; name: string; hex_code?: string; base_price?: number; }
@@ -7,6 +8,7 @@ export interface BusinessUnit { id: string; code: string; name: string; }
 
 export interface Product { 
   id: string; 
+  company_id?: string;
   sku?: string;        
   name: string; 
   category?: string; 
@@ -20,6 +22,7 @@ export interface Product {
 
 export interface Service {
   id: string;
+  company_id?: string;
   name: string;
   price: number;
   description?: string;
@@ -27,6 +30,7 @@ export interface Service {
 
 export interface Customer { 
   id: string; 
+  company_id?: string;
   name: string; 
   company?: string; 
   phone?: string; 
@@ -60,10 +64,9 @@ interface CatalogState {
   updateProductComplete: (productId: string, updates: Partial<Product>) => Promise<void>;
   updateStock: (productId: string, sizeId: string, colorId: string, quantity: number) => Promise<void>;
   
-  // 🔥 DEVOLVEMOS LAS FUNCIONES QUE USAN LOS OTROS MÓDULOS
-  addService: (data: Omit<Service, 'id'>) => Promise<Service>;
-  addCustomer: (data: Omit<Customer, 'id' | 'balance'>) => Promise<Customer>;
-  addProduct: (data: Omit<Product, 'id'>) => Promise<Product>;
+  addService: (data: Omit<Service, 'id' | 'company_id'>) => Promise<Service>;
+  addCustomer: (data: Omit<Customer, 'id' | 'balance' | 'company_id'>) => Promise<Customer>;
+  addProduct: (data: Omit<Product, 'id' | 'company_id'>) => Promise<Product>;
   addSize: (name: string) => Promise<CatalogItem>;
   addColor: (name: string, hex?: string) => Promise<CatalogItem>;
   addPersonalizationType: (name: string, price: number) => Promise<CatalogItem>;
@@ -84,17 +87,22 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
 
   fetchAllCatalogs: async () => {
     set({ isLoading: true });
+    
+    // 🏢 MULTI-TENANT: Obtenemos la empresa activa
+    const companyId = useTenantStore.getState().activeCompanyId;
+
     try {
       const [ resSizes, resColors, resPayments, resUnits, resProducts, resCustomers, resPerso, resInventory, resServices ] = await Promise.all([
         supabase.from('sizes').select('*').order('name'),
         supabase.from('colors').select('*').order('name'),
         supabase.from('payment_methods').select('*').order('name'),
         supabase.from('business_units').select('*').order('name'),
-        supabase.from('products').select('id, sku, name, category, cost, price, location, notes, base_price, purchase_price').order('name'),
-        supabase.from('customers').select('*').order('name'),
+        // 🔒 Filtramos por Empresa
+        supabase.from('products').select('id, sku, name, category, cost, price, location, notes, base_price, purchase_price, company_id').eq('company_id', companyId).order('name'),
+        supabase.from('customers').select('*').eq('company_id', companyId).order('name'),
         supabase.from('personalization_types').select('*').order('name'),
         supabase.from('product_variants').select(`*, sizes(name), colors(name)`),
-        supabase.from('services').select('*').order('name'),
+        supabase.from('services').select('*').eq('company_id', companyId).order('name'),
       ]);
 
       set({ 
@@ -142,23 +150,24 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
   },
 
   addService: async (serviceData) => {
-    const { data, error } = await supabase.from('services').insert([serviceData]).select().single();
+    const companyId = useTenantStore.getState().activeCompanyId;
+    const { data, error } = await supabase.from('services').insert([{ ...serviceData, company_id: companyId }]).select().single();
     if (error) throw error;
-    set((state) => ({ 
-      services: [...state.services, data].sort((a, b) => a.name.localeCompare(b.name)) 
-    }));
+    set((state) => ({ services: [...state.services, data].sort((a, b) => a.name.localeCompare(b.name)) }));
     return data as Service;
   },
 
   addCustomer: async (customerData) => {
-    const { data, error } = await supabase.from('customers').insert([customerData]).select().single();
+    const companyId = useTenantStore.getState().activeCompanyId;
+    const { data, error } = await supabase.from('customers').insert([{ ...customerData, company_id: companyId }]).select().single();
     if (error) throw error;
     set((state) => ({ customers: [...state.customers, data].sort((a, b) => a.name.localeCompare(b.name)) }));
     return data as Customer;
   },
 
   addProduct: async (productData) => {
-    const { data, error } = await supabase.from('products').insert([productData]).select().single();
+    const companyId = useTenantStore.getState().activeCompanyId;
+    const { data, error } = await supabase.from('products').insert([{ ...productData, company_id: companyId }]).select().single();
     if (error) throw error;
     set((state) => ({ products: [...state.products, data].sort((a, b) => a.name.localeCompare(b.name)) }));
     return data as Product;

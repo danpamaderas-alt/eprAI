@@ -21,16 +21,6 @@ interface CartItem {
   serviceId?: string;
 }
 
-interface SaleTicket {
-  items: CartItem[];
-  total: number;
-  businessUnit: string;
-  paymentMethod: string;
-  customerName: string;
-  date: Date;
-  ticketNumber: string;
-}
-
 export const SalesDashboard = () => {
   const { products, inventory, services, fetchAllCatalogs, updateStock } = useCatalogStore();
   const { addTransaction } = useTreasuryStore();
@@ -45,27 +35,20 @@ export const SalesDashboard = () => {
   const [businessUnit, setBusinessUnit] = useState('ROJO_SHOWROOM');
   const [paymentMethod, setPaymentMethod] = useState('MERCADO_PAGO');
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
-  const [lastSale, setLastSale] = useState<SaleTicket | null>(null);
   const [modalProduct, setModalProduct] = useState<Product | null>(null);
 
   const [deliveryType, setDeliveryType] = useState<'LOCAL' | 'SHIPPING'>('LOCAL');
   const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [deliveryZone, setDeliveryZone] = useState('BERISSO');
-  const [deliveryPhone, setDeliveryPhone] = useState('');
+  const deliveryZone = 'BERISSO';
 
   useEffect(() => {
     fetchAllCatalogs();
     fetchCustomers();
   }, [fetchAllCatalogs, fetchCustomers]);
 
-  useEffect(() => {
-    if (selectedCustomerId) {
-      const c = customers.find((x) => x.id === selectedCustomerId);
-      if (c && c.phone) setDeliveryPhone(c.phone);
-    } else {
-      setDeliveryPhone('');
-    }
-  }, [selectedCustomerId, customers]);
+  const deliveryPhone = selectedCustomerId 
+    ? customers.find((x) => x.id === selectedCustomerId)?.phone || ''
+    : '';
 
   const filteredProducts = useMemo(() => {
     const term = deferredSearchTerm.toLowerCase().trim();
@@ -192,15 +175,15 @@ export const SalesDashboard = () => {
 
     try {
       const transactionPromise = addTransaction({
-        type: 'INCOME',
+        type: 'INCOME' as const,
         amount: subtotal,
         description: `VENTA: ${customerName} | ${itemsDescription}`.substring(0, 100),
-        category: 'VENTA',
+        category: 'VENTA' as const,
         date: new Date().toISOString(),
         businessUnit: businessUnit, 
         paymentMethod: paymentMethod, 
-        status: 'COMPLETED'                  
-      } as any);
+        status: 'COMPLETED' as const
+      });
 
       let deliveryPromise = Promise.resolve(); 
       if (deliveryType === 'SHIPPING') {
@@ -211,10 +194,10 @@ export const SalesDashboard = () => {
           phone: deliveryPhone,
           items_description: itemsDescription,
           notes: `Generado desde Ventas (${businessUnit})`,
-          status: 'PENDING',
+          status: 'PENDING' as const,
           orderId: `SALE-${Date.now()}`,
           date: new Date().toISOString()
-        } as any);
+        });
       }
 
       const stockUpdates = cart
@@ -222,16 +205,6 @@ export const SalesDashboard = () => {
         .map(item => updateStock(item.productId!, item.sizeId || '', item.colorId || '', -item.quantity));
 
       await Promise.all([transactionPromise, deliveryPromise, ...stockUpdates]);
-
-      setLastSale({
-        items: [...cart],
-        total: subtotal,
-        businessUnit,
-        paymentMethod,
-        customerName,
-        date: new Date(),
-        ticketNumber: Math.floor(Math.random() * 1000000).toString().padStart(6, '0')
-      });
 
       setCart([]);
       setSelectedCustomerId('');
@@ -244,14 +217,6 @@ export const SalesDashboard = () => {
       console.error('[Transaction Error] Falla en orquestación:', err);
       Swal.fire({ icon: 'error', title: 'Error', text: 'Problema al registrar la venta.' });
     }
-  };
-
-  const sendWhatsApp = () => {
-    if (!lastSale) return;
-    let text = `*COMPROBANTE DE COMPRA*\n*${lastSale.businessUnit.replace('_', ' ')}*\n\n`;
-    text += `Cliente: ${lastSale.customerName}\n`;
-    text += `*TOTAL: ${formatCurrency(lastSale.total)}*\n`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   return (

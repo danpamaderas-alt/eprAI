@@ -1,18 +1,21 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useCatalogStore, type Product } from '../../../store/useCatalogStore';
+import { supabase } from '../../../lib/supabase';
 import Swal from 'sweetalert2';
 
-// 📋 LISTAS BASE (El sistema le va a sumar automáticamente las que vos vayas creando)
 const PREDEFINED_CATEGORIES = ['Remera', 'Chomba', 'Buzo', 'Campera', 'Pantalón', 'Accesorio', 'Uniformes', 'Conjunto'];
 const PREDEFINED_LOCATIONS = ['Sector A', 'Sector B', 'Depósito Central', 'Taller', 'Showroom'];
 
 export const InventoryDashboard = () => {
   const { 
-    products, sizes, colors, 
+    products, sizes, colors, inventory,
     fetchAllCatalogs, updateProductComplete, addProduct, addSize, addColor, updateStock, isLoading 
   } = useCatalogStore();
   
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterSize, setFilterSize] = useState('');
+  const [filterColor, setFilterColor] = useState('');
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
@@ -22,7 +25,10 @@ export const InventoryDashboard = () => {
   const [quickColor, setQuickColor] = useState('');
   const [quickQty, setQuickQty] = useState('');
 
-  // 🧠 ESTADOS PARA APRENDER NUEVAS CATEGORÍAS/UBICACIONES EN LA SESIÓN
+  // ✅ NUEVOS ESTADOS PARA EL MODAL DE STOCK
+  const [stockProduct, setStockProduct] = useState<Product | null>(null);
+  const [stockForm, setStockForm] = useState({ type: 'IN', sizeId: '', colorId: '', qty: '' });
+
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [customLocations, setCustomLocations] = useState<string[]>([]);
 
@@ -30,15 +36,6 @@ export const InventoryDashboard = () => {
     fetchAllCatalogs();
   }, [fetchAllCatalogs]);
 
-  const filteredProducts = useMemo(() => {
-    if (!products) return [];
-    return products.filter(p => {
-      const searchLower = searchTerm.toLowerCase();
-      return p.name?.toLowerCase().includes(searchLower) || p.sku?.toLowerCase().includes(searchLower);
-    });
-  }, [products, searchTerm]);
-
-  // 🧠 LÓGICA INTELIGENTE: Mezclamos las listas base + lo que ya tenés en la base de datos + lo que agregues nuevo hoy
   const allCategories = useMemo(() => {
     const fromDB = products.map(p => p.category).filter(Boolean) as string[];
     return Array.from(new Set([...PREDEFINED_CATEGORIES, ...fromDB, ...customCategories])).sort();
@@ -49,8 +46,19 @@ export const InventoryDashboard = () => {
     return Array.from(new Set([...PREDEFINED_LOCATIONS, ...fromDB, ...customLocations])).sort();
   }, [products, customLocations]);
 
+  const filteredProducts = useMemo(() => {
+    if (!products) return [];
+    return products.filter(p => {
+      const searchLower = searchTerm.toLowerCase();
+      const matchText = p.name?.toLowerCase().includes(searchLower) || p.sku?.toLowerCase().includes(searchLower);
+      const matchCat = filterCategory === '' || p.category === filterCategory;
+      const productVariants = inventory?.filter(v => v.product_id === p.id) || [];
+      const matchSize = filterSize === '' || productVariants.some(v => v.size_id === filterSize && v.stock_quantity > 0);
+      const matchColor = filterColor === '' || productVariants.some(v => v.color_id === filterColor && v.stock_quantity > 0);
+      return matchText && matchCat && matchSize && matchColor;
+    });
+  }, [products, searchTerm, filterCategory, filterSize, filterColor, inventory]);
 
-  // --- GENERADOR INTELIGENTE DE SKU 🪄 ---
   const handleGenerateSKU = () => {
     if (!editForm.category || !editForm.location) {
       Swal.fire('Atención', 'Primero seleccioná una Categoría y una Ubicación para generar el SKU.', 'info');
@@ -83,49 +91,72 @@ export const InventoryDashboard = () => {
   };
 
   const handleSave = async () => {
-    if (!editForm.name) {
-      Swal.fire('Atención', 'El nombre del artículo es obligatorio', 'warning');
-      return;
-    }
+    if (!editForm.name) { Swal.fire('Atención', 'El nombre del artículo es obligatorio', 'warning'); return; }
 
     try {
       if (modalMode === 'create') {
-        const newProd = await addProduct({
-          sku: editForm.sku,
-          name: editForm.name,
-          cost: editForm.cost || 0,
-          price: editForm.price || 0,
-          category: editForm.category,
-          location: editForm.location,
-          notes: editForm.notes
-        } as Omit<Product, 'id'>);
-
-        if (quickSize && quickColor && Number(quickQty) > 0) {
-          await updateStock(newProd.id, quickSize, quickColor, Number(quickQty));
-        }
+        const newProd = await addProduct({ sku: editForm.sku, name: editForm.name, cost: editForm.cost || 0, price: editForm.price || 0, category: editForm.category, location: editForm.location, notes: editForm.notes } as Omit<Product, 'id'>);
+        if (quickSize && quickColor && Number(quickQty) > 0) { await updateStock(newProd.id, quickSize, quickColor, Number(quickQty)); }
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Artículo creado', showConfirmButton: false, timer: 1500 });
       } else {
         await updateProductComplete(editForm.id!, editForm);
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Artículo actualizado', showConfirmButton: false, timer: 1500 });
       }
       closeModal();
-    } catch (e) {
-      Swal.fire('Error', 'Hubo un problema al guardar', 'error');
+    } catch (error: any) { 
+      console.error("Detalle del error:", error);
+      Swal.fire('Error de Base de Datos', error?.message || error?.details || 'Revisa que el SKU no esté repetido.', 'error'); 
     }
   };
 
-  // --- FUNCIONES PARA AGREGAR OPCIONES AL VUELO ---
+  const handleDeleteProduct = async (product: Product) => {
+    const result = await Swal.fire({
+      title: '¿Eliminar Producto?',
+      text: `Se borrará "${product.name}" y todo su stock. Esta acción no se puede deshacer.`,
+      icon: 'warning',
+      showCancelButton: true, confirmButtonColor: '#f43f5e', cancelButtonColor: '#64748b', confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar',
+      customClass: { popup: 'dark:bg-slate-900 rounded-3xl dark:text-white' }
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await supabase.from('product_variants').delete().eq('product_id', product.id);
+        const { error } = await supabase.from('products').delete().eq('id', product.id);
+        if (error) throw error;
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Producto eliminado', showConfirmButton: false, timer: 1500 });
+        fetchAllCatalogs();
+      } catch (error) { Swal.fire('Error', 'No se pudo eliminar el producto.', 'error'); }
+    }
+  };
+
+  // ✅ FUNCIÓN DE GUARDADO PARA EL NUEVO MODAL DE STOCK
+  const handleSaveStockAdjust = async () => {
+    if (!stockForm.sizeId || !stockForm.colorId || !stockForm.qty || Number(stockForm.qty) <= 0) {
+      Swal.fire('Atención', 'Selecciona Talle, Color e ingresa una cantidad válida.', 'warning');
+      return;
+    }
+    
+    const quantity = stockForm.type === 'IN' ? Number(stockForm.qty) : -Math.abs(Number(stockForm.qty));
+    
+    try {
+      await updateStock(stockProduct!.id, stockForm.sizeId, stockForm.colorId, quantity);
+      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Stock actualizado', showConfirmButton: false, timer: 1500 });
+      setStockProduct(null); // Cierra el modal
+    } catch (error) {
+      Swal.fire('Error', 'No se pudo actualizar el stock', 'error');
+    }
+  };
+
   const handleAddNewCategory = async () => {
-    const { value: newCat } = await Swal.fire({ title: 'Nueva Categoría', input: 'text', inputPlaceholder: 'Ej: Camperas, Tazas...', showCancelButton: true, confirmButtonText: 'Agregar', confirmButtonColor: '#2563eb' });
+    const { value: newCat } = await Swal.fire({ title: 'Nueva Categoría', input: 'text', showCancelButton: true, confirmButtonText: 'Agregar', confirmButtonColor: '#2563eb' });
     if (newCat) {
       const formatted = newCat.trim().toUpperCase();
       setCustomCategories(prev => [...prev, formatted]);
       setEditForm(prev => ({ ...prev, category: formatted }));
     }
   };
-
   const handleAddNewLocation = async () => {
-    const { value: newLoc } = await Swal.fire({ title: 'Nueva Ubicación', input: 'text', inputPlaceholder: 'Ej: Estante 4, Pasillo B...', showCancelButton: true, confirmButtonText: 'Agregar', confirmButtonColor: '#2563eb' });
+    const { value: newLoc } = await Swal.fire({ title: 'Nueva Ubicación', input: 'text', showCancelButton: true, confirmButtonText: 'Agregar', confirmButtonColor: '#2563eb' });
     if (newLoc) {
       const formatted = newLoc.trim().toUpperCase();
       setCustomLocations(prev => [...prev, formatted]);
@@ -133,25 +164,27 @@ export const InventoryDashboard = () => {
     }
   };
 
+  // ✅ LAS FUNCIONES DE CREAR AHORA ALIMENTAN A AMBOS MODALES
   const handleAddNewSize = async () => {
     const { value: newSizeName } = await Swal.fire({ title: 'Crear Nuevo Talle', input: 'text', showCancelButton: true, confirmButtonText: 'Crear', confirmButtonColor: '#2563eb' });
     if (newSizeName) {
-      try {
-        const created = await addSize(newSizeName.toUpperCase());
-        setQuickSize(created.id);
+      try { 
+        const created = await addSize(newSizeName.toUpperCase()); 
+        setQuickSize(created.id); // Para el modal de Crear Artículo
+        setStockForm(prev => ({ ...prev, sizeId: created.id })); // Para el modal de Stock
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Talle agregado', showConfirmButton: false, timer: 1500 });
-      } catch (e) { Swal.fire('Error', 'No se pudo crear el talle', 'error'); }
+      } catch { Swal.fire('Error', 'No se pudo crear', 'error'); }
     }
   };
-
   const handleAddNewColor = async () => {
     const { value: newColorName } = await Swal.fire({ title: 'Crear Nuevo Color', input: 'text', showCancelButton: true, confirmButtonText: 'Crear', confirmButtonColor: '#2563eb' });
     if (newColorName) {
-      try {
-        const created = await addColor(newColorName.toUpperCase());
-        setQuickColor(created.id);
+      try { 
+        const created = await addColor(newColorName.toUpperCase()); 
+        setQuickColor(created.id); // Para el modal de Crear Artículo
+        setStockForm(prev => ({ ...prev, colorId: created.id })); // Para el modal de Stock
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Color agregado', showConfirmButton: false, timer: 1500 });
-      } catch (e) { Swal.fire('Error', 'No se pudo crear el color', 'error'); }
+      } catch { Swal.fire('Error', 'No se pudo crear', 'error'); }
     }
   };
 
@@ -161,31 +194,50 @@ export const InventoryDashboard = () => {
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">Base de Artículos</h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1">Gestión centralizada de catálogo y costos.</p>
+          <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1">Gestión centralizada de catálogo y stock.</p>
         </div>
         
-        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-          <div className="relative w-full sm:w-72">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-            </div>
-            <input 
-              type="text" 
-              placeholder="Buscar por Nombre o SKU..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none"
-            />
-          </div>
-          <button 
-            onClick={openCreateModal}
-            className="px-6 py-2.5 bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white font-black rounded-xl shadow-lg transition-all text-xs uppercase tracking-widest flex items-center justify-center gap-2 whitespace-nowrap"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
-            Nuevo Artículo
-          </button>
-        </div>
+        <button 
+          onClick={openCreateModal}
+          className="px-6 py-3 bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white font-black rounded-xl shadow-lg transition-all text-xs uppercase tracking-widest flex items-center justify-center gap-2 whitespace-nowrap active:scale-95"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
+          Nuevo Artículo
+        </button>
       </header>
+
+      <div className="bg-white dark:bg-slate-800 p-4 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col md:flex-row gap-4">
+        <div className="relative flex-1">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">🔍</div>
+          <input 
+            type="text" placeholder="Buscar por Nombre o SKU..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-white outline-none focus:border-blue-500 transition-colors"
+          />
+        </div>
+        
+        <div className="flex gap-2 w-full md:w-auto overflow-x-auto">
+          <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="min-w-[140px] px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 outline-none">
+            <option value="">👚 CATEGORÍA: TODAS</option>
+            {allCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+          </select>
+          
+          <select value={filterSize} onChange={e => setFilterSize(e.target.value)} className="min-w-[120px] px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 outline-none">
+            <option value="">📏 TALLE: TODOS</option>
+            {sizes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+
+          <select value={filterColor} onChange={e => setFilterColor(e.target.value)} className="min-w-[120px] px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 outline-none">
+            <option value="">🎨 COLOR: TODOS</option>
+            {colors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+
+          {(searchTerm || filterCategory || filterSize || filterColor) && (
+            <button onClick={() => { setSearchTerm(''); setFilterCategory(''); setFilterSize(''); setFilterColor(''); }} className="px-4 py-3 bg-rose-50 dark:bg-rose-900/20 text-rose-500 rounded-xl text-xs font-black uppercase transition-colors hover:bg-rose-100">
+              ✕
+            </button>
+          )}
+        </div>
+      </div>
 
       <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
         {isLoading ? (
@@ -195,49 +247,172 @@ export const InventoryDashboard = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase tracking-widest">
-                  <th className="py-5 px-6">SKU / Artículo</th>
-                  <th className="py-5 px-6">Ubicación</th>
-                  <th className="py-5 px-6 text-right text-rose-500">Costo Compra</th>
-                  <th className="py-5 px-6 text-right text-emerald-500">Precio Venta</th>
-                  <th className="py-5 px-6 text-center">Acción</th>
+                  <th className="py-5 px-6 w-1/3">SKU / Artículo</th>
+                  <th className="py-5 px-6">Matriz de Stock</th>
+                  <th className="py-5 px-6 text-center text-blue-500">Stock Total</th>
+                  <th className="py-5 px-6 text-center">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                {filteredProducts.map(p => (
-                  <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-colors group">
-                    <td className="py-4 px-6">
-                      <div className="flex flex-col">
-                        <span className="font-black text-slate-900 dark:text-white text-sm uppercase">{p.name}</span>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
-                            {p.sku || 'S/N'}
-                          </span>
-                          <span className="text-[10px] font-bold text-blue-500 uppercase">{p.category || 'GENERAL'}</span>
+                {filteredProducts.map(p => {
+                  const productVariants = inventory?.filter(v => v.product_id === p.id) || [];
+                  const totalStock = productVariants.reduce((sum, v) => sum + v.stock_quantity, 0);
+
+                  const uniqueSizes = Array.from(new Set(productVariants.map(v => v.sizes?.name))).filter(Boolean).sort();
+                  const uniqueColors = Array.from(new Set(productVariants.map(v => v.colors?.name))).filter(Boolean).sort();
+
+                  return (
+                    <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-colors group">
+                      <td className="py-4 px-6 align-top">
+                        <div className="flex flex-col">
+                          <span className="font-black text-slate-900 dark:text-white text-sm uppercase leading-tight">{p.name}</span>
+                          <div className="flex flex-wrap items-center gap-2 mt-2">
+                            <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
+                              {p.sku || 'S/N'}
+                            </span>
+                            <span className="text-[9px] font-bold text-blue-500 uppercase">{p.category || 'GENERAL'}</span>
+                            <span className="text-[9px] font-bold text-slate-400 uppercase">📍 {p.location || '---'}</span>
+                          </div>
+                          <div className="mt-2 text-xs font-bold text-slate-500">
+                             Precio: <span className="text-emerald-600 dark:text-emerald-400 font-black">${(p.price || 0).toLocaleString('es-AR')}</span>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <span className="text-xs font-bold text-slate-500">{p.location || '---'}</span>
-                    </td>
-                    <td className="py-4 px-6 text-right">
-                      <span className="text-sm font-bold text-slate-600 dark:text-slate-300">${(p.cost || 0).toLocaleString('es-AR')}</span>
-                    </td>
-                    <td className="py-4 px-6 text-right">
-                      <span className="text-base font-black text-slate-900 dark:text-white">${(p.price || 0).toLocaleString('es-AR')}</span>
-                    </td>
-                    <td className="py-4 px-6 text-center">
-                      <button onClick={() => openEditModal(p)} className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-600 dark:text-blue-400 text-xs font-black rounded-lg transition-all opacity-0 group-hover:opacity-100 uppercase tracking-wide">
-                        Editar
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+
+                      <td className="py-4 px-6">
+                        {productVariants.length === 0 ? (
+                          <span className="text-[10px] font-bold text-slate-400 italic">Sin stock registrado</span>
+                        ) : (
+                          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 inline-block max-w-full">
+                            <table className="text-[10px] text-center border-collapse">
+                              <thead>
+                                <tr>
+                                  <th className="p-2 border-b border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50"></th>
+                                  {uniqueSizes.map(sizeName => (
+                                    <th key={sizeName} className="p-2 border-b border-slate-200 dark:border-slate-700 font-black text-slate-600 dark:text-slate-300 uppercase bg-slate-50 dark:bg-slate-800/50 min-w-[40px]">
+                                      {sizeName}
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {uniqueColors.map(colorName => (
+                                  <tr key={colorName}>
+                                    <td className="p-2 border-r border-slate-200 dark:border-slate-700 font-bold text-slate-500 uppercase text-left whitespace-nowrap">
+                                      {colorName}
+                                    </td>
+                                    {uniqueSizes.map(sizeName => {
+                                      const variant = productVariants.find(v => v.colors?.name === colorName && v.sizes?.name === sizeName);
+                                      const qty = variant?.stock_quantity || 0;
+                                      return (
+                                        <td key={`${colorName}-${sizeName}`} className={`p-2 font-black border-slate-100 dark:border-slate-800 border-b border-r ${qty > 0 ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50/30 dark:bg-emerald-900/10' : 'text-slate-300 dark:text-slate-600 bg-slate-50 dark:bg-slate-900'}`}>
+                                          {qty > 0 ? qty : '-'}
+                                        </td>
+                                      );
+                                    })}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </td>
+
+                      <td className="py-4 px-6 text-center align-top">
+                        <span className={`text-base font-black px-3 py-1 rounded-lg inline-block ${totalStock > 0 ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
+                          {totalStock}
+                        </span>
+                      </td>
+                      
+                      <td className="py-4 px-6 text-center align-top">
+                        <div className="flex items-center justify-center gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                          {/* ✅ SE CAMBIÓ PARA QUE ABRA EL NUEVO MODAL DE STOCK */}
+                          <button onClick={() => {
+                            setStockProduct(p);
+                            setStockForm({ type: 'IN', sizeId: '', colorId: '', qty: '' });
+                          }} className="px-3 py-2 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 text-emerald-600 dark:text-emerald-400 text-[10px] font-black rounded-lg transition-all uppercase border border-emerald-200 dark:border-emerald-800" title="Ajustar Stock">📦</button>
+                          
+                          <button onClick={() => openEditModal(p)} className="px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-600 text-[10px] font-black rounded-lg transition-all uppercase border border-slate-200 dark:border-slate-700" title="Editar Producto">✏️</button>
+                          <button onClick={() => handleDeleteProduct(p)} className="px-3 py-2 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 text-rose-600 text-[10px] font-black rounded-lg transition-all uppercase border border-rose-200 dark:border-rose-800" title="Eliminar Producto">🗑️</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
+      {/* ✅ NUEVO MODAL DE AJUSTE DE STOCK */}
+      {stockProduct && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-700">
+            
+            <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800/80">
+              <h2 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tighter flex items-center gap-2">
+                📦 Ajustar Stock
+              </h2>
+              <button onClick={() => setStockProduct(null)} className="text-slate-400 hover:text-rose-500 transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <p className="text-sm font-bold text-slate-500 uppercase">{stockProduct.name}</p>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase mb-2">Talle</label>
+                  <div className="flex gap-2">
+                    <select value={stockForm.sizeId} onChange={e => setStockForm({...stockForm, sizeId: e.target.value})} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white outline-none">
+                      <option value="">Seleccionar...</option>
+                      {sizes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                    <button onClick={handleAddNewSize} type="button" className="px-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl font-black transition-colors">+</button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase mb-2">Color</label>
+                  <div className="flex gap-2">
+                    <select value={stockForm.colorId} onChange={e => setStockForm({...stockForm, colorId: e.target.value})} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white outline-none">
+                      <option value="">Seleccionar...</option>
+                      {colors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    <button onClick={handleAddNewColor} type="button" className="px-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl font-black transition-colors">+</button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase mb-2">Operación</label>
+                  <select value={stockForm.type} onChange={e => setStockForm({...stockForm, type: e.target.value})} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-black text-slate-800 dark:text-white outline-none">
+                    <option value="IN">➕ INGRESO</option>
+                    <option value="OUT">➖ SALIDA</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase mb-2">Cantidad</label>
+                  <input type="number" min="1" placeholder="Ej: 10" value={stockForm.qty} onChange={e => setStockForm({...stockForm, qty: e.target.value})} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-lg font-black text-slate-800 dark:text-white outline-none text-center" />
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3">
+              <button onClick={() => setStockProduct(null)} className="px-6 py-3 rounded-xl text-xs font-black text-slate-500 hover:bg-slate-200 transition-colors uppercase tracking-widest">
+                Cancelar
+              </button>
+              <button onClick={handleSaveStockAdjust} className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-lg shadow-emerald-500/30 transition-all active:scale-95 uppercase tracking-widest">
+                Guardar Movimiento
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL ORIGINAL DE CREAR/EDITAR ARTÍCULO */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto">
@@ -255,7 +430,6 @@ export const InventoryDashboard = () => {
 
             <div className="p-8 space-y-6">
               
-              {/* 🛠️ CATEGORÍA Y UBICACIÓN CON BOTÓN "+" */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Categoría (Tipo de Prenda)</label>
@@ -287,7 +461,6 @@ export const InventoryDashboard = () => {
                 </div>
               </div>
 
-              {/* 🪄 CÓDIGO SKU CON GENERADOR */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Código SKU</label>
@@ -315,7 +488,6 @@ export const InventoryDashboard = () => {
                 </div>
               </div>
 
-              {/* PRECIOS */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
                 <div className="relative">
                   <label className="block text-[10px] font-black text-rose-500 uppercase tracking-widest mb-2">Costo de Compra ($)</label>
@@ -327,7 +499,6 @@ export const InventoryDashboard = () => {
                 </div>
               </div>
 
-              {/* CARGA INICIAL (Solo en Create) */}
               {modalMode === 'create' && (
                 <div className="bg-blue-50/50 dark:bg-blue-900/10 p-5 rounded-2xl border border-blue-100 dark:border-blue-900/30 mt-6">
                   <h3 className="text-xs font-black text-blue-600 dark:text-blue-400 uppercase mb-4">Stock Físico Inicial (Opcional)</h3>
@@ -360,7 +531,6 @@ export const InventoryDashboard = () => {
                 </div>
               )}
 
-              {/* NOTAS */}
               <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Notas Adicionales</label>
                 <textarea rows={2} value={editForm.notes || ''} onChange={e => setEditForm({...editForm, notes: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none resize-none"></textarea>

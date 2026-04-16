@@ -13,6 +13,6 @@ export const useTenantStore = create<TenantState>()(
       activeCompanyId: '11111111-1111-1111-1111-111111111111', 
       setActiveCompany: (id) => set({ activeCompanyId: id }),
     }),
-    { name: 'tenant-storage' } // Guarda la empresa en la memoria del navegador
+    { name: 'tenant-storage' } 
   )
 );
