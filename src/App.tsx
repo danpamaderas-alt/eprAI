@@ -3,18 +3,12 @@ import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react
 import { supabase } from './lib/supabase';
 import { useThemeStore } from './store/useThemeStore';
 import { useTenantStore } from './store/useTenantStore';
-
-// --- IMPORTACIÓN DE PÁGINAS ---
 import { SalesDashboard } from './modules/inventory/pages/SalesDashboard';
 import { ServicesDashboard } from './modules/inventory/pages/ServicesDashboard';
 import { OrdersDashboard } from './modules/orders/pages/OrdersDashboard';
-
-// ✅ INVENTARIO ENCENDIDO AQUÍ
 import { InventoryDashboard } from './modules/inventory/pages/InventoryDashboard';
-
-// Rutas apagadas por ahora:
-// import { TreasuryDashboard } from './modules/treasury/pages/TreasuryDashboard';
-// import { CrmDashboard } from './modules/crm/pages/CrmDashboard';
+import { TreasuryDashboard } from './modules/inventory/pages/TreasuryDashboard';
+import { CrmDashboard } from './modules/crm/pages/CrmDashboard';
 
 // ==========================================
 // COMPONENTE: ESTRUCTURA PRINCIPAL (LAYOUT)
@@ -67,7 +61,6 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
             💵 Tesorería
           </Link>
 
-          {/* LINK DE INVENTARIO */}
           <Link to="/inventario" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/inventario') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
             📦 Inventario
           </Link>
@@ -82,9 +75,12 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
 
           <div className="pt-4 mt-4 border-t border-slate-800">
              <p className="px-4 text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">CRM y Contactos</p>
+             
+             {/* ✅ LINK DE CLIENTES CRM */}
              <Link to="/clientes" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/clientes') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
                🤝 Clientes CRM
              </Link>
+
              <Link to="/cuentas-corrientes" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/cuentas-corrientes') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
                💳 Cuentas Corrientes
              </Link>
@@ -172,17 +168,17 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/ventas" replace />} />
           
+          {/* ✅ TODAS LAS RUTAS ACTIVAS */}
           <Route path="/ventas" element={<SalesDashboard />} />
           <Route path="/pedidos" element={<OrdersDashboard />} />
           <Route path="/servicios" element={<ServicesDashboard />} />
-          
-          {/* ✅ RUTA DE INVENTARIO ENCENDIDA AQUÍ */}
           <Route path="/inventario" element={<InventoryDashboard />} />
+          <Route path="/tesoreria" element={<TreasuryDashboard />} />
+          <Route path="/clientes" element={<CrmDashboard />} />
 
-          {/* Rutas en construcción */}
+          {/* Rutas en construcción (las dejamos preparadas para después) */}
           {/* <Route path="/inicio" element={<DashboardInicio />} /> */}
-          {/* <Route path="/tesoreria" element={<TreasuryDashboard />} /> */}
-          {/* <Route path="/clientes" element={<CrmDashboard />} /> */}
+          {/* <Route path="/cuentas-corrientes" element={<CuentasCorrientes />} /> */}
 
           <Route path="*" element={
             <div className="h-full flex flex-col items-center justify-center text-slate-400">

@@ -1,261 +1,306 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect, useCallback } from 'react';
-import { useForm } from 'react-hook-form';
+import { useState, useMemo, useEffect } from 'react';
 import { useCrmStore, type Customer } from '../store/useCrmStore';
+import { supabase } from '../../../lib/supabase';
 import Swal from 'sweetalert2';
 
-// OPTIMIZACIÓN: Diccionario extraído del render cycle. La memoria RAM te lo agradecerá.
-const BADGE_STYLES: Record<string, string> = {
-  GOBIERNO: 'bg-purple-50 text-purple-700 border-purple-200',
-  MAYORISTA: 'bg-blue-50 text-blue-700 border-blue-200',
-  MINORISTA: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-};
-
-// ✅ CORREGIDO: Le decimos a TypeScript que el tipo puede venir vacío (opcional)
-const getBadgeStyle = (type?: string): string => {
-  if (!type) return BADGE_STYLES.MINORISTA; // Si no tiene tipo, es minorista por defecto
-  return BADGE_STYLES[type] || BADGE_STYLES.MINORISTA;
-};
+const CUSTOMER_TYPES = [
+  { id: 'MINORISTA', label: '👤 Minorista / Consumidor', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800' },
+  { id: 'MAYORISTA', label: '🏷️ Mayorista / Revendedor', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800' },
+  { id: 'INSTITUCION', label: '🏛️ Institución / Empresa', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800' }
+];
 
 export const CrmDashboard = () => {
-  const { customers, fetchCustomers, addCustomer, deleteCustomer, isLoading } = useCrmStore();
-  const [showForm, setShowForm] = useState(false);
-
-  const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<Omit<Customer, 'id' | 'created_at'>>({
-    defaultValues: {
-      type: 'MINORISTA',
-      name: '',
-      phone: '',
-      email: '',
-      company: '',
-      notes: ''
-    }
-  });
+  const { customers, fetchCustomers, isLoading } = useCrmStore();
+  
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('');
+  
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+  
+  // 🔥 ESTA LÍNEA ES LA QUE CURA LOS ERRORES ROJOS (usamos any en vez de Partial)
+  const [editForm, setEditForm] = useState<any>({});
 
   useEffect(() => {
     fetchCustomers();
   }, [fetchCustomers]);
 
-  const onSubmit = async (data: Omit<Customer, 'id' | 'created_at'>) => {
+  const filteredCustomers = useMemo(() => {
+    if (!customers) return [];
+    return customers.filter((c: any) => {
+      const searchLower = searchTerm.toLowerCase();
+      const matchText = c.name?.toLowerCase().includes(searchLower) || c.phone?.includes(searchTerm) || c.email?.toLowerCase().includes(searchLower);
+      const matchType = filterType === '' || c.type === filterType;
+      return matchText && matchType;
+    });
+  }, [customers, searchTerm, filterType]);
+
+  const openCreateModal = () => {
+    setModalMode('create');
+    setEditForm({ name: '', phone: '', email: '', type: 'MINORISTA', document_number: '', address: '', notes: '' });
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (customer: Customer) => {
+    setModalMode('edit');
+    setEditForm({ ...customer });
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditForm({});
+  };
+
+  const handleSave = async () => {
+    if (!editForm.name) {
+      Swal.fire('Atención', 'El nombre del cliente es obligatorio', 'warning');
+      return;
+    }
+
     try {
-      await addCustomer(data);
-      setShowForm(false);
-      reset();
-    } catch (error: any) {
-      console.error('[CRM Mutation Error] Falla al insertar cliente:', error);
-      Swal.fire({
-        icon: 'error',
-        title: 'Fallo de Escritura',
-        text: 'No se pudo guardar el cliente. Verifique la conexión o datos duplicados.',
-        confirmButtonColor: '#2563eb'
-      });
+      const payload = {
+        name: editForm.name,
+        phone: editForm.phone || null,
+        email: editForm.email || null,
+        type: editForm.type || 'MINORISTA',
+        document_number: editForm.document_number || null,
+        address: editForm.address || null,
+        notes: editForm.notes || null,
+      };
+
+      if (modalMode === 'create') {
+        const { error } = await supabase.from('customers').insert([payload]);
+        if (error) throw error;
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Cliente registrado', showConfirmButton: false, timer: 1500 });
+      } else {
+        const { error } = await supabase.from('customers').update(payload).eq('id', editForm.id);
+        if (error) throw error;
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Cliente actualizado', showConfirmButton: false, timer: 1500 });
+      }
+      
+      fetchCustomers();
+      closeModal();
+    } catch (err) {
+      Swal.fire('Error', 'Hubo un problema al guardar en la base de datos.', 'error');
     }
   };
 
-  const handleDelete = useCallback(async (id: string, name: string) => {
+  const handleDelete = async (customer: Customer) => {
     const result = await Swal.fire({
-      title: '¿Eliminar cliente?',
-      html: `Estás a punto de borrar a <b>${name}</b>. Esta acción es irreversible.`,
+      title: '¿Eliminar Cliente?',
+      text: `Se borrará a "${customer.name}". No podrás deshacer esto.`,
       icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#ef4444',
-      cancelButtonColor: '#64748b',
-      confirmButtonText: 'Sí, eliminar',
-      cancelButtonText: 'Cancelar'
+      showCancelButton: true, confirmButtonColor: '#f43f5e', cancelButtonColor: '#64748b', confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar',
+      customClass: { popup: 'dark:bg-slate-900 rounded-3xl dark:text-white' }
     });
 
     if (result.isConfirmed) {
       try {
-        await deleteCustomer(id);
-      } catch (error) {
-        console.error('[CRM Mutation Error] Falla al eliminar cliente:', error);
-        Swal.fire('Error', 'El registro no pudo ser eliminado.', 'error');
+        const { error } = await supabase.from('customers').delete().eq('id', customer.id);
+        if (error) throw error;
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Cliente eliminado', showConfirmButton: false, timer: 1500 });
+        fetchCustomers();
+      } catch (err) {
+        Swal.fire('Error', 'No se pudo eliminar. Verifica que no tenga pedidos asociados.', 'error');
       }
     }
-  }, [deleteCustomer]);
+  };
+
+  const openWhatsApp = (phone: string) => {
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length > 8) {
+      window.open(`https://wa.me/${cleanPhone}`, '_blank');
+    } else {
+      Swal.fire('Atención', 'El número de teléfono no parece válido', 'warning');
+    }
+  };
+
+  const getInitials = (name: string) => name ? name.charAt(0).toUpperCase() : '?';
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Directorio de Clientes</h1>
-          <p className="text-slate-500 text-sm font-medium uppercase tracking-widest">Gestión de cartera y contactos comerciales.</p>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight italic">Directorio CRM</h1>
+          <p className="text-slate-500 text-sm font-medium uppercase tracking-widest mt-1">Gestión de Clientes y Contactos</p>
         </div>
-        {!showForm && (
-          <button 
-            onClick={() => setShowForm(true)} 
-            className="group flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl shadow-lg shadow-blue-600/20 transition-all hover:-translate-y-0.5"
-          >
-            <span className="text-xl group-hover:rotate-90 transition-transform duration-300" aria-hidden="true">+</span>
-            NUEVO CLIENTE
-          </button>
-        )}
+        
+        <button 
+          onClick={openCreateModal}
+          className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg transition-all active:scale-95 flex items-center gap-2"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
+          Nuevo Cliente
+        </button>
+      </header>
+
+      <div className="bg-white dark:bg-slate-800 p-4 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col md:flex-row gap-4">
+        <div className="relative flex-1">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">🔍</div>
+          <input 
+            type="text" placeholder="Buscar por Nombre, Teléfono o Email..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-white outline-none focus:border-blue-500 transition-colors"
+          />
+        </div>
+        
+        <div className="flex gap-2 w-full md:w-auto overflow-x-auto">
+          <select value={filterType} onChange={e => setFilterType(e.target.value)} className="min-w-[180px] px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 outline-none">
+            <option value="">TODAS LAS CATEGORÍAS</option>
+            {CUSTOMER_TYPES.map(type => <option key={type.id} value={type.id}>{type.label}</option>)}
+          </select>
+        </div>
       </div>
 
-      {showForm && (
-        <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-xl animate-in slide-in-from-top-6 duration-300">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-1.5">
-                <label htmlFor="input-name" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nombre Completo</label>
-                <input 
-                  id="input-name"
-                  required 
-                  type="text" 
-                  placeholder="Ej: Juan Pérez"
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all font-bold text-slate-800"
-                  {...register('name')}
-                />
-              </div>
-              
-              <div className="space-y-1.5">
-                <label htmlFor="select-type" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo de Cliente</label>
-                <select 
-                  id="select-type"
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all font-bold text-slate-800 appearance-none cursor-pointer"
-                  {...register('type')}
-                >
-                  <option value="MINORISTA">Minorista (Showroom)</option>
-                  <option value="MAYORISTA">Mayorista</option>
-                  <option value="GOBIERNO">Entidad Gubernamental</option>
-                </select>
-              </div>
+      <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+        {isLoading ? (
+          <div className="py-20 flex justify-center text-slate-400 font-bold text-sm uppercase tracking-widest animate-pulse">Cargando Directorio...</div>
+        ) : filteredCustomers.length === 0 ? (
+          <div className="text-center py-20 border-2 border-dashed border-slate-200 dark:border-slate-800 m-8 rounded-3xl bg-slate-50/50 dark:bg-slate-900/50">
+            <span className="text-4xl block mb-2 opacity-50">📇</span>
+            <p className="text-slate-400 text-xs font-black uppercase tracking-widest">No hay clientes registrados</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                  <th className="py-5 px-6">Cliente / Organización</th>
+                  <th className="py-5 px-6">Información de Contacto</th>
+                  <th className="py-5 px-6">Categoría</th>
+                  <th className="py-5 px-6 text-center">Gestión</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                {filteredCustomers.map((c: any) => {
+                  const typeInfo = CUSTOMER_TYPES.find(t => t.id === c.type) || CUSTOMER_TYPES[0];
 
-              <div className="space-y-1.5">
-                <label htmlFor="input-company" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Empresa / Razón Social</label>
-                <input 
-                  id="input-company"
-                  type="text" 
-                  placeholder="Opcional..."
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all font-semibold text-slate-700"
-                  {...register('company')}
-                />
-              </div>
+                  return (
+                    <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-colors group">
+                      <td className="py-4 px-6 align-middle">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center font-black text-lg flex-shrink-0">
+                            {getInitials(c.name)}
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="font-black text-slate-900 dark:text-white text-sm uppercase leading-tight">{c.name}</span>
+                            {c.notes && <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest mt-0.5">{c.notes}</span>}
+                          </div>
+                        </div>
+                      </td>
 
-              <div className="space-y-1.5">
-                <label htmlFor="input-phone" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">WhatsApp / Teléfono</label>
-                <input 
-                  id="input-phone"
-                  type="text" 
-                  placeholder="+54..."
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all font-semibold text-slate-700"
-                  {...register('phone')}
-                />
-              </div>
+                      <td className="py-4 px-6 align-middle">
+                        <div className="flex flex-col space-y-1.5">
+                          {c.phone ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{c.phone}</span>
+                              <button onClick={() => openWhatsApp(c.phone)} className="text-[9px] font-black bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800 flex items-center hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors">
+                                💬 WA
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">S/T (Sin teléfono)</span>
+                          )}
+                          {c.email ? (
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{c.email}</span>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 italic">Sin correo</span>
+                          )}
+                        </div>
+                      </td>
 
-              <div className="space-y-1.5 md:col-span-2">
-                <label htmlFor="input-email" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Correo Electrónico</label>
-                <input 
-                  id="input-email"
-                  type="email" 
-                  placeholder="email@ejemplo.com"
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all font-semibold text-slate-700"
-                  {...register('email')}
-                />
-              </div>
-
-              <div className="md:col-span-2 space-y-1.5">
-                <label htmlFor="input-notes" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Notas e Historial</label>
-                <textarea 
-                  id="input-notes"
-                  placeholder="Detalles importantes sobre el cliente..."
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-all font-medium text-slate-700 min-h-[100px]"
-                  {...register('notes')}
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-4 justify-end pt-4 border-t border-slate-100">
-              <button 
-                type="button" 
-                onClick={() => setShowForm(false)} 
-                className="px-6 py-3 rounded-xl font-black text-[11px] text-slate-500 uppercase tracking-widest hover:bg-slate-100 transition-colors"
-              >
-                Descartar
-              </button>
-              <button 
-                type="submit" 
-                disabled={isSubmitting}
-                className="px-10 py-3 bg-slate-900 hover:bg-blue-600 text-white rounded-xl font-black text-[11px] uppercase tracking-widest shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? 'Guardando...' : 'Registrar Cliente'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden relative min-h-[400px]">
-        {isLoading && (
-          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/60 backdrop-blur-md">
-            <svg className="animate-spin h-10 w-10 text-blue-600" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
+                      <td className="py-4 px-6 align-middle">
+                        <div className="flex flex-col items-start gap-1">
+                          <span className={`text-[9px] font-black uppercase px-3 py-1 rounded-md tracking-widest border ${typeInfo.color}`}>
+                            {typeInfo.id}
+                          </span>
+                        </div>
+                      </td>
+                      
+                      <td className="py-4 px-6 text-center align-middle">
+                        <div className="flex items-center justify-center gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => openEditModal(c)} className="px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-600 text-[10px] font-black rounded-lg transition-all uppercase border border-slate-200 dark:border-slate-700 shadow-sm" title="Editar Cliente">✏️</button>
+                          <button onClick={() => handleDelete(c)} className="px-3 py-2 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 text-rose-600 text-[10px] font-black rounded-lg transition-all uppercase border border-rose-200 dark:border-rose-800 shadow-sm" title="Eliminar Cliente">🗑️</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
-        
-        <div className="overflow-x-auto w-full">
-          <table className="w-full text-left border-collapse whitespace-nowrap">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-100">
-                <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Cliente</th>
-                <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Información de Contacto</th>
-                <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Categoría</th>
-                <th className="py-4 px-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">Gestión</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {customers.map((c) => (
-                <tr key={c.id} className="hover:bg-slate-50 transition-colors group">
-                  <td className="py-4 px-6">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-black text-slate-400 text-xs shadow-inner">
-                        {c.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="font-black text-slate-900 text-sm uppercase tracking-tight">{c.name}</p>
-                        {c.company && <p className="text-[10px] font-bold text-blue-500 uppercase tracking-tighter">{c.company}</p>}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-4 px-6">
-                    <p className="text-xs font-bold text-slate-700 tabular-nums">{c.phone || 'S/T'}</p>
-                    <p className="text-[10px] text-slate-400">{c.email || 'Sin correo'}</p>
-                  </td>
-                  <td className="py-4 px-6">
-                    {/* ✅ CORREGIDO: Usamos el escudo y mostramos el tipo real o el default */}
-                    <span className={`px-2.5 py-1 text-[9px] font-black rounded-md border shadow-sm ${getBadgeStyle(c.type)}`}>
-                      {c.type || 'MINORISTA'}
-                    </span>
-                  </td>
-                  <td className="py-4 px-6 text-right">
-                    <button 
-                      onClick={() => handleDelete(c.id, c.name)} 
-                      className="p-2 text-slate-200 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-1"
-                      title="Eliminar cliente"
-                      aria-label={`Eliminar cliente ${c.name}`}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {customers.length === 0 && !isLoading && (
-                <tr>
-                  <td colSpan={4} className="py-20 text-center">
-                     <span className="text-4xl mb-4 block" aria-hidden="true">📇</span>
-                     <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">El directorio está vacío</p>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
       </div>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto">
+            
+            <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800/80 sticky top-0 z-10">
+              <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">
+                {modalMode === 'create' ? 'Nuevo Cliente' : 'Editar Cliente'}
+              </h2>
+              <button onClick={closeModal} className="p-2 text-slate-400 hover:text-rose-500 bg-white dark:bg-slate-700 hover:bg-rose-50 rounded-full shadow-sm transition-all">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <div className="p-8 space-y-6">
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="md:col-span-2">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nombre / Razón Social *</label>
+                  <input type="text" placeholder="Ej: Jorge Adrian Silva" value={editForm.name || ''} onChange={e => setEditForm({...editForm, name: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" required />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Tipo de Cliente</label>
+                  <select value={editForm.type || 'MINORISTA'} onChange={e => setEditForm({...editForm, type: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                    {CUSTOMER_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">CUIT / DNI</label>
+                  <input type="text" placeholder="Opcional" value={editForm.document_number || ''} onChange={e => setEditForm({...editForm, document_number: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Teléfono / WhatsApp</label>
+                  <input type="text" placeholder="Ej: +54 9 221 555 1234" value={editForm.phone || ''} onChange={e => setEditForm({...editForm, phone: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Correo Electrónico</label>
+                  <input type="email" placeholder="cliente@correo.com" value={editForm.email || ''} onChange={e => setEditForm({...editForm, email: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Empresa / Negocio (Aparece en celeste)</label>
+                  <input type="text" placeholder="Ej: ROJO SHOWROOM" value={editForm.notes || ''} onChange={e => setEditForm({...editForm, notes: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Dirección de Entrega</label>
+                  <input type="text" placeholder="Calle, Número, Localidad" value={editForm.address || ''} onChange={e => setEditForm({...editForm, address: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" />
+                </div>
+              </div>
+
+            </div>
+
+            <div className="px-8 py-5 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3 sticky bottom-0 z-10">
+              <button onClick={closeModal} className="px-6 py-3 rounded-xl text-xs font-black text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors uppercase tracking-widest">
+                Cancelar
+              </button>
+              <button onClick={handleSave} className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-lg shadow-blue-500/30 transition-all active:scale-95 uppercase tracking-widest">
+                {modalMode === 'create' ? 'Guardar Cliente' : 'Actualizar Datos'}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 };
