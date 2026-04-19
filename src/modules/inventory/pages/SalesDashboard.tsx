@@ -20,8 +20,7 @@ interface CartItem {
 export const SalesDashboard = () => {
   const { products, inventory, sizes, colors, fetchAllCatalogs, updateStock } = useCatalogStore();
   const { customers, fetchCustomers } = useCrmStore();
-  // ✅ TRAEMOS LA FUNCIÓN PARA AGREGAR PLATA A LA CAJA
-  const { addMovement } = useTreasuryStore(); 
+  const { addTransaction } = useTreasuryStore(); 
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('');

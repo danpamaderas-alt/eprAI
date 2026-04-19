@@ -1,3 +1,5 @@
+import { CuentasCorrientes } from './modules/crm/pages/CuentasCorrientes';
+import { DashboardInicio } from './modules/home/pages/DashboardInicio';
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { supabase } from './lib/supabase';
@@ -175,6 +177,8 @@ export default function App() {
           <Route path="/inventario" element={<InventoryDashboard />} />
           <Route path="/tesoreria" element={<TreasuryDashboard />} />
           <Route path="/clientes" element={<CrmDashboard />} />
+          <Route path="/inicio" element={<DashboardInicio />} />
+          <Route path="/cuentas-corrientes" element={<CuentasCorrientes />} />
 
           {/* Rutas en construcción (las dejamos preparadas para después) */}
           {/* <Route path="/inicio" element={<DashboardInicio />} /> */}
