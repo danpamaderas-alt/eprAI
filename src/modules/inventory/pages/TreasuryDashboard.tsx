@@ -10,7 +10,6 @@ export const TreasuryDashboard = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   
-  // Estados del Formulario
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState<'INCOME' | 'EXPENSE'>('EXPENSE');
@@ -22,17 +21,20 @@ export const TreasuryDashboard = () => {
     fetchTransactions();
   }, [fetchTransactions]);
 
-  // CALCULAMOS LOS SALDOS AUTOMÁTICAMENTE
   const balances = useMemo(() => {
     let mp = 0; let banco = 0; let efectivo = 0; let total = 0;
 
     transactions.forEach(tx => {
-      if (tx.status === 'COMPLETED') {
+      if (tx.status === 'COMPLETED' || !tx.status) {
         const value = tx.type === 'INCOME' ? tx.amount : -tx.amount;
         total += value;
-        if (tx.paymentMethod === 'MERCADO_PAGO') mp += value;
-        else if (tx.paymentMethod === 'BANCO') banco += value;
-        else if (tx.paymentMethod === 'EFECTIVO') efectivo += value;
+        
+        // Buscamos con o sin guión bajo por compatibilidad
+        const method = (tx.paymentMethod || (tx as any).payment_method || 'EFECTIVO').toUpperCase();
+        
+        if (method === 'MERCADO_PAGO') mp += value;
+        else if (method === 'BANCO') banco += value;
+        else efectivo += value;
       }
     });
 
@@ -42,11 +44,11 @@ export const TreasuryDashboard = () => {
   const handleOpenEdit = (tx: Transaction) => {
     setEditingTx(tx);
     setAmount(tx.amount.toString());
-    setDescription(tx.description);
+    setDescription(tx.description || '');
     setType(tx.type as 'INCOME' | 'EXPENSE');
-    setCategory(tx.category);
-    setBusinessUnit(tx.businessUnit as 'GENERAL' | 'ROJO_SHOWROOM' | 'RAICES' | 'UNIFORMES' | 'RJ_CO' | 'BITA_IT');
-    setPaymentMethod(tx.paymentMethod as "MERCADO_PAGO" | "BANCO" | "EFECTIVO");
+    setCategory(tx.category || '');
+    setBusinessUnit((tx.businessUnit || (tx as any).business_unit || 'GENERAL') as any);
+    setPaymentMethod((tx.paymentMethod || (tx as any).payment_method || 'EFECTIVO') as any);
     setIsFormOpen(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -62,15 +64,16 @@ export const TreasuryDashboard = () => {
     if (!amount || !description) return;
 
     try {
-      // ✅ ACÁ ESTABA EL ERROR: Le agregamos "as any" a businessUnit para que TypeScript lo deje pasar
+      // ✅ ARMAMOS EL PAQUETE CON GUIONES BAJOS PARA SUPABASE
       const payload = {
         amount: Number(amount),
-        description,
-        type,
-        category,
-        businessUnit,
-        paymentMethod,
+        description: description,
+        type: type,
+        category: category,
+        business_unit: businessUnit, // Snake case
+        payment_method: paymentMethod, // Snake case
         date: editingTx ? editingTx.date : new Date().toISOString(),
+        status: 'COMPLETED'
       };
 
       if (editingTx) {
@@ -82,8 +85,14 @@ export const TreasuryDashboard = () => {
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Movimiento Registrado', showConfirmButton: false, timer: 2000 });
       }
       resetForm();
-    } catch {
-      Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo guardar el movimiento.' });
+    } catch (error: any) {
+      // 🚨 ACÁ ESTÁ LA MAGIA: Si falla, nos dirá el error EXACTO de la base de datos
+      Swal.fire({ 
+        icon: 'error', 
+        title: 'Error de Supabase', 
+        text: error.message || 'Revisa la consola para más detalles.' 
+      });
+      console.error("Error completo al guardar:", error);
     }
   };
 
@@ -111,7 +120,6 @@ export const TreasuryDashboard = () => {
         )}
       </div>
 
-      {/* TARJETAS DE SALDOS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
           <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Saldo Total</p>
@@ -131,27 +139,26 @@ export const TreasuryDashboard = () => {
         </div>
       </div>
 
-      {/* FORMULARIO DE INGRESO/EGRESO */}
       {isFormOpen && (
         <form onSubmit={handleSave} className="bg-white p-6 rounded-3xl shadow-xl border border-slate-200 space-y-4">
-          <h2 className="text-xl font-black italic">{editingTx ? '✏️ Editar Movimiento' : '💸 Nuevo Movimiento'}</h2>
+          <h2 className="text-xl font-black italic text-slate-900">{editingTx ? '✏️ Editar Movimiento' : '💸 Nuevo Movimiento'}</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <select value={type} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setType(e.target.value as 'INCOME' | 'EXPENSE')} className={`p-3 rounded-xl font-black text-xs outline-none border ${type === 'INCOME' ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-rose-50 text-rose-600 border-rose-200'}`}>
               <option value="INCOME">INGRESO (+)</option>
               <option value="EXPENSE">EGRESO (-)</option>
             </select>
-            <input type="number" placeholder="Monto $" value={amount} onChange={(e) => setAmount(e.target.value)} className="p-3 rounded-xl border border-slate-200 font-bold outline-none focus:border-blue-500" required />
-            <input type="text" placeholder="Descripción (Ej: Pago Luz)" value={description} onChange={(e) => setDescription(e.target.value)} className="md:col-span-2 p-3 rounded-xl border border-slate-200 font-bold outline-none focus:border-blue-500" required />
+            <input type="number" placeholder="Monto $" value={amount} onChange={(e) => setAmount(e.target.value)} className="p-3 rounded-xl border border-slate-200 font-bold outline-none focus:border-blue-500 text-slate-900 bg-white placeholder:text-slate-400" required />
+            <input type="text" placeholder="Descripción (Ej: Pago Luz)" value={description} onChange={(e) => setDescription(e.target.value)} className="md:col-span-2 p-3 rounded-xl border border-slate-200 font-bold outline-none focus:border-blue-500 text-slate-900 bg-white placeholder:text-slate-400" required />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <select value={paymentMethod} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setPaymentMethod(e.target.value as "MERCADO_PAGO" | "BANCO" | "EFECTIVO")} className="p-3 rounded-xl border border-slate-200 text-xs font-bold outline-none">
+            <select value={paymentMethod} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setPaymentMethod(e.target.value as "MERCADO_PAGO" | "BANCO" | "EFECTIVO")} className="p-3 rounded-xl border border-slate-200 text-xs font-bold outline-none text-slate-900 bg-white">
               <option value="EFECTIVO">EFECTIVO</option>
               <option value="MERCADO_PAGO">MERCADO PAGO</option>
               <option value="BANCO">BANCO (TRANSFERENCIA)</option>
             </select>
-            <select value={businessUnit} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setBusinessUnit(e.target.value as 'GENERAL' | 'ROJO_SHOWROOM' | 'RAICES' | 'UNIFORMES' | 'RJ_CO' | 'BITA_IT')} className="p-3 rounded-xl border border-slate-200 text-xs font-bold outline-none">
+            <select value={businessUnit} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setBusinessUnit(e.target.value as 'GENERAL' | 'ROJO_SHOWROOM' | 'RAICES' | 'UNIFORMES' | 'RJ_CO' | 'BITA_IT')} className="p-3 rounded-xl border border-slate-200 text-xs font-bold outline-none text-slate-900 bg-white">
               <option value="GENERAL">GENERAL</option>
               <option value="ROJO_SHOWROOM">ROJO SHOWROOM</option>
               <option value="RAICES">RAÍCES</option>
@@ -159,7 +166,7 @@ export const TreasuryDashboard = () => {
               <option value="RJ_CO">RJ&Co.</option>
               <option value="BITA_IT">BITA IT</option>
             </select>
-            <input type="text" placeholder="Categoría (Ej: Proveedores)" value={category} onChange={(e) => setCategory(e.target.value)} className="p-3 rounded-xl border border-slate-200 font-bold text-xs outline-none" />
+            <input type="text" placeholder="Categoría (Ej: Proveedores)" value={category} onChange={(e) => setCategory(e.target.value)} className="p-3 rounded-xl border border-slate-200 font-bold text-xs outline-none text-slate-900 bg-white placeholder:text-slate-400" />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
@@ -169,7 +176,6 @@ export const TreasuryDashboard = () => {
         </form>
       )}
 
-      {/* TABLA DE MOVIMIENTOS */}
       <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
         {isLoading && <p className="p-4 text-center text-slate-400 font-bold">Cargando movimientos...</p>}
         <div className="overflow-x-auto">
@@ -188,10 +194,14 @@ export const TreasuryDashboard = () => {
                 <tr key={tx.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="py-3 px-6 text-xs font-bold text-slate-500">{new Date(tx.date).toLocaleDateString('es-AR')}</td>
                   <td className="py-3 px-6">
-                    <p className="font-black text-xs text-slate-800">{tx.description}</p>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase">{tx.businessUnit} • {tx.category}</p>
+                    <p className="font-black text-xs text-slate-800">{tx.description || 'Sin descripción'}</p>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase">{(tx.businessUnit || (tx as any).business_unit || 'GENERAL')} • {(tx.category || 'VARIOS')}</p>
                   </td>
-                  <td className="py-3 px-6"><span className="text-[9px] font-black bg-slate-100 text-slate-600 px-2 py-1 rounded uppercase tracking-widest">{tx.paymentMethod.replace('_', ' ')}</span></td>
+                  <td className="py-3 px-6">
+                    <span className="text-[9px] font-black bg-slate-100 text-slate-600 px-2 py-1 rounded uppercase tracking-widest">
+                      {(tx.paymentMethod || (tx as any).payment_method || 'EFECTIVO').replace('_', ' ')}
+                    </span>
+                  </td>
                   <td className={`py-3 px-6 text-right font-black tabular-nums ${tx.type === 'INCOME' ? 'text-emerald-600' : 'text-rose-600'}`}>
                     {tx.type === 'INCOME' ? '+' : '-'}{ARS.format(tx.amount)}
                   </td>

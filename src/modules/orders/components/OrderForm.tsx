@@ -25,27 +25,28 @@ export const OrderForm = ({ orderToEdit, onClose, onSuccess }: OrderFormProps) =
     fetchCustomers();
   }, [fetchAllCatalogs, fetchCustomers]);
 
-  // ✅ PRECARGAMOS LOS DATOS SI ESTAMOS EDITANDO
-  const { register, control, handleSubmit, watch, setValue, formState: { errors } } = useForm<OrderFormValues>({
-    resolver: zodResolver(orderSchema),
-    defaultValues: orderToEdit ? {
-      dueDate: orderToEdit.due_date,
-      customerName: orderToEdit.customer_name,
-      status: orderToEdit.status,
-      businessUnit: orderToEdit.business_unit,
-      items: orderToEdit.items || [],
-      totalAmount: orderToEdit.total_amount,
-      advancePayment: orderToEdit.advance_payment
-    } : {
-      dueDate: new Date().toISOString().split('T')[0],
-      customerName: 'Consumidor Final',
-      status: 'PENDING',
-      businessUnit: 'ROJO_SHOWROOM',
-      items: [],
-      totalAmount: 0,
-      advancePayment: 0
-    }
-  });
+ // ✅ CORRECCIÓN EN EL DEFAULT VALUES
+const { register, control, handleSubmit, watch, setValue, formState: { errors } } = useForm<OrderFormValues>({
+  resolver: zodResolver(orderSchema),
+  defaultValues: orderToEdit ? {
+    // Si la fecha viene de la DB (ej: 2026-04-30T14:00:00), nos quedamos solo con los primeros 10 caracteres
+    dueDate: orderToEdit.due_date ? orderToEdit.due_date.substring(0, 10) : new Date().toISOString().split('T')[0],
+    customerName: orderToEdit.customer_name,
+    status: orderToEdit.status,
+    businessUnit: orderToEdit.business_unit,
+    items: orderToEdit.items || [],
+    totalAmount: orderToEdit.total_amount,
+    advancePayment: orderToEdit.advance_payment
+  } : {
+    dueDate: new Date().toISOString().split('T')[0],
+    customerName: 'Consumidor Final',
+    status: 'PENDING',
+    businessUnit: 'ROJO_SHOWROOM',
+    items: [],
+    totalAmount: 0,
+    advancePayment: 0
+  }
+});
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
   const watchItems = watch('items');

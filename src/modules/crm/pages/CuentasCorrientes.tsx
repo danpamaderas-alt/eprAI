@@ -1,246 +1,264 @@
-import { useState, useMemo, useEffect } from 'react';
-import { useCrmStore } from '../store/useCrmStore';
-import { useDebtStore } from '../store/useDebtStore';
-import { useTreasuryStore } from '../../inventory/treasury/store/useTreasuryStore';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useDebtStore } from '../../crm/store/useDebtStore';
+import type { CustomerDebt } from '../../crm/store/useDebtStore';
+import { Search, Wallet, History, X } from 'lucide-react';
 import Swal from 'sweetalert2';
 
-export const CuentasCorrientes = () => {
-  const { customers, fetchCustomers } = useCrmStore();
-  const { movements, fetchMovements, addMovement, isLoading } = useDebtStore();
-  const { addTransaction } = useTreasuryStore(); // ¡Para mandar la plata a la caja!
+// --------------------------------------------------------------------------
+// 1. UTILIDADES Y HOOKS (Deberían ir en archivos separados en un entorno real)
+// --------------------------------------------------------------------------
 
-  const [searchTerm, setSearchTerm] = useState('');
-
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
   useEffect(() => {
-    fetchCustomers();
-    fetchMovements();
-  }, [fetchCustomers, fetchMovements]);
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debouncedValue;
+}
 
-  // 🧠 CALCULAR DEUDA POR CLIENTE
-  const customerBalances = useMemo(() => {
-    const balances: Record<string, number> = {};
+const formatCurrency = (amount: number) => 
+  new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(amount);
+
+const formatDate = (dateString: string | null) => 
+  dateString ? new Date(dateString).toLocaleDateString('es-AR') : 'Sin registros';
+
+// --------------------------------------------------------------------------
+// 2. COMPONENTES AISLADOS (Single Responsibility Principle)
+// --------------------------------------------------------------------------
+
+const PaymentModal = React.memo(({ 
+  customer, 
+  onClose, 
+  onConfirm 
+}: { 
+  customer: CustomerDebt; 
+  onClose: () => void; 
+  onConfirm: (id: string, amount: number) => Promise<boolean>; 
+}) => {
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isProcessing) return;
+
+    const amount = Number(paymentAmount);
     
-    // Sumar cargos y restar pagos
-    movements.forEach(m => {
-      if (!balances[m.customer_id]) balances[m.customer_id] = 0;
-      balances[m.customer_id] += m.amount; 
-    });
-
-    // Crear array final combinando datos del CRM
-    return customers.map((c: any) => ({
-      ...c,
-      balance: balances[c.id] || 0
-    })).filter(c => c.balance > 0 || c.name.toLowerCase().includes(searchTerm.toLowerCase())); // Mostrar solo los que deben, o si los buscamos
-  }, [customers, movements, searchTerm]);
-
-  // Total en la calle (Plata que te deben en total)
-  const totalInStreet = customerBalances.reduce((sum, c) => sum + (c.balance > 0 ? c.balance : 0), 0);
-
-  // 💸 REGISTRAR UN PAGO (Abono)
-  const handleRegisterPayment = async (customer: any) => {
-    const { value: formValues } = await Swal.fire({
-      title: `Cobrar a ${customer.name}`,
-      html: `
-        <div class="text-left mt-2">
-          <p class="text-sm text-slate-500 mb-4">Deuda actual: <strong class="text-rose-500">$${customer.balance.toLocaleString('es-AR')}</strong></p>
-          
-          <label class="text-[10px] font-black uppercase text-slate-500 ml-1">Monto que entrega ($)</label>
-          <input id="swal-amount" type="number" min="1" class="swal2-input w-full !mx-0 font-black text-2xl text-emerald-600" placeholder="0">
-          
-          <label class="text-[10px] font-black uppercase text-slate-500 ml-1 mt-4 block">¿A dónde ingresa la plata?</label>
-          <select id="swal-account" class="swal2-input w-full !mx-0 text-sm font-bold">
-            <option value="EFECTIVO">💵 Caja Efectivo</option>
-            <option value="MERCADO_PAGO">📱 Mercado Pago</option>
-            <option value="BANCO">🏦 Banco Nación</option>
-          </select>
-        </div>
-      `,
-      showCancelButton: true,
-      confirmButtonText: 'Registrar Pago',
-      cancelButtonText: 'Cancelar',
-      confirmButtonColor: '#10b981',
-      customClass: { popup: 'dark:bg-slate-900 rounded-3xl dark:text-white' },
-      preConfirm: () => {
-        const amount = (document.getElementById('swal-amount') as HTMLInputElement).value;
-        const account = (document.getElementById('swal-account') as HTMLSelectElement).value;
-        
-        if (!amount || Number(amount) <= 0) {
-          Swal.showValidationMessage('Ingresá un monto válido');
-          return false;
-        }
-        return { amount: Number(amount), account };
-      }
-    });
-
-    if (formValues) {
-      try {
-        const timestamp = new Date().toISOString();
-
-        // 1. Bajar la deuda del cliente (Monto negativo porque es un pago)
-        await addMovement({
-          customer_id: customer.id,
-          date: timestamp,
-          amount: -formValues.amount,
-          concept: `Abono en ${formValues.account.replace('_', ' ')}`,
-          type: 'PAYMENT'
-        });
-
-        // 2. 🔥 Mandar la plata a la Tesorería
-        await addTransaction({
-          date: timestamp,
-          description: `Cobro Cta. Cte: ${customer.name}`,
-          category: 'COBRO_CUENTA_CORRIENTE',
-          type: 'INCOME',
-          businessUnit: 'GENERAL', // O la que prefieras por defecto
-          paymentMethod: formValues.account as any,
-          amount: formValues.amount,
-          status: 'COMPLETED'
-        });
-
-        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Pago registrado exitosamente', showConfirmButton: false, timer: 2000 });
-      } catch (error) {
-        Swal.fire('Error', 'Hubo un problema al registrar el pago.', 'error');
-      }
+    // Validación Crítica de Seguridad
+    if (isNaN(amount) || amount <= 0) {
+      Swal.fire('Error', 'El monto debe ser un número mayor a 0', 'error');
+      return;
     }
-  };
 
-  // 📝 FIAR (Agregar deuda manualmente - Ej: Se llevó algo sin pasar por Punto de Venta)
-  const handleAddDebt = async (customer: any) => {
-    const { value: formValues } = await Swal.fire({
-      title: `Agregar Deuda a ${customer.name}`,
-      html: `
-        <div class="text-left mt-2">
-          <label class="text-[10px] font-black uppercase text-slate-500 ml-1">Monto a deber ($)</label>
-          <input id="swal-debt-amount" type="number" min="1" class="swal2-input w-full !mx-0 font-black text-2xl text-rose-600" placeholder="0">
-          
-          <label class="text-[10px] font-black uppercase text-slate-500 ml-1 mt-4 block">Concepto / Detalle</label>
-          <input id="swal-debt-concept" type="text" class="swal2-input w-full !mx-0 text-sm font-bold" placeholder="Ej: Remeras fiadas">
-        </div>
-      `,
-      showCancelButton: true,
-      confirmButtonText: 'Sumar Deuda',
-      cancelButtonText: 'Cancelar',
-      confirmButtonColor: '#f43f5e',
-      customClass: { popup: 'dark:bg-slate-900 rounded-3xl dark:text-white' },
-      preConfirm: () => {
-        const amount = (document.getElementById('swal-debt-amount') as HTMLInputElement).value;
-        const concept = (document.getElementById('swal-debt-concept') as HTMLInputElement).value;
-        
-        if (!amount || Number(amount) <= 0 || !concept) {
-          Swal.showValidationMessage('Ingresá un monto y un concepto');
-          return false;
-        }
-        return { amount: Number(amount), concept };
-      }
-    });
-
-    if (formValues) {
-      try {
-        await addMovement({
-          customer_id: customer.id,
-          date: new Date().toISOString(),
-          amount: formValues.amount, // Positivo porque aumenta la deuda
-          concept: formValues.concept,
-          type: 'CHARGE'
-        });
-        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Deuda sumada', showConfirmButton: false, timer: 2000 });
-      } catch (error) {
-        Swal.fire('Error', 'Hubo un problema al registrar la deuda.', 'error');
-      }
-    }
+    setIsProcessing(true);
+    const success = await onConfirm(customer.id, amount);
+    setIsProcessing(false);
+    
+    if (success) onClose();
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      
-      {/* CABECERA */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight italic">Cuentas Corrientes</h1>
-          <p className="text-slate-500 text-sm font-medium uppercase tracking-widest mt-1">Gestión de Cobranzas y Fiados</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+          <h3 className="text-xl font-black italic uppercase">Registrar Entrega</h3>
+          <button onClick={onClose} disabled={isProcessing} className="text-slate-400 hover:text-rose-500 transition-colors">
+            <X className="w-6 h-6" />
+          </button>
         </div>
-        
-        <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-800/50 px-6 py-3 rounded-2xl flex flex-col items-end">
-          <span className="text-[10px] font-black uppercase tracking-widest text-rose-500 mb-1">Total en la calle</span>
-          <span className="text-2xl font-black text-rose-600 dark:text-rose-400">${totalInStreet.toLocaleString('es-AR')}</span>
-        </div>
-      </header>
 
-      {/* BUSCADOR */}
-      <div className="bg-white dark:bg-slate-800 p-4 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm">
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">🔍</div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cliente</p>
+            <p className="font-black text-slate-900 dark:text-white uppercase">{customer.name}</p>
+            <p className="text-xl font-black text-rose-500 mt-2">Deuda: {formatCurrency(customer.total_debt)}</p>
+          </div>
+
+          <div>
+            <label htmlFor="amountInput" className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Monto a entregar ($)</label>
+            <input 
+              id="amountInput"
+              autoFocus
+              type="number" 
+              step="0.01"
+              min="0.01"
+              value={paymentAmount}
+              onChange={(e) => setPaymentAmount(e.target.value)}
+              placeholder="0.00"
+              disabled={isProcessing}
+              className="w-full mt-1 px-4 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-2xl text-2xl font-black outline-none focus:border-emerald-500 transition-all disabled:opacity-50"
+              required
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button 
+              type="button"
+              onClick={onClose}
+              disabled={isProcessing}
+              className="flex-1 py-4 bg-slate-100 dark:bg-slate-800 text-slate-500 font-black rounded-2xl uppercase text-xs hover:bg-slate-200 transition-all disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button 
+              type="submit"
+              disabled={isProcessing}
+              className="flex-1 py-4 bg-emerald-600 text-white font-black rounded-2xl uppercase text-xs shadow-lg shadow-emerald-500/30 hover:bg-emerald-500 active:scale-95 transition-all disabled:opacity-50"
+            >
+              {isProcessing ? 'Procesando...' : 'Confirmar Pago'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+});
+
+const DebtorRow = React.memo(({ debtor, onSelect }: { debtor: CustomerDebt; onSelect: (d: CustomerDebt) => void }) => (
+  <tr className="hover:bg-white dark:hover:bg-slate-800 transition-colors group">
+    <td className="px-6 py-4">
+      <div className="flex flex-col">
+        <span className="font-black text-slate-900 dark:text-white text-sm uppercase">{debtor.name}</span>
+        <span className="text-[10px] text-slate-400 font-bold">{debtor.phone || 'Sin teléfono'}</span>
+      </div>
+    </td>
+    <td className="px-6 py-4 text-right">
+      <span className={`text-lg font-black tabular-nums ${debtor.total_debt > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+        {formatCurrency(debtor.total_debt)}
+      </span>
+    </td>
+    <td className="px-6 py-4 text-center">
+      <span className="text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-full uppercase">
+        {formatDate(debtor.last_payment_date)}
+      </span>
+    </td>
+    <td className="px-6 py-4 text-right">
+      <div className="flex justify-end gap-2">
+        <button 
+          onClick={() => onSelect(debtor)}
+          className="p-2 bg-emerald-100 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-xl transition-all shadow-sm"
+          title="Registrar Pago"
+        >
+          <Wallet className="w-4 h-4" />
+        </button>
+        <button 
+          className="p-2 bg-blue-100 text-blue-600 hover:bg-blue-600 hover:text-white rounded-xl transition-all shadow-sm"
+          title="Ver Historial"
+        >
+          <History className="w-4 h-4" />
+        </button>
+      </div>
+    </td>
+  </tr>
+));
+
+// --------------------------------------------------------------------------
+// 3. COMPONENTE PRINCIPAL
+// --------------------------------------------------------------------------
+
+export const CuentasCorrientes = () => {
+  const { debtors, fetchDebtors, registerPayment, isLoading } = useDebtStore();
+  const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerDebt | null>(null);
+
+  useEffect(() => {
+    fetchDebtors();
+  }, [fetchDebtors]);
+
+  const filteredDebtors = useMemo(() => {
+    if (!debouncedSearchTerm) return debtors.sort((a, b) => b.total_debt - a.total_debt);
+    const lowerSearch = debouncedSearchTerm.toLowerCase();
+    return debtors
+      .filter(d => d.name.toLowerCase().includes(lowerSearch))
+      .sort((a, b) => b.total_debt - a.total_debt);
+  }, [debtors, debouncedSearchTerm]);
+
+  // Handler memoizado para evitar re-renders en DebtorRow
+  const handleSelectCustomer = useCallback((customer: CustomerDebt) => {
+    setSelectedCustomer(customer);
+  }, []);
+
+  // Lógica de negocio separada de la UI
+  const handleProcessPayment = useCallback(async (customerId: string, amount: number): Promise<boolean> => {
+    const customer = debtors.find(d => d.id === customerId);
+    if (!customer) return false;
+
+    if (amount > customer.total_debt) {
+      const confirm = await Swal.fire({
+        title: '¿Saldo a favor?',
+        text: `El pago supera la deuda actual. El cliente quedará con saldo a favor.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, registrar'
+      });
+      if (!confirm.isConfirmed) return false;
+    }
+
+    try {
+      await registerPayment(customerId, amount);
+      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Pago registrado', showConfirmButton: false, timer: 2000 });
+      return true;
+    } catch (err) {
+      Swal.fire('Error', 'Fallo de transacción en el servidor', 'error');
+      return false;
+    }
+  }, [debtors, registerPayment]);
+
+  return (
+    <div className="p-6 space-y-6 animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white italic tracking-tighter">CUENTAS CORRIENTES</h1>
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Gestión de cobros y saldos</p>
+        </div>
+
+        <div className="relative w-full md:w-96">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
           <input 
-            type="text" placeholder="Buscar cliente..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-white outline-none focus:border-blue-500 transition-colors"
+            type="text" 
+            placeholder="Buscar cliente..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 transition-all"
           />
         </div>
       </div>
 
-      {/* TABLA DE DEUDORES */}
-      <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-        {isLoading ? (
-          <div className="py-20 flex justify-center text-slate-400 font-bold text-sm uppercase tracking-widest animate-pulse">Calculando Saldos...</div>
-        ) : customerBalances.filter(c => c.balance > 0).length === 0 && !searchTerm ? (
-          <div className="text-center py-20 border-2 border-dashed border-slate-200 dark:border-slate-800 m-8 rounded-3xl bg-slate-50/50 dark:bg-slate-900/50">
-            <span className="text-4xl block mb-2 opacity-50">🙌</span>
-            <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Nadie te debe plata actualmente</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase tracking-widest">
-                  <th className="py-5 px-6">Cliente</th>
-                  <th className="py-5 px-6">Contacto</th>
-                  <th className="py-5 px-6 text-right">Saldo Deudor</th>
-                  <th className="py-5 px-6 text-center">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                {customerBalances.map((c: any) => (
-                  <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-colors group">
-                    <td className="py-4 px-6 align-middle">
-                      <div className="flex flex-col">
-                        <span className="font-black text-slate-900 dark:text-white text-sm uppercase leading-tight">{c.name}</span>
-                        {c.notes && <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest mt-0.5">{c.notes}</span>}
-                      </div>
-                    </td>
-
-                    <td className="py-4 px-6 align-middle">
-                      <span className="text-xs font-bold text-slate-500">{c.phone || 'S/T'}</span>
-                    </td>
-
-                    <td className="py-4 px-6 align-middle text-right">
-                      {c.balance > 0 ? (
-                        <span className="text-lg font-black text-rose-600 dark:text-rose-400 tabular-nums">
-                          ${c.balance.toLocaleString('es-AR')}
-                        </span>
-                      ) : (
-                        <span className="text-sm font-bold text-slate-400">Al día</span>
-                      )}
-                    </td>
-                    
-                    <td className="py-4 px-6 text-center align-middle">
-                      <div className="flex items-center justify-center gap-2">
-                        {c.balance > 0 && (
-                          <button onClick={() => handleRegisterPayment(c)} className="px-4 py-2 bg-emerald-100 hover:bg-emerald-500 hover:text-white text-emerald-700 text-[10px] font-black rounded-xl transition-all uppercase shadow-sm">
-                            💵 Cobrar
-                          </button>
-                        )}
-                        <button onClick={() => handleAddDebt(c)} className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-rose-500 hover:text-white text-slate-600 dark:text-slate-300 text-[10px] font-black rounded-xl transition-all uppercase shadow-sm" title="Sumar Fiado manual">
-                          📝 Fiar
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <div className="bg-slate-50/50 dark:bg-slate-800/30 rounded-3xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                <th className="px-6 py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Cliente</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest text-right">Saldo Actual</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest text-center">Último Pago</th>
+                <th className="px-6 py-4 text-[10px] font-black uppercase text-slate-400 tracking-widest text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+              {isLoading ? (
+                <tr><td colSpan={4} className="p-10 text-center animate-pulse font-bold text-slate-400">Cargando deudores...</td></tr>
+              ) : filteredDebtors.length === 0 ? (
+                <tr><td colSpan={4} className="p-10 text-center font-bold text-slate-400">No se encontraron resultados</td></tr>
+              ) : (
+                filteredDebtors.map(d => (
+                  <DebtorRow key={d.id} debtor={d} onSelect={handleSelectCustomer} />
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
+      {selectedCustomer && (
+        <PaymentModal 
+          customer={selectedCustomer} 
+          onClose={() => setSelectedCustomer(null)} 
+          onConfirm={handleProcessPayment} 
+        />
+      )}
     </div>
   );
 };

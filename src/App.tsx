@@ -1,16 +1,22 @@
-import { CuentasCorrientes } from './modules/crm/pages/CuentasCorrientes';
-import { DashboardInicio } from './modules/home/pages/DashboardInicio';
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
-import { supabase } from './lib/supabase';
+
+// 🛑 RUTAS RELATIVAS ESTRICTAS (Nivel Raíz: src/)
+import { supabase } from './lib/supabase'; 
 import { useThemeStore } from './store/useThemeStore';
 import { useTenantStore } from './store/useTenantStore';
+// Descomenta la siguiente línea si ya tienes creado el store de Home:
+// import { useHomeStore } from './store/useHomeStore';
+
+// 📦 IMPORTACIÓN DE MÓDULOS (Rutas desde src/modules/...)
+import { DashboardInicio } from './modules/home/pages/DashboardInicio';
 import { SalesDashboard } from './modules/inventory/pages/SalesDashboard';
 import { ServicesDashboard } from './modules/inventory/pages/ServicesDashboard';
 import { OrdersDashboard } from './modules/orders/pages/OrdersDashboard';
-import { InventoryDashboard } from './modules/inventory/pages/InventoryDashboard';
-import { TreasuryDashboard } from './modules/inventory/pages/TreasuryDashboard';
 import { CrmDashboard } from './modules/crm/pages/CrmDashboard';
+import { InventoryDashboard } from './modules/inventory/pages/InventoryDashboard';
+import { CuentasCorrientes } from './modules/crm/pages/CuentasCorrientes';
+import { TreasuryDashboard } from './modules/inventory/pages/TreasuryDashboard';
 
 // ==========================================
 // COMPONENTE: ESTRUCTURA PRINCIPAL (LAYOUT)
@@ -31,7 +37,7 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
         <div className="h-20 flex items-center justify-between px-6 border-b border-slate-800">
           <div className="flex items-center gap-2">
             <span className="text-2xl">⚙️</span>
-            <h1 className="text-xl font-black text-white tracking-tighter">ERP <span className="text-blue-500">3.0</span></h1>
+            <h1 className="text-xl font-black text-white tracking-tighter">Raíces <span className="text-blue-500">ERP</span></h1>
           </div>
           <button onClick={toggleDarkMode} className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center transition-colors">
             {isDarkMode ? '🌙' : '☀️'}
@@ -49,7 +55,7 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
             className="w-full p-2 bg-slate-950 border border-slate-700 text-white font-bold text-xs rounded-lg outline-none focus:border-blue-500 cursor-pointer transition-colors"
           >
             <option value="11111111-1111-1111-1111-111111111111">Raíces (Principal)</option>
-            <option value="22222222-2222-2222-2222-222222222222">Taller Competencia (Demo)</option>
+            <option value="22222222-2222-2222-2222-222222222222">Rojo Showroom (Secundaria)</option>
           </select>
         </div>
 
@@ -68,7 +74,7 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
           </Link>
 
           <Link to="/ventas" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/ventas') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
-            💰 Ventas (Punto Venta)
+            💰 Punto de Venta
           </Link>
           
           <Link to="/pedidos" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/pedidos') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
@@ -78,16 +84,12 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
           <div className="pt-4 mt-4 border-t border-slate-800">
              <p className="px-4 text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">CRM y Contactos</p>
              
-             {/* ✅ LINK DE CLIENTES CRM */}
              <Link to="/clientes" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/clientes') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
                🤝 Clientes CRM
              </Link>
 
              <Link to="/cuentas-corrientes" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/cuentas-corrientes') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
                💳 Cuentas Corrientes
-             </Link>
-             <Link to="/revendedores" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/revendedores') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
-               🏷️ Revendedores
              </Link>
           </div>
 
@@ -117,14 +119,13 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
       </aside>
 
       {/* --- ÁREA PRINCIPAL --- */}
-      <main className="flex-1 h-screen overflow-y-auto bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white transition-colors duration-300 p-8">
+      <main className="flex-1 h-screen overflow-y-auto bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white transition-colors duration-300 p-8 relative">
         {children}
       </main>
 
     </div>
   );
 };
-
 
 // ==========================================
 // COMPONENTE PRINCIPAL: APP (RUTAS Y LOGIN)
@@ -147,18 +148,18 @@ export default function App() {
   }, []);
 
   if (isLoading) {
-    return <div className="h-screen w-screen bg-slate-900 flex items-center justify-center text-white font-black animate-pulse">Cargando ERP...</div>;
+    return <div className="h-screen w-screen bg-slate-900 flex items-center justify-center text-white font-black animate-pulse">Cargando Entorno...</div>;
   }
 
   if (!session) {
     return (
       <div className="h-screen w-screen bg-slate-950 flex flex-col items-center justify-center p-4">
-        <h1 className="text-3xl font-black text-white mb-8">Raíces <span className="text-blue-500">ERP</span></h1>
+        <h1 className="text-4xl font-black text-white mb-8 italic">Raíces <span className="text-blue-500">ERP</span></h1>
         <button 
           onClick={() => supabase.auth.signInWithPassword({ email: 'test@test.com', password: 'password' })} 
-          className="bg-blue-600 text-white font-black px-8 py-4 rounded-2xl shadow-xl hover:bg-blue-500 transition-all active:scale-95"
+          className="bg-blue-600 text-white font-black px-8 py-4 rounded-2xl shadow-xl hover:bg-blue-500 transition-all active:scale-95 uppercase tracking-widest text-sm"
         >
-          Iniciar Sesión de Prueba
+          Acceso Autorizado
         </button>
       </div>
     );
@@ -168,27 +169,22 @@ export default function App() {
     <BrowserRouter>
       <MainLayout>
         <Routes>
-          <Route path="/" element={<Navigate to="/ventas" replace />} />
+          <Route path="/" element={<Navigate to="/inicio" replace />} />
           
-          {/* ✅ TODAS LAS RUTAS ACTIVAS */}
+          <Route path="/inicio" element={<DashboardInicio />} />
           <Route path="/ventas" element={<SalesDashboard />} />
           <Route path="/pedidos" element={<OrdersDashboard />} />
           <Route path="/servicios" element={<ServicesDashboard />} />
           <Route path="/inventario" element={<InventoryDashboard />} />
           <Route path="/tesoreria" element={<TreasuryDashboard />} />
           <Route path="/clientes" element={<CrmDashboard />} />
-          <Route path="/inicio" element={<DashboardInicio />} />
           <Route path="/cuentas-corrientes" element={<CuentasCorrientes />} />
-
-          {/* Rutas en construcción (las dejamos preparadas para después) */}
-          {/* <Route path="/inicio" element={<DashboardInicio />} /> */}
-          {/* <Route path="/cuentas-corrientes" element={<CuentasCorrientes />} /> */}
 
           <Route path="*" element={
             <div className="h-full flex flex-col items-center justify-center text-slate-400">
               <span className="text-6xl mb-4">🚧</span>
-              <h2 className="text-xl font-black uppercase tracking-widest">Módulo en Construcción</h2>
-              <p className="text-sm mt-2">Esta sección estará disponible pronto.</p>
+              <h2 className="text-xl font-black uppercase tracking-widest">Directorio No Encontrado</h2>
+              <p className="text-sm mt-2">La ruta especificada no existe en el sistema.</p>
             </div>
           } />
         </Routes>
