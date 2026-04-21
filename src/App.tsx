@@ -5,8 +5,6 @@ import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react
 import { supabase } from './lib/supabase'; 
 import { useThemeStore } from './store/useThemeStore';
 import { useTenantStore } from './store/useTenantStore';
-// Descomenta la siguiente línea si ya tienes creado el store de Home:
-// import { useHomeStore } from './store/useHomeStore';
 
 // 📦 IMPORTACIÓN DE MÓDULOS (Rutas desde src/modules/...)
 import { DashboardInicio } from './modules/home/pages/DashboardInicio';
@@ -17,6 +15,8 @@ import { CrmDashboard } from './modules/crm/pages/CrmDashboard';
 import { InventoryDashboard } from './modules/inventory/pages/InventoryDashboard';
 import { CuentasCorrientes } from './modules/crm/pages/CuentasCorrientes';
 import { TreasuryDashboard } from './modules/inventory/pages/TreasuryDashboard';
+// ✅ IMPORTAMOS TU NUEVA PANTALLA FINANCIERA
+import { FinancialDashboard } from './modules/inventory/pages/FinancialDashboard';
 
 // ==========================================
 // COMPONENTE: ESTRUCTURA PRINCIPAL (LAYOUT)
@@ -67,6 +67,11 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
 
           <Link to="/tesoreria" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/tesoreria') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
             💵 Tesorería
+          </Link>
+
+          {/* ✅ NUEVO BOTÓN EN EL MENÚ */}
+          <Link to="/finanzas" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/finanzas') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
+            📈 Centro Financiero
           </Link>
 
           <Link to="/inventario" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/inventario') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
@@ -172,11 +177,13 @@ export default function App() {
           <Route path="/" element={<Navigate to="/inicio" replace />} />
           
           <Route path="/inicio" element={<DashboardInicio />} />
+          <Route path="/tesoreria" element={<TreasuryDashboard />} />
+          {/* ✅ NUEVA RUTA CONECTADA AL COMPONENTE */}
+          <Route path="/finanzas" element={<FinancialDashboard />} />
+          <Route path="/inventario" element={<InventoryDashboard />} />
           <Route path="/ventas" element={<SalesDashboard />} />
           <Route path="/pedidos" element={<OrdersDashboard />} />
           <Route path="/servicios" element={<ServicesDashboard />} />
-          <Route path="/inventario" element={<InventoryDashboard />} />
-          <Route path="/tesoreria" element={<TreasuryDashboard />} />
           <Route path="/clientes" element={<CrmDashboard />} />
           <Route path="/cuentas-corrientes" element={<CuentasCorrientes />} />
 

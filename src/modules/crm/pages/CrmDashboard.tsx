@@ -18,7 +18,6 @@ export const CrmDashboard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   
-  // 🔥 ESTA LÍNEA ES LA QUE CURA LOS ERRORES ROJOS (usamos any en vez de Partial)
   const [editForm, setEditForm] = useState<any>({});
 
   useEffect(() => {
@@ -37,7 +36,8 @@ export const CrmDashboard = () => {
 
   const openCreateModal = () => {
     setModalMode('create');
-    setEditForm({ name: '', phone: '', email: '', type: 'MINORISTA', document_number: '', address: '', notes: '' });
+    // ✅ CORRECCIÓN: Usamos 'cuit' en vez de 'document_number'
+    setEditForm({ name: '', phone: '', email: '', type: 'MINORISTA', cuit: '', address: '', notes: '' });
     setIsModalOpen(true);
   };
 
@@ -59,12 +59,13 @@ export const CrmDashboard = () => {
     }
 
     try {
+      // ✅ CORRECCIÓN: Enviamos 'cuit' para que coincida con Supabase
       const payload = {
         name: editForm.name,
         phone: editForm.phone || null,
         email: editForm.email || null,
         type: editForm.type || 'MINORISTA',
-        document_number: editForm.document_number || null,
+        cuit: editForm.cuit || null, 
         address: editForm.address || null,
         notes: editForm.notes || null,
       };
@@ -81,8 +82,9 @@ export const CrmDashboard = () => {
       
       fetchCustomers();
       closeModal();
-    } catch (err) {
-      Swal.fire('Error', 'Hubo un problema al guardar en la base de datos.', 'error');
+    } catch (err: any) {
+      console.error("Error al guardar:", err);
+      Swal.fire('Error', err.message || 'Hubo un problema al guardar en la base de datos.', 'error');
     }
   };
 
@@ -263,7 +265,8 @@ export const CrmDashboard = () => {
 
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">CUIT / DNI</label>
-                  <input type="text" placeholder="Opcional" value={editForm.document_number || ''} onChange={e => setEditForm({...editForm, document_number: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" />
+                  {/* ✅ CORRECCIÓN: Actualizamos el value y el onChange a 'cuit' */}
+                  <input type="text" placeholder="Opcional" value={editForm.cuit || ''} onChange={e => setEditForm({...editForm, cuit: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
 
                 <div>

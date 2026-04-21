@@ -25,7 +25,6 @@ export const InventoryDashboard = () => {
   const [quickColor, setQuickColor] = useState('');
   const [quickQty, setQuickQty] = useState('');
 
-  // ✅ NUEVOS ESTADOS PARA EL MODAL DE STOCK
   const [stockProduct, setStockProduct] = useState<Product | null>(null);
   const [stockForm, setStockForm] = useState({ type: 'IN', sizeId: '', colorId: '', qty: '' });
 
@@ -59,6 +58,28 @@ export const InventoryDashboard = () => {
     });
   }, [products, searchTerm, filterCategory, filterSize, filterColor, inventory]);
 
+  // ✅ CÁLCULO DEL VALOR PATRIMONIAL
+  const patrimonioTotal = useMemo(() => {
+    if (!products || !inventory) return 0;
+    
+    let total = 0;
+    // Recorremos todos los productos
+    products.forEach(p => {
+      // Si el producto tiene un costo definido (mayor a 0)
+      const costo = p.cost_price || 0;
+      if (costo > 0) {
+        // Buscamos todas las variantes de este producto en el inventario
+        const productVariants = inventory.filter(v => v.product_id === p.id);
+        // Sumamos el stock total de este producto
+        const stockTotalDelProducto = productVariants.reduce((sum, v) => sum + v.stock_quantity, 0);
+        // Multiplicamos el stock por el precio de costo y lo sumamos al total
+        total += (stockTotalDelProducto * costo);
+      }
+    });
+    
+    return total;
+  }, [products, inventory]);
+
   const handleGenerateSKU = () => {
     if (!editForm.category || !editForm.location) {
       Swal.fire('Atención', 'Primero seleccioná una Categoría y una Ubicación para generar el SKU.', 'info');
@@ -74,7 +95,7 @@ export const InventoryDashboard = () => {
 
   const openCreateModal = () => {
     setModalMode('create');
-    setEditForm({ sku: '', name: '', cost: 0, price: 0, category: '', location: '', notes: '' });
+    setEditForm({ sku: '', name: '', cost_price: 0, price: 0, category: '', location: '', notes: '' });
     setQuickSize(''); setQuickColor(''); setQuickQty('');
     setIsModalOpen(true);
   };
@@ -95,7 +116,16 @@ export const InventoryDashboard = () => {
 
     try {
       if (modalMode === 'create') {
-        const newProd = await addProduct({ sku: editForm.sku, name: editForm.name, cost: editForm.cost || 0, price: editForm.price || 0, category: editForm.category, location: editForm.location, notes: editForm.notes } as Omit<Product, 'id'>);
+        const newProd = await addProduct({ 
+          sku: editForm.sku, 
+          name: editForm.name, 
+          cost_price: editForm.cost_price || 0, // ✅ Usamos cost_price
+          price: editForm.price || 0, 
+          category: editForm.category, 
+          location: editForm.location, 
+          notes: editForm.notes 
+        } as Omit<Product, 'id'>);
+        
         if (quickSize && quickColor && Number(quickQty) > 0) { await updateStock(newProd.id, quickSize, quickColor, Number(quickQty)); }
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Artículo creado', showConfirmButton: false, timer: 1500 });
       } else {
@@ -129,7 +159,6 @@ export const InventoryDashboard = () => {
     }
   };
 
-  // ✅ FUNCIÓN DE GUARDADO PARA EL NUEVO MODAL DE STOCK
   const handleSaveStockAdjust = async () => {
     if (!stockForm.sizeId || !stockForm.colorId || !stockForm.qty || Number(stockForm.qty) <= 0) {
       Swal.fire('Atención', 'Selecciona Talle, Color e ingresa una cantidad válida.', 'warning');
@@ -141,7 +170,7 @@ export const InventoryDashboard = () => {
     try {
       await updateStock(stockProduct!.id, stockForm.sizeId, stockForm.colorId, quantity);
       Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Stock actualizado', showConfirmButton: false, timer: 1500 });
-      setStockProduct(null); // Cierra el modal
+      setStockProduct(null);
     } catch (error) {
       Swal.fire('Error', 'No se pudo actualizar el stock', 'error');
     }
@@ -164,14 +193,13 @@ export const InventoryDashboard = () => {
     }
   };
 
-  // ✅ LAS FUNCIONES DE CREAR AHORA ALIMENTAN A AMBOS MODALES
   const handleAddNewSize = async () => {
     const { value: newSizeName } = await Swal.fire({ title: 'Crear Nuevo Talle', input: 'text', showCancelButton: true, confirmButtonText: 'Crear', confirmButtonColor: '#2563eb' });
     if (newSizeName) {
       try { 
         const created = await addSize(newSizeName.toUpperCase()); 
-        setQuickSize(created.id); // Para el modal de Crear Artículo
-        setStockForm(prev => ({ ...prev, sizeId: created.id })); // Para el modal de Stock
+        setQuickSize(created.id);
+        setStockForm(prev => ({ ...prev, sizeId: created.id }));
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Talle agregado', showConfirmButton: false, timer: 1500 });
       } catch { Swal.fire('Error', 'No se pudo crear', 'error'); }
     }
@@ -181,8 +209,8 @@ export const InventoryDashboard = () => {
     if (newColorName) {
       try { 
         const created = await addColor(newColorName.toUpperCase()); 
-        setQuickColor(created.id); // Para el modal de Crear Artículo
-        setStockForm(prev => ({ ...prev, colorId: created.id })); // Para el modal de Stock
+        setQuickColor(created.id);
+        setStockForm(prev => ({ ...prev, colorId: created.id }));
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Color agregado', showConfirmButton: false, timer: 1500 });
       } catch { Swal.fire('Error', 'No se pudo crear', 'error'); }
     }
@@ -273,8 +301,9 @@ export const InventoryDashboard = () => {
                             <span className="text-[9px] font-bold text-blue-500 uppercase">{p.category || 'GENERAL'}</span>
                             <span className="text-[9px] font-bold text-slate-400 uppercase">📍 {p.location || '---'}</span>
                           </div>
-                          <div className="mt-2 text-xs font-bold text-slate-500">
-                             Precio: <span className="text-emerald-600 dark:text-emerald-400 font-black">${(p.price || 0).toLocaleString('es-AR')}</span>
+                          <div className="mt-2 text-[10px] font-bold text-slate-500 uppercase">
+                              Costo: <span className="text-rose-600 font-black mr-2">${(p.cost_price || 0).toLocaleString('es-AR')}</span>
+                              Venta: <span className="text-emerald-600 dark:text-emerald-400 font-black">${(p.price || 0).toLocaleString('es-AR')}</span>
                           </div>
                         </div>
                       </td>
@@ -326,7 +355,6 @@ export const InventoryDashboard = () => {
                       
                       <td className="py-4 px-6 text-center align-top">
                         <div className="flex items-center justify-center gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                          {/* ✅ SE CAMBIÓ PARA QUE ABRA EL NUEVO MODAL DE STOCK */}
                           <button onClick={() => {
                             setStockProduct(p);
                             setStockForm({ type: 'IN', sizeId: '', colorId: '', qty: '' });
@@ -345,7 +373,7 @@ export const InventoryDashboard = () => {
         )}
       </div>
 
-      {/* ✅ NUEVO MODAL DE AJUSTE DE STOCK */}
+      {/* MODAL DE AJUSTE DE STOCK */}
       {stockProduct && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-700">
@@ -412,7 +440,7 @@ export const InventoryDashboard = () => {
         </div>
       )}
 
-      {/* MODAL ORIGINAL DE CREAR/EDITAR ARTÍCULO */}
+      {/* MODAL DE CREAR/EDITAR ARTÍCULO */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto">
@@ -490,8 +518,9 @@ export const InventoryDashboard = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
                 <div className="relative">
-                  <label className="block text-[10px] font-black text-rose-500 uppercase tracking-widest mb-2">Costo de Compra ($)</label>
-                  <input type="number" value={editForm.cost || ''} onChange={e => setEditForm({...editForm, cost: Number(e.target.value)})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-rose-200 dark:border-rose-900/30 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none" />
+                  {/* ✅ AQUÍ APUNTAMOS A cost_price */}
+                  <label className="block text-[10px] font-black text-rose-500 uppercase tracking-widest mb-2">Valor de Costo ($)</label>
+                  <input type="number" value={editForm.cost_price || ''} onChange={e => setEditForm({...editForm, cost_price: Number(e.target.value)})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-rose-200 dark:border-rose-900/30 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none" />
                 </div>
                 <div className="relative">
                   <label className="block text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-2">Precio de Venta ($)</label>

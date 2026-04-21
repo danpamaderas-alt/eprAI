@@ -16,6 +16,7 @@ export interface CustomerDebt {
   total_debt: number;
   last_payment_date: string | null;
   phone?: string;
+  movements: DebtMovement[]; 
 }
 
 interface DebtState {
@@ -23,6 +24,9 @@ interface DebtState {
   isLoading: boolean;
   fetchDebtors: () => Promise<void>;
   registerPayment: (customerId: string, amount: number) => Promise<void>;
+  addDebt: (customerId: string, amount: number, concept: string) => Promise<void>;
+  deleteMovement: (movementId: string) => Promise<void>;
+  editMovement: (movementId: string, amount: number, concept: string) => Promise<void>;
 }
 
 export const useDebtStore = create<DebtState>((set, get) => ({
@@ -32,14 +36,13 @@ export const useDebtStore = create<DebtState>((set, get) => ({
   fetchDebtors: async () => {
     set({ isLoading: true });
     
-    // Tabla correcta: client_movements
     const { data, error } = await supabase
       .from('customers')
       .select(`
         id, 
         name, 
         phone,
-        client_movements (amount, type, created_at)
+        client_movements (id, amount, type, concept, created_at)
       `);
 
     if (error) {
@@ -63,7 +66,8 @@ export const useDebtStore = create<DebtState>((set, get) => ({
         name: c.name,
         total_debt: total,
         last_payment_date: lastPayment ? lastPayment.created_at : null,
-        phone: c.phone
+        phone: c.phone,
+        movements: movements.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       };
     });
 
@@ -80,10 +84,42 @@ export const useDebtStore = create<DebtState>((set, get) => ({
         concept: 'Entrega de efectivo / Pago Cta Cte' 
       }]);
 
-    if (moveError) {
-        console.error("❌ Error guardando pago:", moveError.message);
-        throw moveError;
-    }
+    if (moveError) throw moveError;
     await get().fetchDebtors();
+  },
+
+  addDebt: async (customerId, amount, concept) => {
+    // 🔍 ARMAMOS EL PAQUETE Y LO MOSTRAMOS EN CONSOLA
+    const payload = { 
+      customer_id: customerId, 
+      amount: amount, 
+      type: 'CARGO', 
+      concept: concept || 'Cargo a Cuenta Corriente' 
+    };
+    
+    console.log("📤 Intentando guardar Cargo. Datos enviados:", payload);
+
+    const { error: moveError } = await supabase
+      .from('client_movements')
+      .insert([payload]);
+
+    if (moveError) {
+      console.error("❌ Error CRUDO de Supabase:", moveError);
+      throw moveError;
+    }
+    
+    await get().fetchDebtors();
+  },
+
+  deleteMovement: async (movementId) => {
+    const { error } = await supabase.from('client_movements').delete().eq('id', movementId);
+    if (error) throw error;
+    await get().fetchDebtors(); 
+  },
+
+  editMovement: async (movementId, amount, concept) => {
+    const { error } = await supabase.from('client_movements').update({ amount: amount, concept: concept }).eq('id', movementId);
+    if (error) throw error;
+    await get().fetchDebtors(); 
   }
 }));

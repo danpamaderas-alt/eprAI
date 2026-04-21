@@ -12,12 +12,10 @@ export interface Product {
   sku?: string;        
   name: string; 
   category?: string; 
-  cost?: number;       
-  price?: number;      
+  cost_price?: number; // ✅ LÍNEA CLAVE: Apuntamos a la nueva columna de Supabase
+  price?: number;      // Precio de venta final
   location?: string;   
   notes?: string;      
-  base_price?: number; 
-  purchase_price?: number; 
 }
 
 export interface Service {
@@ -97,8 +95,8 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
         supabase.from('colors').select('*').order('name'),
         supabase.from('payment_methods').select('*').order('name'),
         supabase.from('business_units').select('*').order('name'),
-        // 🔒 Filtramos por Empresa
-        supabase.from('products').select('id, sku, name, category, cost, price, location, notes, base_price, purchase_price, company_id').eq('company_id', companyId).order('name'),
+        // 🔒 Filtramos por Empresa y traemos cost_price
+        supabase.from('products').select('id, sku, name, category, cost_price, price, location, notes, company_id').eq('company_id', companyId).order('name'),
         supabase.from('customers').select('*').eq('company_id', companyId).order('name'),
         supabase.from('personalization_types').select('*').order('name'),
         supabase.from('product_variants').select(`*, sizes(name), colors(name)`),
