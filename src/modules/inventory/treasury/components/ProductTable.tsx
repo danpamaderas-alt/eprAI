@@ -125,7 +125,12 @@ export const ProductTable = ({ data, onDelete, deleteVariation, onUpdateStock, o
     })
   ], [onDelete, deleteVariation, onUpdateStock, onEditFullProduct]);
 
-  const table = useMemo(() => useReactTable({ data: flatData, columns, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel() }), [flatData, columns]);
+  const table = useReactTable({ 
+  data: flatData, 
+  columns, 
+  getCoreRowModel: getCoreRowModel(), 
+  getSortedRowModel: getSortedRowModel() 
+});
 
   return (
     <div className="overflow-x-auto">

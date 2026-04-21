@@ -22,11 +22,14 @@ export const DashboardInicio = () => {
     // Buscamos directamente a la base de datos cuántos pedidos están pendientes
     const fetchPedidos = async () => {
       try {
-        const { count } = await supabase
+        const { count, error } = await supabase
           .from('orders')
           .select('*', { count: 'exact', head: true })
           .eq('status', 'PENDING');
-        setPedidosPendientes(count || 0);
+        
+        if (!error) {
+          setPedidosPendientes(count || 0);
+        }
       } catch (error) {
         console.error("Error cargando pedidos:", error);
       }
@@ -42,16 +45,18 @@ export const DashboardInicio = () => {
   // 2. Stock real (Suma de todas las prendas que tengan cantidad > 0)
   const totalStock = inventory ? inventory.reduce((sum, item) => sum + (item.stock_quantity > 0 ? item.stock_quantity : 0), 0) : 0;
 
-  // 3. Ingresos REALES de este mes (Suma todo lo que entró a Tesorería en el mes actual)
+  // 3. Ingresos REALES de este mes (Unificado con la lógica de Tesorería)
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
   
   const ingresosMes = transactions ? transactions
     .filter(tx => {
       const txDate = new Date(tx.date);
-      return tx.type === 'INCOME' && txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
+      // ✅ MISMA LÓGICA QUE EN TESORERÍA: Solo ingresos completados o antiguos sin estado
+      const isValidStatus = tx.status === 'COMPLETED' || !tx.status;
+      return isValidStatus && tx.type === 'INCOME' && txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
     })
-    .reduce((sum, tx) => sum + tx.amount, 0) : 0;
+    .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0) : 0;
 
   // Formateador de moneda
   const formatCurrency = (amount: number) => {
