@@ -49,7 +49,6 @@ export const OrderForm = ({ orderToEdit, onClose, onSuccess }: OrderFormProps) =
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
   const watchItems = watch('items');
 
-  // Sync cliente
   useEffect(() => {
     if (selectedClientId && selectedClientId !== 'CONSUMIDOR_FINAL') {
       const c = customers.find((x: Customer) => x.id === selectedClientId);
@@ -61,7 +60,6 @@ export const OrderForm = ({ orderToEdit, onClose, onSuccess }: OrderFormProps) =
 
   const generateUUID = () => crypto.randomUUID();
 
-  // ✅ CARGA DE PRENDA PROFESIONAL (Igual al Inventario)
   const createProductOnTheFly = async () => {
     const { value: formValues } = await Swal.fire({
       title: '📦 NUEVO ARTÍCULO',
@@ -93,24 +91,12 @@ export const OrderForm = ({ orderToEdit, onClose, onSuccess }: OrderFormProps) =
           </div>
         </div>
       `,
-      showCancelButton: true,
-      confirmButtonText: 'GUARDAR E INCLUIR',
-      cancelButtonText: 'CANCELAR',
-      customClass: {
-        popup: 'dark:bg-slate-900 rounded-3xl border border-slate-700',
-        confirmButton: 'bg-blue-600 rounded-xl font-black text-xs px-6 py-3',
-        cancelButton: 'bg-slate-700 rounded-xl font-black text-xs px-6 py-3'
-      },
+      showCancelButton: true, confirmButtonText: 'GUARDAR E INCLUIR', cancelButtonText: 'CANCELAR',
+      customClass: { popup: 'dark:bg-slate-900 rounded-3xl border border-slate-700', confirmButton: 'bg-blue-600 rounded-xl font-black text-xs px-6 py-3', cancelButton: 'bg-slate-700 rounded-xl font-black text-xs px-6 py-3' },
       preConfirm: () => {
         const name = (document.getElementById('sw-name') as HTMLInputElement).value;
         if (!name) { Swal.showValidationMessage('El nombre es obligatorio'); return false; }
-        return {
-          name,
-          category: (document.getElementById('sw-cat') as HTMLInputElement).value.toUpperCase(),
-          location: (document.getElementById('sw-loc') as HTMLInputElement).value.toUpperCase(),
-          cost_price: Number((document.getElementById('sw-cost') as HTMLInputElement).value),
-          price: Number((document.getElementById('sw-price') as HTMLInputElement).value)
-        };
+        return { name, category: (document.getElementById('sw-cat') as HTMLInputElement).value.toUpperCase(), location: (document.getElementById('sw-loc') as HTMLInputElement).value.toUpperCase(), cost_price: Number((document.getElementById('sw-cost') as HTMLInputElement).value), price: Number((document.getElementById('sw-price') as HTMLInputElement).value) };
       }
     });
 
@@ -119,9 +105,7 @@ export const OrderForm = ({ orderToEdit, onClose, onSuccess }: OrderFormProps) =
         const created = await addProduct(formValues as any);
         append({ id: generateUUID(), type: 'PRODUCT', productName: created.name, variations: [] });
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Prenda integrada al stock', showConfirmButton: false, timer: 1500 });
-      } catch (e) {
-        Swal.fire('Error', 'No se pudo sincronizar con la base de datos', 'error');
-      }
+      } catch (e) { Swal.fire('Error', 'No se pudo sincronizar', 'error'); }
     }
   };
 
@@ -146,7 +130,7 @@ export const OrderForm = ({ orderToEdit, onClose, onSuccess }: OrderFormProps) =
     }
   };
 
-  // ✅ FLUJO DE VARIACIONES CON CONTROL DE STOCK DOBLE
+  // ✅ MAGIA VISUAL: SELECTORES DINÁMICOS CON GRIDS
   const handleQuickAdd = async (index: number) => {
     const item = watchItems[index];
     const product = products.find(p => p.name === item.productName);
@@ -155,64 +139,160 @@ export const OrderForm = ({ orderToEdit, onClose, onSuccess }: OrderFormProps) =
     const action = await Swal.fire({
       title: item.productName,
       text: '¿Vas a vender stock actual o estás recibiendo mercadería nueva?',
-      showDenyButton: true,
-      showCancelButton: true,
-      confirmButtonText: '🛒 Sumar al Pedido',
-      denyButtonText: '📦 Ingresar al Taller',
-      confirmButtonColor: '#2563eb',
-      denyButtonColor: '#10b981',
+      showDenyButton: true, showCancelButton: true,
+      confirmButtonText: '🛒 Sumar al Pedido', denyButtonText: '📦 Ingresar al Taller',
+      confirmButtonColor: '#2563eb', denyButtonColor: '#10b981',
       customClass: { popup: 'dark:bg-slate-900 rounded-3xl', actions: 'flex-col gap-2', confirmButton: 'w-full m-0', denyButton: 'w-full m-0', cancelButton: 'w-full m-0 mt-2' }
     });
 
     if (action.isDenied) {
-      // INGRESO A STOCK GENERAL
+      // 📦 INGRESO DE STOCK (GRID DINÁMICO)
+      const sizeBtns = sizes.map(s => `<button type="button" class="swal-size-btn m-1 px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 font-bold text-xs hover:bg-slate-700 transition-colors" data-id="${s.id}">${s.name}</button>`).join('');
+      const colorBtns = colors.map(c => `<button type="button" class="swal-color-btn m-1 px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 font-bold text-xs hover:bg-slate-700 transition-colors" data-id="${c.id}">${c.name}</button>`).join('');
+
       const { value: stData } = await Swal.fire({
         title: 'INGRESO DE MERCADERÍA',
+        width: '700px', // Hacemos el modal más ancho
         html: `
-          <div class="text-left space-y-3">
-            <select id="sw-in-s" class="swal2-input !w-full !m-0 !rounded-xl dark:bg-slate-800 dark:text-white">
-              <option value="" disabled selected>Talle...</option>
-              ${sizes.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
-            </select>
-            <select id="sw-in-c" class="swal2-input !w-full !m-0 !rounded-xl dark:bg-slate-800 dark:text-white">
-              <option value="" disabled selected>Color...</option>
-              ${colors.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
-            </select>
-            <input id="sw-in-q" type="number" class="swal2-input !w-full !m-0 !rounded-xl !text-center !font-black dark:bg-slate-800" placeholder="Cantidad que entra">
+          <style>
+            .btn-selected { background-color: #2563eb !important; color: white !important; border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59,130,246,0.5); }
+          </style>
+          <div class="text-left space-y-6 max-h-[60vh] overflow-y-auto p-2">
+            
+            <div>
+              <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 block">1. Seleccionar Talle</label>
+              <div class="flex flex-wrap" id="size-grid">${sizeBtns}</div>
+              <input type="hidden" id="sw-in-s">
+            </div>
+
+            <div>
+              <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 block">2. Seleccionar Color</label>
+              <div class="flex flex-wrap" id="color-grid">${colorBtns}</div>
+              <input type="hidden" id="sw-in-c">
+            </div>
+
+            <div class="pt-4 border-t border-slate-800">
+              <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 block">3. Cantidad Recibida</label>
+              <input id="sw-in-q" type="number" class="swal2-input !w-full !m-0 !rounded-xl !text-center !font-black !text-3xl dark:bg-slate-800 dark:text-white" placeholder="0">
+            </div>
+
           </div>`,
-        showCancelButton: true,
-        preConfirm: () => ({ s: (document.getElementById('sw-in-s') as any).value, c: (document.getElementById('sw-in-c') as any).value, q: Number((document.getElementById('sw-in-q') as any).value) })
+        didOpen: () => {
+          // Lógica para que los botones funcionen como selectores
+          const sg = document.getElementById('size-grid');
+          const si = document.getElementById('sw-in-s') as HTMLInputElement;
+          sg?.addEventListener('click', e => {
+            const btn = (e.target as HTMLElement).closest('button');
+            if (btn) {
+              Array.from(sg.children).forEach(b => b.classList.remove('btn-selected'));
+              btn.classList.add('btn-selected');
+              si.value = btn.getAttribute('data-id') || '';
+            }
+          });
+
+          const cg = document.getElementById('color-grid');
+          const ci = document.getElementById('sw-in-c') as HTMLInputElement;
+          cg?.addEventListener('click', e => {
+            const btn = (e.target as HTMLElement).closest('button');
+            if (btn) {
+              Array.from(cg.children).forEach(b => b.classList.remove('btn-selected'));
+              btn.classList.add('btn-selected');
+              ci.value = btn.getAttribute('data-id') || '';
+            }
+          });
+        },
+        showCancelButton: true, confirmButtonText: 'Guardar Stock Físico',
+        customClass: { popup: 'dark:bg-slate-900 rounded-3xl', confirmButton: 'bg-emerald-600' },
+        preConfirm: () => {
+          const s = (document.getElementById('sw-in-s') as HTMLInputElement).value;
+          const c = (document.getElementById('sw-in-c') as HTMLInputElement).value;
+          const q = Number((document.getElementById('sw-in-q') as HTMLInputElement).value);
+          if (!s) { Swal.showValidationMessage('Seleccioná un talle'); return false; }
+          if (!c) { Swal.showValidationMessage('Seleccioná un color'); return false; }
+          if (q <= 0) { Swal.showValidationMessage('Ingresá una cantidad mayor a 0'); return false; }
+          return { s, c, q };
+        }
       });
-      if (stData?.q > 0) {
+
+      if (stData) {
         await updateStock(product.id, stData.s, stData.c, stData.q);
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Stock actualizado', timer: 1500, showConfirmButton: false });
       }
+
     } else if (action.isConfirmed) {
-      // VENTA (CON VALIDACIÓN)
+      // 🛒 VENTA (GRID DINÁMICO DE VARIANTES EN STOCK)
       const avail = inventory.filter(v => v.product_id === product.id && v.stock_quantity > 0);
       if (avail.length === 0) return Swal.fire('Sin Stock', 'No hay stock físico de esta prenda. Cargalo primero.', 'warning');
 
+      const varBtns = avail.map(v => `
+        <button type="button" class="swal-var-btn m-1 p-3 rounded-xl border border-slate-700 bg-slate-800 text-left hover:bg-slate-700 transition-all flex flex-col min-w-[120px]" data-id="${v.id}" data-max="${v.stock_quantity}" data-s="${v.sizes?.name}" data-c="${v.colors?.name}">
+          <span class="text-xs font-bold text-white uppercase">${v.sizes?.name} | ${v.colors?.name}</span>
+          <span class="text-[10px] font-black text-emerald-400 mt-1">Hay: ${v.stock_quantity} un.</span>
+        </button>
+      `).join('');
+
       const { value: res } = await Swal.fire({
         title: 'AGREGAR AL PEDIDO',
+        width: '700px',
         html: `
-          <div class="text-left space-y-3">
-            <select id="sw-v" class="swal2-input !w-full !m-0 !rounded-xl dark:bg-slate-800 dark:text-white" onchange="const m = this.options[this.selectedIndex].getAttribute('data-max'); document.getElementById('sw-q').placeholder='Máx: '+m; document.getElementById('sw-q').max=m;">
-              <option value="" disabled selected>Seleccionar Variante...</option>
-              ${avail.map(v => `<option value="${v.id}" data-max="${v.stock_quantity}" data-s="${v.sizes?.name}" data-c="${v.colors?.name}">${v.sizes?.name} / ${v.colors?.name} [Stock: ${v.stock_quantity}]</option>`).join('')}
-            </select>
-            <input id="sw-q" type="number" class="swal2-input !w-full !m-0 !rounded-xl !text-center !font-black dark:bg-slate-800" placeholder="Cantidad">
+          <style>
+            .var-selected { background-color: #1e293b !important; border-color: #3b82f6 !important; box-shadow: 0 0 0 2px #3b82f6; }
+          </style>
+          <div class="text-left space-y-6 max-h-[60vh] overflow-y-auto p-2">
+            <div>
+              <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 block">1. Variantes Disponibles</label>
+              <div class="flex flex-wrap" id="var-grid">${varBtns}</div>
+              <input type="hidden" id="sw-v"><input type="hidden" id="sw-s"><input type="hidden" id="sw-c"><input type="hidden" id="sw-max">
+            </div>
+            <div class="pt-4 border-t border-slate-800">
+              <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 block">2. Cantidad a Vender</label>
+              <input id="sw-q" type="number" class="swal2-input !w-full !m-0 !rounded-xl !text-center !font-black !text-3xl dark:bg-slate-800 dark:text-white" placeholder="Elegí variante arriba" disabled>
+            </div>
           </div>`,
-        showCancelButton: true,
+        didOpen: () => {
+          const vg = document.getElementById('var-grid');
+          const qi = document.getElementById('sw-q') as HTMLInputElement;
+          vg?.addEventListener('click', e => {
+            const btn = (e.target as HTMLElement).closest('button');
+            if (btn) {
+              Array.from(vg.children).forEach(b => b.classList.remove('var-selected'));
+              btn.classList.add('var-selected');
+              (document.getElementById('sw-v') as HTMLInputElement).value = btn.getAttribute('data-id') || '';
+              (document.getElementById('sw-s') as HTMLInputElement).value = btn.getAttribute('data-s') || '';
+              (document.getElementById('sw-c') as HTMLInputElement).value = btn.getAttribute('data-c') || '';
+              
+              const max = btn.getAttribute('data-max') || '0';
+              (document.getElementById('sw-max') as HTMLInputElement).value = max;
+              
+              qi.disabled = false;
+              qi.max = max;
+              qi.placeholder = `Máximo: ${max}`;
+              qi.focus();
+            }
+          });
+        },
+        showCancelButton: true, confirmButtonText: 'Sumar al Pedido',
+        customClass: { popup: 'dark:bg-slate-900 rounded-3xl', confirmButton: 'bg-blue-600' },
         preConfirm: () => {
-          const sel = document.getElementById('sw-v') as HTMLSelectElement;
-          const q = Number((document.getElementById('sw-q') as any).value);
-          const max = Number(sel.options[sel.selectedIndex]?.getAttribute('data-max'));
-          if (!sel.value || q <= 0 || q > max) { Swal.showValidationMessage('Cantidad inválida o supera el stock'); return false; }
-          return { size: sel.options[sel.selectedIndex].getAttribute('data-s'), color: sel.options[sel.selectedIndex].getAttribute('data-c'), quantityOrdered: q, quantityDelivered: 0 };
+          const v = (document.getElementById('sw-v') as HTMLInputElement).value;
+          const q = Number((document.getElementById('sw-q') as HTMLInputElement).value);
+          const max = Number((document.getElementById('sw-max') as HTMLInputElement).value);
+          
+          if (!v) { Swal.showValidationMessage('Seleccioná una variante'); return false; }
+          if (q <= 0) { Swal.showValidationMessage('La cantidad debe ser mayor a 0'); return false; }
+          if (q > max) { Swal.showValidationMessage(`Solo podés vender ${max}. Si hay más, ingresá stock primero.`); return false; }
+          
+          return { size: (document.getElementById('sw-s') as HTMLInputElement).value, color: (document.getElementById('sw-c') as HTMLInputElement).value, quantityOrdered: q, quantityDelivered: 0 };
         }
       });
       if (res) setValue(`items.${index}.variations`, [...(watchItems[index].variations || []), { id: generateUUID(), ...res }]);
     }
+  };
+
+  const removeVariation = (itemIndex: number, varIndex: number) => {
+    const currentVariations = [...(watchItems[itemIndex].variations || [])];
+    currentVariations.splice(varIndex, 1);
+    setValue(`items.${itemIndex}.variations`, currentVariations);
   };
 
   const onSubmit = async (data: OrderFormValues) => {
