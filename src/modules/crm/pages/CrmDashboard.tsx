@@ -3,6 +3,10 @@ import { useCrmStore, type Customer } from '../store/useCrmStore';
 import { supabase } from '../../../lib/supabase';
 import Swal from 'sweetalert2';
 
+// Importamos el generador y la tarjeta
+import { generateGiftMessage, type MessageTone } from '../utils/giftHelper';
+import { GiftCardPrintable } from '../components/GiftCardPrintable';
+
 const CUSTOMER_TYPES = [
   { id: 'MINORISTA', label: '👤 Minorista / Consumidor', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800' },
   { id: 'MAYORISTA', label: '🏷️ Mayorista / Revendedor', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800' },
@@ -17,8 +21,10 @@ export const CrmDashboard = () => {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
-  
   const [editForm, setEditForm] = useState<any>({});
+
+  // ✅ ESTADO PARA LA TARJETA DE REGALO 3D
+  const [printMessage, setPrintMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCustomers();
@@ -36,7 +42,6 @@ export const CrmDashboard = () => {
 
   const openCreateModal = () => {
     setModalMode('create');
-    // ✅ CORRECCIÓN: Usamos 'cuit' en vez de 'document_number'
     setEditForm({ name: '', phone: '', email: '', type: 'MINORISTA', cuit: '', address: '', notes: '' });
     setIsModalOpen(true);
   };
@@ -59,7 +64,6 @@ export const CrmDashboard = () => {
     }
 
     try {
-      // ✅ CORRECCIÓN: Enviamos 'cuit' para que coincida con Supabase
       const payload = {
         name: editForm.name,
         phone: editForm.phone || null,
@@ -116,6 +120,63 @@ export const CrmDashboard = () => {
     } else {
       Swal.fire('Atención', 'El número de teléfono no parece válido', 'warning');
     }
+  };
+
+  // ✅ FUNCIÓN DE REGALO CONSTRUCTORA DEL MENSAJE 3D
+  const handleGiftClick = async (customerName: string) => {
+    const { value: formValues } = await Swal.fire({
+      title: '🎁 REGALO DE FIDELIZACIÓN',
+      html: `
+        <div class="text-left space-y-4 p-2">
+          <div>
+            <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest">¿Qué le vas a regalar?</label>
+            <input id="gift-name" class="swal2-input !w-full !m-0 !mt-1 !rounded-xl dark:bg-slate-800 dark:text-white" placeholder="Ej: Juego Pass the Pigs 3D">
+          </div>
+          <div>
+            <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Tono del Mensaje</label>
+            <select id="gift-tone" class="swal2-input !w-full !m-0 !mt-1 !rounded-xl dark:bg-slate-800 dark:text-white">
+              <option value="Amigo">Amistoso (Cercano y casual)</option>
+              <option value="Formal">Formal (Corporativo e institucional)</option>
+              <option value="Breve">Breve (Directo y al grano)</option>
+            </select>
+          </div>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'GENERAR TARJETA',
+      cancelButtonText: 'CANCELAR',
+      customClass: { 
+        popup: 'dark:bg-slate-900 rounded-3xl', 
+        confirmButton: 'bg-emerald-600 rounded-xl font-black text-xs px-6 py-3',
+        cancelButton: 'bg-slate-700 rounded-xl font-black text-xs px-6 py-3'
+      },
+      preConfirm: () => {
+        const gift = (document.getElementById('gift-name') as HTMLInputElement).value;
+        const tone = (document.getElementById('gift-tone') as HTMLSelectElement).value as MessageTone;
+        if (!gift) { Swal.showValidationMessage('Ingresá el nombre del regalo'); return false; }
+        return { gift, tone };
+      }
+    });
+
+    if (formValues) {
+      // Ponemos a cargar el Swal para que el usuario sepa que la IA está pensando
+      Swal.fire({
+        title: '✨ Creando mensaje con IA...',
+        text: 'Escribiendo algo único para tu cliente',
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading() }
+      });
+
+      try {
+        // Ahora usamos "await" porque la función es asíncrona
+        const msg = await generateGiftMessage(customerName, formValues.gift, formValues.tone);
+        Swal.close(); // Cerramos el cartel de carga
+        setPrintMessage(msg); // Mostramos la tarjeta terminada
+      } catch (e) {
+        Swal.close();
+        Swal.fire('Error', 'Hubo un problema generando el texto', 'error');
+      }
+        }
   };
 
   const getInitials = (name: string) => name ? name.charAt(0).toUpperCase() : '?';
@@ -222,6 +283,10 @@ export const CrmDashboard = () => {
                       
                       <td className="py-4 px-6 text-center align-middle">
                         <div className="flex items-center justify-center gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                          
+                          {/* ✅ NUEVO BOTÓN: REGALO 3D */}
+                          <button onClick={() => handleGiftClick(c.name)} className="px-3 py-2 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 text-emerald-600 text-[10px] font-black rounded-lg transition-all uppercase border border-emerald-200 dark:border-emerald-800 shadow-sm" title="Regalo Fidelización">🎁</button>
+
                           <button onClick={() => openEditModal(c)} className="px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-600 text-[10px] font-black rounded-lg transition-all uppercase border border-slate-200 dark:border-slate-700 shadow-sm" title="Editar Cliente">✏️</button>
                           <button onClick={() => handleDelete(c)} className="px-3 py-2 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 text-rose-600 text-[10px] font-black rounded-lg transition-all uppercase border border-rose-200 dark:border-rose-800 shadow-sm" title="Eliminar Cliente">🗑️</button>
                         </div>
@@ -235,6 +300,7 @@ export const CrmDashboard = () => {
         )}
       </div>
 
+      {/* MODAL DE EDICIÓN / CREACIÓN */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto">
@@ -249,47 +315,38 @@ export const CrmDashboard = () => {
             </div>
 
             <div className="p-8 space-y-6">
-              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="md:col-span-2">
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nombre / Razón Social *</label>
                   <input type="text" placeholder="Ej: Jorge Adrian Silva" value={editForm.name || ''} onChange={e => setEditForm({...editForm, name: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" required />
                 </div>
-
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Tipo de Cliente</label>
                   <select value={editForm.type || 'MINORISTA'} onChange={e => setEditForm({...editForm, type: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none">
                     {CUSTOMER_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
                   </select>
                 </div>
-
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">CUIT / DNI</label>
-                  {/* ✅ CORRECCIÓN: Actualizamos el value y el onChange a 'cuit' */}
                   <input type="text" placeholder="Opcional" value={editForm.cuit || ''} onChange={e => setEditForm({...editForm, cuit: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
-
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Teléfono / WhatsApp</label>
                   <input type="text" placeholder="Ej: +54 9 221 555 1234" value={editForm.phone || ''} onChange={e => setEditForm({...editForm, phone: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
-
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Correo Electrónico</label>
                   <input type="email" placeholder="cliente@correo.com" value={editForm.email || ''} onChange={e => setEditForm({...editForm, email: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
-
                 <div className="md:col-span-2">
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Empresa / Negocio (Aparece en celeste)</label>
                   <input type="text" placeholder="Ej: ROJO SHOWROOM" value={editForm.notes || ''} onChange={e => setEditForm({...editForm, notes: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
-
                 <div className="md:col-span-2">
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Dirección de Entrega</label>
                   <input type="text" placeholder="Calle, Número, Localidad" value={editForm.address || ''} onChange={e => setEditForm({...editForm, address: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
               </div>
-
             </div>
 
             <div className="px-8 py-5 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3 sticky bottom-0 z-10">
@@ -300,10 +357,18 @@ export const CrmDashboard = () => {
                 {modalMode === 'create' ? 'Guardar Cliente' : 'Actualizar Datos'}
               </button>
             </div>
-
           </div>
         </div>
       )}
+
+      {/* ✅ EL COMPONENTE DE LA TARJETA SE RENDERIZA ACÁ */}
+      {printMessage && (
+        <GiftCardPrintable 
+          message={printMessage} 
+          onClose={() => setPrintMessage(null)} 
+        />
+      )}
+
     </div>
   );
 };

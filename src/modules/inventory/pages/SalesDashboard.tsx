@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, memo } from 'react';
 import { useCatalogStore, type Product } from '../../../store/useCatalogStore';
 import { useCrmStore } from '../../crm/store/useCrmStore';
 import { useTreasuryStore } from '../treasury/store/useTreasuryStore';
@@ -17,6 +17,20 @@ interface CartItem {
   size_id: string;
   size_name: string;
 }
+
+// 🚀 OPTIMIZACIÓN 1: MEMOIZACIÓN DEL PRODUCTO
+// Esto evita que todos los productos se redibujen si solo estás buscando un cliente
+const ProductCard = memo(({ product, onAdd }: { product: Product, onAdd: (p: Product) => void }) => (
+  <button 
+    onClick={() => onAdd(product)}
+    // 🚀 OPTIMIZACIÓN 2: TRANSICIONES ESPECÍFICAS (NO 'all')
+    className="group bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm p-4 rounded-3xl border border-slate-200 dark:border-slate-700 hover:border-blue-500 hover:shadow-xl transition-[border-color,box-shadow] flex flex-col items-start text-left"
+  >
+    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{product.sku || 'SIN SKU'}</span>
+    <h3 className="font-black text-slate-800 dark:text-white uppercase text-sm mt-1 leading-tight h-10 overflow-hidden">{product.name}</h3>
+    <p className="mt-4 text-xl font-black text-blue-600 dark:text-blue-400">$ {(product.price || 0).toLocaleString('es-AR')}</p>
+  </button>
+));
 
 export const SalesDashboard = () => {
   const { products, inventory, sizes, colors, fetchAllCatalogs, updateStock } = useCatalogStore();
@@ -37,12 +51,7 @@ export const SalesDashboard = () => {
 
   const totals = useMemo(() => {
     const subtotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
-    return {
-      subtotal,
-      taxes: 0,
-      total: subtotal,
-      itemsCount: cart.reduce((acc, item) => acc + item.quantity, 0)
-    };
+    return { subtotal, taxes: 0, total: subtotal, itemsCount: cart.reduce((acc, item) => acc + item.quantity, 0) };
   }, [cart]);
 
   const filteredProducts = useMemo(() => {
@@ -54,65 +63,106 @@ export const SalesDashboard = () => {
 
   const filteredCustomers = useMemo(() => {
     if (!clientSearch || selectedCustomerId) return [];
-    return customers.filter(c => 
-      c.name.toLowerCase().includes(clientSearch.toLowerCase())
-    ).slice(0, 5);
+    return customers.filter(c => c.name.toLowerCase().includes(clientSearch.toLowerCase())).slice(0, 5);
   }, [customers, clientSearch, selectedCustomerId]);
 
   const addToCart = async (product: Product) => {
     const availableVariants = inventory.filter(v => v.product_id === product.id && v.stock_quantity > 0);
 
     if (availableVariants.length === 0) {
-      Swal.fire('Sin Stock', 'No hay unidades disponibles de este producto.', 'error');
+      Swal.fire({ title: 'Sin Stock', text: 'No hay unidades disponibles de este producto.', icon: 'warning', animation: false });
       return;
     }
 
-    const optionsHtml = availableVariants.map(v => {
-      const sName = sizes.find(s => s.id === v.size_id)?.name || 'N/A';
-      const cName = colors.find(c => c.id === v.color_id)?.name || 'N/A';
-      return `<option value="${v.size_id}|${v.color_id}|${sName}|${cName}">Talle ${sName} - ${cName} (Stock: ${v.stock_quantity})</option>`;
-    }).join('');
+    const varBtns = availableVariants.map(v => `
+      <button type="button" class="swal-var-btn m-1 p-3 rounded-xl border border-slate-700 bg-slate-800 text-left hover:bg-slate-700 transition-colors flex flex-col min-w-[120px]" data-id="${v.id}" data-max="${v.stock_quantity}" data-s="${v.sizes?.name}" data-c="${v.colors?.name}">
+        <span class="text-xs font-bold text-white uppercase">${v.sizes?.name} | ${v.colors?.name}</span>
+        <span class="text-[10px] font-black text-emerald-400 mt-1">Hay: ${v.stock_quantity} un.</span>
+      </button>
+    `).join('');
 
-    const { value: selection } = await Swal.fire({
-      title: 'Configurar Producto',
+    const { value: res } = await Swal.fire({
+      title: 'AGREGAR AL PEDIDO',
+      width: '700px',
+      animation: false, // 🚀 OPTIMIZACIÓN 3: SIN ANIMACIÓN PESADA EN EL DOM
       html: `
-        <div class="text-left space-y-4">
-          <select id="swal-v" class="swal2-input w-full m-0 text-sm font-bold dark:bg-slate-800 dark:text-white">${optionsHtml}</select>
-          <input id="swal-q" type="number" value="1" min="1" class="swal2-input w-full m-0 text-center font-black dark:bg-slate-800 dark:text-white">
-        </div>
-      `,
-      showCancelButton: true,
-      preConfirm: () => ({
-        v: (document.getElementById('swal-v') as HTMLSelectElement).value,
-        q: Number((document.getElementById('swal-q') as HTMLInputElement).value)
-      })
+        <style>
+          .var-selected { background-color: #1e293b !important; border-color: #3b82f6 !important; box-shadow: 0 0 0 2px #3b82f6; }
+        </style>
+        <div class="text-left space-y-6 max-h-[60vh] overflow-y-auto p-2">
+          <div>
+            <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 block">1. Variantes en Stock</label>
+            <div class="flex flex-wrap" id="var-grid">${varBtns}</div>
+            <input type="hidden" id="sw-v"><input type="hidden" id="sw-s"><input type="hidden" id="sw-c"><input type="hidden" id="sw-max">
+          </div>
+          <div class="pt-4 border-t border-slate-800">
+            <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 block">2. Cantidad a Vender</label>
+            <input id="sw-q" type="number" class="swal2-input !w-full !m-0 !rounded-xl !text-center !font-black !text-3xl dark:bg-slate-800 dark:text-white" placeholder="Elegí variante arriba" disabled>
+          </div>
+        </div>`,
+      didOpen: () => {
+        const vg = document.getElementById('var-grid');
+        const qi = document.getElementById('sw-q') as HTMLInputElement;
+        vg?.addEventListener('click', e => {
+          const btn = (e.target as HTMLElement).closest('button');
+          if (btn) {
+            Array.from(vg.children).forEach(b => b.classList.remove('var-selected'));
+            btn.classList.add('var-selected');
+            (document.getElementById('sw-v') as HTMLInputElement).value = btn.getAttribute('data-id') || '';
+            (document.getElementById('sw-s') as HTMLInputElement).value = btn.getAttribute('data-s') || '';
+            (document.getElementById('sw-c') as HTMLInputElement).value = btn.getAttribute('data-c') || '';
+            const max = btn.getAttribute('data-max') || '0';
+            (document.getElementById('sw-max') as HTMLInputElement).value = max;
+            qi.disabled = false;
+            qi.max = max;
+            qi.placeholder = `Máximo: ${max}`;
+            qi.focus();
+          }
+        });
+      },
+      showCancelButton: true, confirmButtonText: 'Sumar al Pedido',
+      customClass: { popup: 'dark:bg-slate-900 rounded-3xl', confirmButton: 'bg-blue-600' },
+      preConfirm: () => {
+        const v = (document.getElementById('sw-v') as HTMLInputElement).value;
+        const q = Number((document.getElementById('sw-q') as HTMLInputElement).value);
+        const max = Number((document.getElementById('sw-max') as HTMLInputElement).value);
+        
+        if (!v) { Swal.showValidationMessage('Seleccioná una variante'); return false; }
+        if (q <= 0) { Swal.showValidationMessage('La cantidad debe ser mayor a 0'); return false; }
+        if (q > max) { Swal.showValidationMessage(`Solo podés vender ${max}.`); return false; }
+        
+        return { 
+          size_id: (document.getElementById('sw-s') as HTMLInputElement).value, 
+          color_id: (document.getElementById('sw-c') as HTMLInputElement).value, 
+          size_name: (document.getElementById('sw-s') as HTMLInputElement).value, 
+          color_name: (document.getElementById('sw-c') as HTMLInputElement).value, 
+          quantity: q 
+        };
+      }
     });
 
-    if (selection) {
-      const [sId, cId, sName, cName] = selection.v.split('|');
+    if (res) {
       setCart(prev => [...prev, {
         id: crypto.randomUUID(),
         product_id: product.id,
         name: product.name,
         price: product.price || 0,
-        quantity: selection.q,
-        size_id: sId,
-        size_name: sName,
-        color_id: cId,
-        color_name: cName
+        quantity: res.quantity,
+        size_id: res.size_id,
+        size_name: res.size_name,
+        color_id: res.color_id,
+        color_name: res.color_name
       }]);
     }
   };
 
   const handleCheckout = async () => {
     if (!paymentMethod) {
-      Swal.fire('Atención', 'Debes seleccionar un método de pago.', 'warning');
+      Swal.fire({ title: 'Atención', text: 'Debes seleccionar un método de pago.', icon: 'warning', animation: false });
       return;
     }
-
-    // Validación crítica para Cuenta Corriente
     if (paymentMethod === 'CTA_CTE' && !selectedCustomerId) {
-      Swal.fire('Error', 'Para vender a Cuenta Corriente debes seleccionar un cliente del CRM.', 'error');
+      Swal.fire({ title: 'Error', text: 'Para vender a Cuenta Corriente debes seleccionar un cliente del CRM.', icon: 'error', animation: false });
       return;
     }
 
@@ -121,12 +171,12 @@ export const SalesDashboard = () => {
       text: `${paymentMethod === 'CTA_CTE' ? 'Se cargará una DEUDA de' : 'Total a cobrar:'} $${totals.total.toLocaleString('es-AR')}`,
       icon: 'question',
       showCancelButton: true,
-      confirmButtonColor: '#10b981'
+      confirmButtonColor: '#10b981',
+      animation: false
     });
 
     if (confirm.isConfirmed) {
       try {
-        // 1. Actualizar Stock físico
         for (const item of cart) {
           await updateStock(item.product_id, item.size_id, item.color_id, -item.quantity);
         }
@@ -134,12 +184,9 @@ export const SalesDashboard = () => {
         const clienteObj = customers.find(c => c.id === selectedCustomerId);
         const conceptSummary = `Venta: ${cart.map(i => `${i.quantity}x ${i.name}`).join(', ')}`;
 
-        // 2. Registrar la venta según el método elegido
         if (paymentMethod === 'CTA_CTE') {
-          // Va directo a Deuda (CRM)
           await addDebt(selectedCustomerId!, totals.total, conceptSummary);
         } else {
-          // Va a Tesorería
           await addTransaction({
             date: new Date().toISOString(),
             description: `VENTA: ${clienteObj?.name || 'Consumidor Final'} (${conceptSummary})`,
@@ -152,23 +199,17 @@ export const SalesDashboard = () => {
           });
         }
 
-        Swal.fire('¡Venta Exitosa!', paymentMethod === 'CTA_CTE' ? 'La deuda ha sido cargada al cliente.' : 'La caja ha sido actualizada.', 'success');
-        
-        // Limpiamos todo el carrito para la próxima venta
-        setCart([]);
-        setSelectedCustomerId(null);
-        setClientSearch('');
-        setPaymentMethod(null);
+        Swal.fire({ title: '¡Venta Exitosa!', text: paymentMethod === 'CTA_CTE' ? 'La deuda ha sido cargada al cliente.' : 'La caja ha sido actualizada.', icon: 'success', animation: false });
+        setCart([]); setSelectedCustomerId(null); setClientSearch(''); setPaymentMethod(null);
         fetchAllCatalogs(); 
       } catch (err: any) {
-        console.error("Error en checkout:", err);
-        Swal.fire('Error', 'No se pudo procesar la venta: ' + (err.message || 'Error desconocido'), 'error');
+        Swal.fire({ title: 'Error', text: 'No se pudo procesar la venta: ' + (err.message || 'Error desconocido'), icon: 'error', animation: false });
       }
     }
   };
 
   return (
-    <div className="flex h-screen gap-6 overflow-hidden bg-slate-50/20 p-4 animate-in fade-in duration-500">
+    <div className="flex h-screen gap-6 overflow-hidden bg-slate-50/20 p-4">
       <div className="flex flex-1 flex-col space-y-4 overflow-hidden">
         <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm">
           <div className="relative">
@@ -178,41 +219,30 @@ export const SalesDashboard = () => {
               placeholder="Buscar por nombre o SKU..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-slate-100/50 dark:bg-slate-900/50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 dark:text-white transition-all"
+              className="w-full pl-12 pr-4 py-3 bg-slate-100/50 dark:bg-slate-900/50 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 dark:text-white transition-colors"
             />
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 pb-10">
           {filteredProducts.map(p => (
-            <button 
-              key={p.id}
-              onClick={() => addToCart(p)}
-              className="group bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm p-4 rounded-3xl border border-slate-200 dark:border-slate-700 hover:border-blue-500 hover:shadow-xl transition-all flex flex-col items-start text-left"
-            >
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{p.sku || 'SIN SKU'}</span>
-              <h3 className="font-black text-slate-800 dark:text-white uppercase text-sm mt-1 leading-tight h-10 overflow-hidden">{p.name}</h3>
-              <p className="mt-4 text-xl font-black text-blue-600 dark:text-blue-400">$ {(p.price || 0).toLocaleString('es-AR')}</p>
-            </button>
+            <ProductCard key={p.id} product={p} onAdd={addToCart} />
           ))}
         </div>
       </div>
 
       <div className="w-[400px] flex flex-col bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl rounded-l-[40px] overflow-hidden">
         
-        {/* SECTOR CLIENTE INTEGRADO */}
         <div className="p-6 space-y-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
           <h2 className="text-xl font-black italic tracking-tighter flex items-center gap-2 dark:text-white">
             <User className="w-5 h-5 text-blue-600" /> CLIENTE
           </h2>
           <div className="relative">
             {selectedCustomerId ? (
-              <div className="flex items-center justify-between bg-blue-600 p-4 rounded-2xl text-white animate-in zoom-in-95">
+              <div className="flex items-center justify-between bg-blue-600 p-4 rounded-2xl text-white">
                 <div className="flex flex-col">
                   <span className="text-[10px] font-black uppercase opacity-70">Seleccionado</span>
-                  <span className="text-xs font-black uppercase tracking-widest">
-                    {customers.find(c => c.id === selectedCustomerId)?.name}
-                  </span>
+                  <span className="text-xs font-black uppercase tracking-widest">{customers.find(c => c.id === selectedCustomerId)?.name}</span>
                 </div>
                 <X className="w-5 h-5 cursor-pointer hover:rotate-90 transition-transform" onClick={() => { setSelectedCustomerId(null); setClientSearch(''); }} />
               </div>
@@ -223,7 +253,7 @@ export const SalesDashboard = () => {
                   placeholder="Buscar cliente en el CRM..."
                   value={clientSearch}
                   onChange={(e) => setClientSearch(e.target.value)}
-                  className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-bold outline-none dark:text-white focus:border-blue-500"
+                  className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-bold outline-none dark:text-white focus:border-blue-500 transition-colors"
                 />
                 {filteredCustomers.length > 0 && (
                   <div className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
@@ -251,7 +281,7 @@ export const SalesDashboard = () => {
                <p className="text-[10px] font-black uppercase mt-2">Vacío</p>
             </div>
           ) : cart.map((item) => (
-            <div key={item.id} className="grid grid-cols-[1fr_auto] gap-4 bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 animate-in slide-in-from-right-4">
+            <div key={item.id} className="grid grid-cols-[1fr_auto] gap-4 bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
               <div className="space-y-1">
                 <p className="text-xs font-black text-slate-800 dark:text-white uppercase leading-tight">{item.name}</p>
                 <div className="flex gap-2">
@@ -261,10 +291,7 @@ export const SalesDashboard = () => {
                 <p className="text-xs font-bold text-slate-400">{item.quantity} x ${item.price.toLocaleString('es-AR')}</p>
               </div>
               <div className="flex flex-col items-end justify-between">
-                <button 
-                  onClick={() => setCart(prev => prev.filter(i => i.id !== item.id))}
-                  className="text-rose-500 hover:scale-110 transition-transform"
-                >
+                <button onClick={() => setCart(prev => prev.filter(i => i.id !== item.id))} className="text-rose-500 hover:scale-110 transition-transform">
                   <Trash2 className="w-4 h-4" />
                 </button>
                 <p className="font-black text-sm text-slate-900 dark:text-white">${(item.price * item.quantity).toLocaleString('es-AR')}</p>
@@ -279,7 +306,7 @@ export const SalesDashboard = () => {
               <button
                 key={m}
                 onClick={() => setPaymentMethod(m)}
-                className={`py-3 rounded-xl text-[9px] font-black transition-all border flex items-center justify-center gap-2 ${paymentMethod === m ? 'bg-blue-600 border-blue-600 text-white shadow-lg scale-105' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500'}`}
+                className={`py-3 rounded-xl text-[9px] font-black transition-colors border flex items-center justify-center gap-2 ${paymentMethod === m ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500'}`}
               >
                 {m === 'CTA_CTE' && <CreditCard className="w-3 h-3" />}
                 {m.replace('_', ' ')}
@@ -301,7 +328,7 @@ export const SalesDashboard = () => {
           <button 
             onClick={handleCheckout}
             disabled={cart.length === 0}
-            className="w-full py-5 bg-slate-900 dark:bg-blue-600 hover:bg-black dark:hover:bg-blue-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 text-white rounded-3xl font-black text-sm uppercase tracking-[0.2em] transition-all shadow-xl active:scale-95"
+            className="w-full py-5 bg-slate-900 dark:bg-blue-600 hover:bg-black dark:hover:bg-blue-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 text-white rounded-3xl font-black text-sm uppercase tracking-[0.2em] transition-transform shadow-xl active:scale-95"
           >
             Finalizar Operación
           </button>
