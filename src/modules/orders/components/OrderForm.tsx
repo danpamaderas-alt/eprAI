@@ -113,13 +113,17 @@ export const OrderForm = ({ orderToEdit, onClose, onSuccess }: OrderFormProps) =
     const productOptions = products.map(p => `<option value="${p.id}">${p.name} [${p.sku || 'S/N'}]</option>`).join('');
     const { value: selectedId } = await Swal.fire({
       title: 'BUSCAR PRENDA',
-      html: `<select id="sw-prod-id" class="swal2-input !w-full !rounded-xl dark:bg-slate-800 dark:text-white">
-        <option value="" disabled selected>Elegir del catálogo...</option>
-        <option value="NEW" style="color: #3b82f6; font-weight: 900;">✨ + CREAR NUEVA PRENDA</option>
-        ${productOptions}
-      </select>`,
+      html: `
+        <div class="text-left mb-2">
+          <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">¿No existe? Elegí la primera opción verde para crearla.</p>
+        </div>
+        <select id="sw-prod-id" class="swal2-input !w-full !m-0 !rounded-xl dark:bg-slate-800 dark:text-white">
+          <option value="" disabled selected>Elegir del catálogo...</option>
+          <option value="NEW" style="color: #10b981; font-weight: 900;">✨ + CREAR NUEVO PRODUCTO AQUÍ</option>
+          ${productOptions}
+        </select>`,
       showCancelButton: true,
-      customClass: { popup: 'dark:bg-slate-900 rounded-3xl' },
+      customClass: { popup: 'dark:bg-slate-900 rounded-3xl', confirmButton: 'bg-blue-600' },
       preConfirm: () => (document.getElementById('sw-prod-id') as HTMLSelectElement).value
     });
 
@@ -130,163 +134,249 @@ export const OrderForm = ({ orderToEdit, onClose, onSuccess }: OrderFormProps) =
     }
   };
 
-  // ✅ MAGIA VISUAL: SELECTORES DINÁMICOS CON GRIDS
+  const editVariationQuantity = async (itemIndex: number, varIndex: number) => {
+    const currentVar = watchItems[itemIndex].variations[varIndex];
+    const delivered = currentVar.quantityDelivered || 0;
+
+    const { value: newQty } = await Swal.fire({
+      title: 'Editar Cantidad',
+      text: `${currentVar.size} | ${currentVar.color}`,
+      input: 'number',
+      inputValue: currentVar.quantityOrdered,
+      inputAttributes: {
+        min: delivered.toString(),
+        step: '1'
+      },
+      showCancelButton: true,
+      confirmButtonText: 'Actualizar',
+      cancelButtonText: 'Cancelar',
+      customClass: { 
+        popup: 'dark:bg-slate-900 rounded-3xl dark:text-white', 
+        confirmButton: 'bg-blue-600 font-black rounded-xl px-6',
+        cancelButton: 'bg-slate-700 font-black rounded-xl px-6'
+      },
+      preConfirm: (val) => {
+        const q = Number(val);
+        if (q < delivered) {
+          Swal.showValidationMessage(`Ya entregaste ${delivered} unidades. No podés poner una cantidad menor.`);
+          return false;
+        }
+        return q;
+      }
+    });
+
+    if (newQty !== undefined) {
+      const newVariations = [...watchItems[itemIndex].variations];
+      newVariations[varIndex].quantityOrdered = Number(newQty);
+      setValue(`items.${itemIndex}.variations`, newVariations);
+    }
+  };
+
+
   const handleQuickAdd = async (index: number) => {
     const item = watchItems[index];
     const product = products.find(p => p.name === item.productName);
     if (!product) return;
 
-    const action = await Swal.fire({
-      title: item.productName,
-      text: '¿Vas a vender stock actual o estás recibiendo mercadería nueva?',
-      showDenyButton: true, showCancelButton: true,
-      confirmButtonText: '🛒 Sumar al Pedido', denyButtonText: '📦 Ingresar al Taller',
-      confirmButtonColor: '#2563eb', denyButtonColor: '#10b981',
-      customClass: { popup: 'dark:bg-slate-900 rounded-3xl', actions: 'flex-col gap-2', confirmButton: 'w-full m-0', denyButton: 'w-full m-0', cancelButton: 'w-full m-0 mt-2' }
-    });
+    const promptNewVariant = async () => {
+      const sizeBtns = sizes.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+      const colorBtns = colors.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
 
-    if (action.isDenied) {
-      // 📦 INGRESO DE STOCK (GRID DINÁMICO)
-      const sizeBtns = sizes.map(s => `<button type="button" class="swal-size-btn m-1 px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 font-bold text-xs hover:bg-slate-700 transition-colors" data-id="${s.id}">${s.name}</button>`).join('');
-      const colorBtns = colors.map(c => `<button type="button" class="swal-color-btn m-1 px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 text-slate-300 font-bold text-xs hover:bg-slate-700 transition-colors" data-id="${c.id}">${c.name}</button>`).join('');
-
-      const { value: stData } = await Swal.fire({
-        title: 'INGRESO DE MERCADERÍA',
-        width: '700px', // Hacemos el modal más ancho
+      const { value: newVar } = await Swal.fire({
+        title: 'NUEVA COMBINACIÓN',
         html: `
-          <style>
-            .btn-selected { background-color: #2563eb !important; color: white !important; border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59,130,246,0.5); }
-          </style>
-          <div class="text-left space-y-6 max-h-[60vh] overflow-y-auto p-2">
-            
+          <div class="text-left space-y-4 p-2">
             <div>
-              <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 block">1. Seleccionar Talle</label>
-              <div class="flex flex-wrap" id="size-grid">${sizeBtns}</div>
-              <input type="hidden" id="sw-in-s">
+              <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest">1. Elegí el Talle</label>
+              <select id="nv-s" class="swal2-input !w-full !m-0 !mt-1 !rounded-xl dark:bg-slate-800 dark:text-white"><option value="" disabled selected>Seleccionar...</option>${sizeBtns}</select>
             </div>
-
             <div>
-              <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 block">2. Seleccionar Color</label>
-              <div class="flex flex-wrap" id="color-grid">${colorBtns}</div>
-              <input type="hidden" id="sw-in-c">
+              <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest">2. Elegí el Color</label>
+              <select id="nv-c" class="swal2-input !w-full !m-0 !mt-1 !rounded-xl dark:bg-slate-800 dark:text-white"><option value="" disabled selected>Seleccionar...</option>${colorBtns}</select>
             </div>
-
-            <div class="pt-4 border-t border-slate-800">
-              <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 block">3. Cantidad Recibida</label>
-              <input id="sw-in-q" type="number" class="swal2-input !w-full !m-0 !rounded-xl !text-center !font-black !text-3xl dark:bg-slate-800 dark:text-white" placeholder="0">
-            </div>
-
-          </div>`,
-        didOpen: () => {
-          // Lógica para que los botones funcionen como selectores
-          const sg = document.getElementById('size-grid');
-          const si = document.getElementById('sw-in-s') as HTMLInputElement;
-          sg?.addEventListener('click', e => {
-            const btn = (e.target as HTMLElement).closest('button');
-            if (btn) {
-              Array.from(sg.children).forEach(b => b.classList.remove('btn-selected'));
-              btn.classList.add('btn-selected');
-              si.value = btn.getAttribute('data-id') || '';
-            }
-          });
-
-          const cg = document.getElementById('color-grid');
-          const ci = document.getElementById('sw-in-c') as HTMLInputElement;
-          cg?.addEventListener('click', e => {
-            const btn = (e.target as HTMLElement).closest('button');
-            if (btn) {
-              Array.from(cg.children).forEach(b => b.classList.remove('btn-selected'));
-              btn.classList.add('btn-selected');
-              ci.value = btn.getAttribute('data-id') || '';
-            }
-          });
-        },
-        showCancelButton: true, confirmButtonText: 'Guardar Stock Físico',
-        customClass: { popup: 'dark:bg-slate-900 rounded-3xl', confirmButton: 'bg-emerald-600' },
+          </div>
+        `,
+        showCancelButton: true, confirmButtonText: 'AGREGAR AL CUADRO', cancelButtonText: 'CANCELAR',
+        customClass: { popup: 'dark:bg-slate-900 rounded-3xl', confirmButton: 'bg-emerald-600 rounded-xl', cancelButton: 'bg-slate-700 rounded-xl' },
         preConfirm: () => {
-          const s = (document.getElementById('sw-in-s') as HTMLInputElement).value;
-          const c = (document.getElementById('sw-in-c') as HTMLInputElement).value;
-          const q = Number((document.getElementById('sw-in-q') as HTMLInputElement).value);
-          if (!s) { Swal.showValidationMessage('Seleccioná un talle'); return false; }
-          if (!c) { Swal.showValidationMessage('Seleccioná un color'); return false; }
-          if (q <= 0) { Swal.showValidationMessage('Ingresá una cantidad mayor a 0'); return false; }
-          return { s, c, q };
+          const s = (document.getElementById('nv-s') as HTMLInputElement).value;
+          const c = (document.getElementById('nv-c') as HTMLInputElement).value;
+          if (!s || !c) { Swal.showValidationMessage('Seleccioná talle y color'); return false; }
+          return { s, c };
         }
       });
 
-      if (stData) {
-        await updateStock(product.id, stData.s, stData.c, stData.q);
-        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Stock actualizado', timer: 1500, showConfirmButton: false });
+      if (newVar) {
+        Swal.fire({ title: 'Agregando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        await updateStock(product.id, newVar.s, newVar.c, 0); 
+        Swal.close();
+        manageMatrix(); 
+      } else {
+        manageMatrix(); 
+      }
+    };
+
+    const manageMatrix = async () => {
+      await fetchAllCatalogs(); 
+      const freshInventory = useCatalogStore.getState().inventory;
+      const productVariants = freshInventory.filter(v => v.product_id === product.id);
+
+      if (productVariants.length === 0) {
+        const action = await Swal.fire({
+          title: 'Prenda sin variantes',
+          text: 'Esta prenda es nueva y no tiene talles ni colores registrados. Vamos a agregar la primera opción para poder vender.',
+          icon: 'info',
+          confirmButtonText: 'Crear Variante',
+          showCancelButton: true,
+          customClass: { popup: 'dark:bg-slate-900 rounded-3xl dark:text-white', confirmButton: 'bg-blue-600' }
+        });
+        if (!action.isConfirmed) return;
+        return await promptNewVariant();
       }
 
-    } else if (action.isConfirmed) {
-      // 🛒 VENTA (GRID DINÁMICO DE VARIANTES EN STOCK)
-      const avail = inventory.filter(v => v.product_id === product.id && v.stock_quantity > 0);
-      if (avail.length === 0) return Swal.fire('Sin Stock', 'No hay stock físico de esta prenda. Cargalo primero.', 'warning');
+      const currentVariations = watchItems[index].variations || [];
 
-      const varBtns = avail.map(v => `
-        <button type="button" class="swal-var-btn m-1 p-3 rounded-xl border border-slate-700 bg-slate-800 text-left hover:bg-slate-700 transition-all flex flex-col min-w-[120px]" data-id="${v.id}" data-max="${v.stock_quantity}" data-s="${v.sizes?.name}" data-c="${v.colors?.name}">
-          <span class="text-xs font-bold text-white uppercase">${v.sizes?.name} | ${v.colors?.name}</span>
-          <span class="text-[10px] font-black text-emerald-400 mt-1">Hay: ${v.stock_quantity} un.</span>
-        </button>
-      `).join('');
+      // ✅ CEREBRO ORDENADOR DE TALLES (DICCIONARIO DE PESOS)
+      const getSortWeight = (val: string) => {
+        const cleanVal = String(val).toUpperCase().trim();
+        const textSizes: Record<string, number> = {
+          'XXS': 1, 'XS': 2, 'S': 3, 'M': 4, 'L': 5, 'XL': 6, 'XXL': 7, '2XL': 7, '3XL': 8, '4XL': 9, '5XL': 10, 'UNICO': 99, 'U': 99
+        };
+        // 1. Si es letra clásica, usa el peso asignado
+        if (textSizes[cleanVal]) return textSizes[cleanVal];
+        // 2. Si es número (ej 38 o 4), usa el número literal
+        const num = Number(cleanVal);
+        if (!isNaN(num)) return num;
+        // 3. Si es otra cosa rara, va al final
+        return 1000;
+      };
+
+      // Extracción y ORDENAMIENTO DE TALLES Y COLORES
+      const uniqueSizes = Array.from(new Set(productVariants.map(v => v.sizes?.name)))
+        .filter(Boolean)
+        .sort((a: any, b: any) => getSortWeight(a) - getSortWeight(b)); // Ordena de menor a mayor lógicamente
+
+      const uniqueColors = Array.from(new Set(productVariants.map(v => v.colors?.name)))
+        .filter(Boolean)
+        .sort((a: any, b: any) => String(a).localeCompare(String(b))); // Ordena colores alfabéticamente (A-Z)
+
+      let matrixHtml = `
+        <style>
+          .bg-stripes { background: repeating-linear-gradient(45deg, #0f172a, #0f172a 5px, #1e293b 5px, #1e293b 10px); }
+          .bulk-qty::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        </style>
+        <div class="overflow-x-auto rounded-xl border border-slate-700 mt-4">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr>
+                <th class="p-3 border-b border-r border-slate-700 bg-slate-800 text-slate-400 text-[9px] font-black uppercase tracking-widest min-w-[100px]">Color \\ Talle</th>
+                ${uniqueSizes.map(s => `<th class="p-3 border-b border-slate-700 bg-slate-800 text-white text-[10px] font-black text-center uppercase tracking-widest">${s}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      uniqueColors.forEach(color => {
+        matrixHtml += `<tr><td class="p-3 border-r border-b border-slate-700 bg-slate-900 text-slate-300 text-[10px] font-bold uppercase tracking-widest whitespace-nowrap">${color}</td>`;
+
+        uniqueSizes.forEach(size => {
+          const variant = productVariants.find(v => v.sizes?.name === size && v.colors?.name === color);
+
+          if (variant) {
+            const existing = currentVariations.find((cv: any) => cv.size === size && cv.color === color);
+            const defaultValue = existing ? existing.quantityOrdered : '';
+            const existingDelivered = existing ? existing.quantityDelivered : 0; 
+            const existingId = existing ? existing.id : crypto.randomUUID(); 
+
+            const stockActual = variant.stock_quantity;
+            const stockColor = stockActual > 0 ? 'text-emerald-500' : 'text-slate-500';
+
+            matrixHtml += `
+              <td class="p-1 border-b border-l border-slate-700 bg-slate-800/50 text-center relative hover:bg-slate-700/50 transition-colors">
+                <span class="absolute top-1 left-1 text-[8px] font-black ${stockColor} opacity-70">Disp: ${stockActual}</span>
+                ${existingDelivered > 0 ? `<span class="absolute top-1 right-1 text-[8px] font-black text-blue-400 opacity-90" title="Entregado">Ent: ${existingDelivered}</span>` : ''}
+                <input type="number" 
+                  class="bulk-qty w-full h-12 bg-transparent text-center text-white font-black text-xl outline-none focus:bg-blue-600/20 focus:ring-2 focus:ring-blue-500 rounded-lg transition-all mt-3"
+                  data-s="${size}" data-c="${color}" data-max="${stockActual}" 
+                  data-id="${existingId}" data-delivered="${existingDelivered}"
+                  min="${existingDelivered}" placeholder="-" value="${defaultValue}"
+                  oninput="this.classList.toggle('!text-rose-500', this.value > ${stockActual});"
+                >
+              </td>`;
+          } else {
+            matrixHtml += `<td class="border-b border-l border-slate-700 bg-stripes opacity-30 pointer-events-none"></td>`;
+          }
+        });
+        matrixHtml += `</tr>`;
+      });
+      matrixHtml += `</tbody></table></div>`;
 
       const { value: res } = await Swal.fire({
-        title: 'AGREGAR AL PEDIDO',
-        width: '700px',
+        title: 'MATRIZ DE PRODUCCIÓN / VENTA',
+        width: 'auto',
+        animation: false,
         html: `
-          <style>
-            .var-selected { background-color: #1e293b !important; border-color: #3b82f6 !important; box-shadow: 0 0 0 2px #3b82f6; }
-          </style>
-          <div class="text-left space-y-6 max-h-[60vh] overflow-y-auto p-2">
-            <div>
-              <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 block">1. Variantes Disponibles</label>
-              <div class="flex flex-wrap" id="var-grid">${varBtns}</div>
-              <input type="hidden" id="sw-v"><input type="hidden" id="sw-s"><input type="hidden" id="sw-c"><input type="hidden" id="sw-max">
-            </div>
-            <div class="pt-4 border-t border-slate-800">
-              <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2 block">2. Cantidad a Vender</label>
-              <input id="sw-q" type="number" class="swal2-input !w-full !m-0 !rounded-xl !text-center !font-black !text-3xl dark:bg-slate-800 dark:text-white" placeholder="Elegí variante arriba" disabled>
-            </div>
-          </div>`,
+          <div class="flex justify-between items-end mb-2 px-2">
+            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest text-left leading-relaxed">
+              Ingresá las cantidades.<br/>
+              <span class="text-rose-500">Rojo = Venta sobre pedido.</span>
+            </p>
+            <button type="button" id="btn-add-var" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-colors shadow-lg shadow-indigo-500/30 flex items-center gap-1">
+              ✨ + AGREGAR COLOR/TALLE
+            </button>
+          </div>
+          <div class="max-h-[60vh] overflow-y-auto">
+            ${matrixHtml}
+          </div>
+        `,
+        showCancelButton: true, confirmButtonText: 'Guardar Matriz', cancelButtonText: 'Cerrar',
+        customClass: { popup: 'dark:bg-slate-900 rounded-3xl !max-w-[90vw]', confirmButton: 'bg-blue-600' },
         didOpen: () => {
-          const vg = document.getElementById('var-grid');
-          const qi = document.getElementById('sw-q') as HTMLInputElement;
-          vg?.addEventListener('click', e => {
-            const btn = (e.target as HTMLElement).closest('button');
-            if (btn) {
-              Array.from(vg.children).forEach(b => b.classList.remove('var-selected'));
-              btn.classList.add('var-selected');
-              (document.getElementById('sw-v') as HTMLInputElement).value = btn.getAttribute('data-id') || '';
-              (document.getElementById('sw-s') as HTMLInputElement).value = btn.getAttribute('data-s') || '';
-              (document.getElementById('sw-c') as HTMLInputElement).value = btn.getAttribute('data-c') || '';
-              
-              const max = btn.getAttribute('data-max') || '0';
-              (document.getElementById('sw-max') as HTMLInputElement).value = max;
-              
-              qi.disabled = false;
-              qi.max = max;
-              qi.placeholder = `Máximo: ${max}`;
-              qi.focus();
-            }
+          document.getElementById('btn-add-var')?.addEventListener('click', () => {
+            const inputs = document.querySelectorAll('.bulk-qty');
+            const newVars: any[] = [];
+            inputs.forEach((input: any) => {
+              const q = Number(input.value);
+              if (q > 0) {
+                newVars.push({ 
+                  id: input.getAttribute('data-id'), 
+                  size: input.getAttribute('data-s'), 
+                  color: input.getAttribute('data-c'), 
+                  quantityOrdered: q, 
+                  quantityDelivered: Number(input.getAttribute('data-delivered')) || 0 
+                });
+              }
+            });
+            setValue(`items.${index}.variations`, newVars);
+            Swal.close(); 
+            promptNewVariant(); 
           });
         },
-        showCancelButton: true, confirmButtonText: 'Sumar al Pedido',
-        customClass: { popup: 'dark:bg-slate-900 rounded-3xl', confirmButton: 'bg-blue-600' },
         preConfirm: () => {
-          const v = (document.getElementById('sw-v') as HTMLInputElement).value;
-          const q = Number((document.getElementById('sw-q') as HTMLInputElement).value);
-          const max = Number((document.getElementById('sw-max') as HTMLInputElement).value);
-          
-          if (!v) { Swal.showValidationMessage('Seleccioná una variante'); return false; }
-          if (q <= 0) { Swal.showValidationMessage('La cantidad debe ser mayor a 0'); return false; }
-          if (q > max) { Swal.showValidationMessage(`Solo podés vender ${max}. Si hay más, ingresá stock primero.`); return false; }
-          
-          return { size: (document.getElementById('sw-s') as HTMLInputElement).value, color: (document.getElementById('sw-c') as HTMLInputElement).value, quantityOrdered: q, quantityDelivered: 0 };
+          const inputs = document.querySelectorAll('.bulk-qty');
+          const newVars: any[] = [];
+          inputs.forEach((input: any) => {
+            const q = Number(input.value);
+            if (q > 0) {
+              newVars.push({ 
+                id: input.getAttribute('data-id'), 
+                size: input.getAttribute('data-s'), 
+                color: input.getAttribute('data-c'), 
+                quantityOrdered: q, 
+                quantityDelivered: Number(input.getAttribute('data-delivered')) || 0 
+              });
+            }
+          });
+          return newVars;
         }
       });
-      if (res) setValue(`items.${index}.variations`, [...(watchItems[index].variations || []), { id: generateUUID(), ...res }]);
-    }
+
+      if (res) {
+        setValue(`items.${index}.variations`, res);
+      }
+    };
+
+    manageMatrix();
   };
 
   const removeVariation = (itemIndex: number, varIndex: number) => {
@@ -323,7 +413,7 @@ export const OrderForm = ({ orderToEdit, onClose, onSuccess }: OrderFormProps) =
           <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter italic">
             {orderToEdit ? '✏️ EDITAR RUTA' : '🆕 NUEVA HOJA DE RUTA'}
           </h2>
-          <button type="button" onClick={onClose} className="p-2 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 rounded-full transition-all">✕</button>
+          <button type="button" onClick={onClose} className="p-2 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 rounded-full transition-all font-black">✕</button>
         </header>
 
         <form onSubmit={handleSubmit(onSubmit)} className="p-8 space-y-8 flex-1">
@@ -381,15 +471,31 @@ export const OrderForm = ({ orderToEdit, onClose, onSuccess }: OrderFormProps) =
                     <span className="text-[8px] font-black bg-blue-100 dark:bg-blue-900/30 text-blue-600 px-2 py-0.5 rounded-md uppercase">🛍️ PRODUCTO</span>
                     <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase leading-tight mt-1">{watchItems[i].productName}</h4>
                   </div>
+                  
                   <div className="space-y-2 mb-4">
                     {watchItems[i].variations?.map((v: any, vIdx: number) => (
-                      <div key={v.id} className="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-3 rounded-2xl border border-slate-100 dark:border-slate-800">
-                        <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase">{v.size} | {v.color}</span>
-                        <span className="text-sm font-black text-blue-600">{v.quantityOrdered} un.</span>
+                      <div key={v.id} className="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-3 rounded-2xl border border-slate-100 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors">
+                        <div className="flex flex-col">
+                          <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase">{v.size} | {v.color}</span>
+                          {v.quantityDelivered > 0 && (
+                            <span className="text-[9px] font-black text-emerald-500 tracking-widest">ENTREGADO: {v.quantityDelivered}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <span className="text-sm font-black text-blue-600">{v.quantityOrdered} un.</span>
+                          
+                          <div className="flex gap-2">
+                            <button type="button" onClick={() => editVariationQuantity(i, vIdx)} className="text-blue-400 hover:text-blue-600 hover:scale-110 transition-transform" title="Editar cantidad">✏️</button>
+                            <button type="button" onClick={() => removeVariation(i, vIdx)} className="text-rose-400 hover:text-rose-600 hover:scale-110 transition-transform" title="Quitar variante">✕</button>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
-                  <button type="button" onClick={() => handleQuickAdd(i)} className="w-full py-3 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl text-[10px] font-black text-slate-400 hover:border-blue-500 hover:text-blue-500 transition-all uppercase">+ Talle / Stock</button>
+
+                  <button type="button" onClick={() => handleQuickAdd(i)} className="w-full py-3 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl text-[10px] font-black text-slate-400 hover:border-blue-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all uppercase tracking-widest">
+                    {watchItems[i].variations?.length ? '📦 ABRIR MATRIZ MASIVA' : '+ CONFIGURAR MATRIZ'}
+                  </button>
                 </div>
               ))}
             </div>
@@ -397,8 +503,8 @@ export const OrderForm = ({ orderToEdit, onClose, onSuccess }: OrderFormProps) =
         </form>
 
         <footer className="p-8 border-t border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-slate-900/80 sticky bottom-0 z-20 backdrop-blur-sm">
-          <button type="button" onClick={handleSubmit(onSubmit)} disabled={isSubmitting} className="w-full py-5 bg-blue-600 hover:bg-blue-500 text-white rounded-3xl font-black text-sm uppercase tracking-[0.2em] shadow-xl shadow-blue-500/20 active:scale-95 transition-all">
-            {isSubmitting ? 'SINCRONIZANDO...' : (orderToEdit ? 'ACTUALIZAR HOJA DE RUTA' : 'CONFIRMAR PEDIDO')}
+          <button type="button" onClick={handleSubmit(onSubmit)} disabled={isSubmitting} className="w-full py-5 bg-blue-600 hover:bg-blue-500 text-white rounded-3xl font-black text-sm uppercase tracking-[0.2em] shadow-xl shadow-blue-500/20 active:scale-95 transition-all disabled:opacity-50">
+            {isSubmitting ? 'GUARDANDO...' : (orderToEdit ? 'ACTUALIZAR HOJA DE RUTA' : 'CONFIRMAR PEDIDO')}
           </button>
         </footer>
       </div>
