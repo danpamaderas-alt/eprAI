@@ -2,6 +2,8 @@ import { useState, useMemo, useEffect } from 'react';
 import { useCatalogStore, type Product } from '../../../store/useCatalogStore';
 import { supabase } from '../../../lib/supabase';
 import Swal from 'sweetalert2';
+import { generateStockPDF } from '../../../utils/printStockReport';
+import { printThermalLabel } from '../../../utils/printLabel';
 
 const PREDEFINED_CATEGORIES = ['Remera', 'Chomba', 'Buzo', 'Campera', 'Pantalón', 'Accesorio', 'Uniformes', 'Conjunto'];
 const PREDEFINED_LOCATIONS = ['Sector A', 'Sector B', 'Depósito Central', 'Taller', 'Showroom'];
@@ -9,7 +11,8 @@ const PREDEFINED_LOCATIONS = ['Sector A', 'Sector B', 'Depósito Central', 'Tall
 export const InventoryDashboard = () => {
   const { 
     products, sizes, colors, inventory,
-    fetchAllCatalogs, updateProductComplete, addProduct, addSize, addColor, updateStock, isLoading 
+    fetchAllCatalogs, updateProductComplete, addProduct, addSize, addColor, updateStock, isLoading,
+    transformToFinished 
   } = useCatalogStore();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -58,25 +61,17 @@ export const InventoryDashboard = () => {
     });
   }, [products, searchTerm, filterCategory, filterSize, filterColor, inventory]);
 
-  // ✅ CÁLCULO DEL VALOR PATRIMONIAL
   const patrimonioTotal = useMemo(() => {
     if (!products || !inventory) return 0;
-    
     let total = 0;
-    // Recorremos todos los productos
     products.forEach(p => {
-      // Si el producto tiene un costo definido (mayor a 0)
       const costo = p.cost_price || 0;
       if (costo > 0) {
-        // Buscamos todas las variantes de este producto en el inventario
         const productVariants = inventory.filter(v => v.product_id === p.id);
-        // Sumamos el stock total de este producto
         const stockTotalDelProducto = productVariants.reduce((sum, v) => sum + v.stock_quantity, 0);
-        // Multiplicamos el stock por el precio de costo y lo sumamos al total
         total += (stockTotalDelProducto * costo);
       }
     });
-    
     return total;
   }, [products, inventory]);
 
@@ -113,13 +108,12 @@ export const InventoryDashboard = () => {
 
   const handleSave = async () => {
     if (!editForm.name) { Swal.fire('Atención', 'El nombre del artículo es obligatorio', 'warning'); return; }
-
     try {
       if (modalMode === 'create') {
         const newProd = await addProduct({ 
           sku: editForm.sku, 
           name: editForm.name, 
-          cost_price: editForm.cost_price || 0, // ✅ Usamos cost_price
+          cost_price: editForm.cost_price || 0, 
           price: editForm.price || 0, 
           category: editForm.category, 
           location: editForm.location, 
@@ -134,7 +128,6 @@ export const InventoryDashboard = () => {
       }
       closeModal();
     } catch (error: any) { 
-      console.error("Detalle del error:", error);
       Swal.fire('Error de Base de Datos', error?.message || error?.details || 'Revisa que el SKU no esté repetido.', 'error'); 
     }
   };
@@ -176,6 +169,106 @@ export const InventoryDashboard = () => {
     }
   };
 
+  const handleProcessStock = async (product: Product) => {
+    const availableVariants = inventory?.filter(v => v.product_id === product.id && v.base_quantity > 0) || [];
+    
+    if (availableVariants.length === 0) {
+      Swal.fire('Sin Stock Base', 'No hay prendas lisas de este artículo para procesar. Ingresá stock primero.', 'info');
+      return;
+    }
+
+    const optionsHtml = availableVariants.map(v => 
+      `<option value="${v.id}">${v.sizes?.name} - ${v.colors?.name} (Lisas Disp: ${v.base_quantity})</option>`
+    ).join('');
+
+    const { value: form } = await Swal.fire({
+      title: 'Acondicionar Prenda ✨',
+      html: `
+        <div class="text-left flex flex-col gap-3 mt-4">
+          <label class="text-[10px] font-black text-slate-500 uppercase">Variante a procesar (Talle/Color)</label>
+          <select id="swal-var" class="swal2-select !w-full !m-0 !text-sm">
+            ${optionsHtml}
+          </select>
+          <label class="text-[10px] font-black text-slate-500 uppercase mt-2">Cantidad (Bordado/Perfume/Bolsa)</label>
+          <input id="swal-qty" type="number" min="1" class="swal2-input !w-full !m-0" placeholder="Ej: 10">
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'Procesar a Terminado',
+      confirmButtonColor: '#10b981',
+      customClass: { popup: 'dark:bg-slate-900 rounded-3xl dark:text-white border border-slate-700' },
+      preConfirm: () => {
+        return {
+          variantId: (document.getElementById('swal-var') as HTMLSelectElement).value,
+          qty: Number((document.getElementById('swal-qty') as HTMLInputElement).value)
+        }
+      }
+    });
+
+    if (form && form.qty > 0) {
+      try {
+        if (!transformToFinished) throw new Error("La función transformToFinished no está en el store.");
+        await transformToFinished(form.variantId, form.qty);
+
+        // Disparar etiqueta térmica
+        const variantData = availableVariants.find(v => v.id === form.variantId);
+        if (variantData) {
+           printThermalLabel(
+             product.name, 
+             product.sku || 'SIN-SKU', 
+             variantData.sizes?.name || 'ÚNICO', 
+             variantData.colors?.name || 'ÚNICO',
+             form.qty
+           );
+        }
+
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '¡Prendas acondicionadas!', showConfirmButton: false, timer: 2000 });
+      } catch (error: any) {
+        Swal.fire('Error', error.message || 'No se pudo procesar.', 'error');
+      }
+    }
+  };
+
+  const handleOpenReportConfig = async () => {
+    const { value: options } = await Swal.fire({
+      title: 'Configurar Reporte 🖨️',
+      html: `
+        <div class="text-left grid grid-cols-2 gap-4 mt-4 text-sm font-bold text-slate-700 dark:text-slate-300">
+          <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="col-sku" checked class="w-4 h-4 accent-blue-600"> SKU</label>
+          <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="col-cat" checked class="w-4 h-4 accent-blue-600"> Categoría</label>
+          <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="col-size" checked class="w-4 h-4 accent-blue-600"> Talle</label>
+          <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="col-color" checked class="w-4 h-4 accent-blue-600"> Color</label>
+          <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="col-base" checked class="w-4 h-4 accent-blue-600"> Stock Base (Liso)</label>
+          <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="col-fin" checked class="w-4 h-4 accent-blue-600"> Stock Terminado</label>
+          <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="col-tot" checked class="w-4 h-4 accent-blue-600"> Stock Total</label>
+          <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="col-cost" class="w-4 h-4 accent-blue-600"> Costo ($)</label>
+        </div>
+        <p class="text-[10px] text-slate-400 mt-6 uppercase tracking-widest border-t border-slate-700 pt-3">Destildá lo que no querés que salga en el PDF.</p>
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'Generar PDF',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#2563eb',
+      customClass: { popup: 'dark:bg-slate-900 rounded-3xl dark:text-white border border-slate-700' },
+      preConfirm: () => {
+        return {
+          showSku: (document.getElementById('col-sku') as HTMLInputElement).checked,
+          showCategory: (document.getElementById('col-cat') as HTMLInputElement).checked,
+          showSize: (document.getElementById('col-size') as HTMLInputElement).checked,
+          showColor: (document.getElementById('col-color') as HTMLInputElement).checked,
+          showBase: (document.getElementById('col-base') as HTMLInputElement).checked,
+          showFinished: (document.getElementById('col-fin') as HTMLInputElement).checked,
+          showTotal: (document.getElementById('col-tot') as HTMLInputElement).checked,
+          showCost: (document.getElementById('col-cost') as HTMLInputElement).checked,
+        }
+      }
+    });
+
+    if (options) {
+      generateStockPDF(filteredProducts, inventory, options);
+    }
+  };
+
   const handleAddNewCategory = async () => {
     const { value: newCat } = await Swal.fire({ title: 'Nueva Categoría', input: 'text', showCancelButton: true, confirmButtonText: 'Agregar', confirmButtonColor: '#2563eb' });
     if (newCat) {
@@ -184,6 +277,7 @@ export const InventoryDashboard = () => {
       setEditForm(prev => ({ ...prev, category: formatted }));
     }
   };
+  
   const handleAddNewLocation = async () => {
     const { value: newLoc } = await Swal.fire({ title: 'Nueva Ubicación', input: 'text', showCancelButton: true, confirmButtonText: 'Agregar', confirmButtonColor: '#2563eb' });
     if (newLoc) {
@@ -204,6 +298,7 @@ export const InventoryDashboard = () => {
       } catch { Swal.fire('Error', 'No se pudo crear', 'error'); }
     }
   };
+  
   const handleAddNewColor = async () => {
     const { value: newColorName } = await Swal.fire({ title: 'Crear Nuevo Color', input: 'text', showCancelButton: true, confirmButtonText: 'Crear', confirmButtonColor: '#2563eb' });
     if (newColorName) {
@@ -225,13 +320,22 @@ export const InventoryDashboard = () => {
           <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1">Gestión centralizada de catálogo y stock.</p>
         </div>
         
-        <button 
-          onClick={openCreateModal}
-          className="px-6 py-3 bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white font-black rounded-xl shadow-lg transition-all text-xs uppercase tracking-widest flex items-center justify-center gap-2 whitespace-nowrap active:scale-95"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
-          Nuevo Artículo
-        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={handleOpenReportConfig}
+            className="px-6 py-3 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-black rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm transition-all text-xs uppercase tracking-widest flex items-center justify-center gap-2 whitespace-nowrap active:scale-95"
+          >
+            🖨️ Reporte PDF
+          </button>
+          
+          <button 
+            onClick={openCreateModal}
+            className="px-6 py-3 bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white font-black rounded-xl shadow-lg transition-all text-xs uppercase tracking-widest flex items-center justify-center gap-2 whitespace-nowrap active:scale-95"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
+            Nuevo Artículo
+          </button>
+        </div>
       </header>
 
       <div className="bg-white dark:bg-slate-800 p-4 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col md:flex-row gap-4">
@@ -318,7 +422,7 @@ export const InventoryDashboard = () => {
                                 <tr>
                                   <th className="p-2 border-b border-r border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50"></th>
                                   {uniqueSizes.map(sizeName => (
-                                    <th key={sizeName} className="p-2 border-b border-slate-200 dark:border-slate-700 font-black text-slate-600 dark:text-slate-300 uppercase bg-slate-50 dark:bg-slate-800/50 min-w-[40px]">
+                                    <th key={sizeName} className="p-2 border-b border-slate-200 dark:border-slate-700 font-black text-slate-600 dark:text-slate-300 uppercase bg-slate-50 dark:bg-slate-800/50 min-w-[50px]">
                                       {sizeName}
                                     </th>
                                   ))}
@@ -332,10 +436,19 @@ export const InventoryDashboard = () => {
                                     </td>
                                     {uniqueSizes.map(sizeName => {
                                       const variant = productVariants.find(v => v.colors?.name === colorName && v.sizes?.name === sizeName);
-                                      const qty = variant?.stock_quantity || 0;
+                                      const totalQty = variant?.stock_quantity || 0;
+                                      const qtyBase = variant?.base_quantity || 0;
+                                      const qtyFin = variant?.finished_quantity || 0;
+                                      
                                       return (
-                                        <td key={`${colorName}-${sizeName}`} className={`p-2 font-black border-slate-100 dark:border-slate-800 border-b border-r ${qty > 0 ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50/30 dark:bg-emerald-900/10' : 'text-slate-300 dark:text-slate-600 bg-slate-50 dark:bg-slate-900'}`}>
-                                          {qty > 0 ? qty : '-'}
+                                        <td key={`${colorName}-${sizeName}`} className={`p-1 border-slate-100 dark:border-slate-800 border-b border-r ${totalQty > 0 ? 'bg-emerald-50/20 dark:bg-emerald-900/10' : 'bg-slate-50 dark:bg-slate-900'}`}>
+                                          {totalQty > 0 ? (
+                                            <div className="flex flex-col items-center justify-center gap-0.5">
+                                              {qtyBase > 0 && <span className="text-[9px] text-slate-400 font-bold" title="Stock Base (Liso)">📦 {qtyBase}</span>}
+                                              {qtyFin > 0 && <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-black" title="Stock Terminado">✨ {qtyFin}</span>}
+                                              {(qtyBase === 0 && qtyFin === 0) && <span className="text-[10px] text-slate-300 font-bold">{totalQty}</span>}
+                                            </div>
+                                          ) : <span className="text-slate-300 dark:text-slate-600 font-black">-</span>}
                                         </td>
                                       );
                                     })}
@@ -355,12 +468,15 @@ export const InventoryDashboard = () => {
                       
                       <td className="py-4 px-6 text-center align-top">
                         <div className="flex items-center justify-center gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                          
+                          <button onClick={() => handleProcessStock(p)} className="px-3 py-2 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 text-emerald-600 dark:text-emerald-400 text-[10px] font-black rounded-lg transition-all uppercase border border-emerald-200 dark:border-emerald-800" title="Acondicionar Prenda (Bordar/Bolsa)">✨</button>
+
                           <button onClick={() => {
                             setStockProduct(p);
                             setStockForm({ type: 'IN', sizeId: '', colorId: '', qty: '' });
-                          }} className="px-3 py-2 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 text-emerald-600 dark:text-emerald-400 text-[10px] font-black rounded-lg transition-all uppercase border border-emerald-200 dark:border-emerald-800" title="Ajustar Stock">📦</button>
+                          }} className="px-3 py-2 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 text-blue-600 dark:text-blue-400 text-[10px] font-black rounded-lg transition-all uppercase border border-blue-200 dark:border-blue-800" title="Ajustar Stock Físico (Entrada/Salida)">📦</button>
                           
-                          <button onClick={() => openEditModal(p)} className="px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-600 text-[10px] font-black rounded-lg transition-all uppercase border border-slate-200 dark:border-slate-700" title="Editar Producto">✏️</button>
+                          <button onClick={() => openEditModal(p)} className="px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 text-[10px] font-black rounded-lg transition-all uppercase border border-slate-200 dark:border-slate-700" title="Editar Producto">✏️</button>
                           <button onClick={() => handleDeleteProduct(p)} className="px-3 py-2 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 text-rose-600 text-[10px] font-black rounded-lg transition-all uppercase border border-rose-200 dark:border-rose-800" title="Eliminar Producto">🗑️</button>
                         </div>
                       </td>
@@ -432,7 +548,7 @@ export const InventoryDashboard = () => {
               <button onClick={() => setStockProduct(null)} className="px-6 py-3 rounded-xl text-xs font-black text-slate-500 hover:bg-slate-200 transition-colors uppercase tracking-widest">
                 Cancelar
               </button>
-              <button onClick={handleSaveStockAdjust} className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-lg shadow-emerald-500/30 transition-all active:scale-95 uppercase tracking-widest">
+              <button onClick={handleSaveStockAdjust} className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-lg shadow-blue-500/30 transition-all active:scale-95 uppercase tracking-widest">
                 Guardar Movimiento
               </button>
             </div>
@@ -518,7 +634,6 @@ export const InventoryDashboard = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
                 <div className="relative">
-                  {/* ✅ AQUÍ APUNTAMOS A cost_price */}
                   <label className="block text-[10px] font-black text-rose-500 uppercase tracking-widest mb-2">Valor de Costo ($)</label>
                   <input type="number" value={editForm.cost_price || ''} onChange={e => setEditForm({...editForm, cost_price: Number(e.target.value)})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-rose-200 dark:border-rose-900/30 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-rose-500 outline-none" />
                 </div>

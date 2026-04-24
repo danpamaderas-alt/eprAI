@@ -12,8 +12,8 @@ export interface Product {
   sku?: string;        
   name: string; 
   category?: string; 
-  cost_price?: number; // ✅ LÍNEA CLAVE: Apuntamos a la nueva columna de Supabase
-  price?: number;      // Precio de venta final
+  cost_price?: number; 
+  price?: number;      
   location?: string;   
   notes?: string;      
 }
@@ -41,6 +41,8 @@ export interface ProductVariant {
   size_id: string;
   color_id: string;
   stock_quantity: number;
+  base_quantity: number;     // ✅ Agregado: Stock liso
+  finished_quantity: number; // ✅ Agregado: Stock procesado
   products?: Product;
   sizes?: { name: string };
   colors?: { name: string };
@@ -61,6 +63,7 @@ interface CatalogState {
   fetchAllCatalogs: () => Promise<void>;
   updateProductComplete: (productId: string, updates: Partial<Product>) => Promise<void>;
   updateStock: (productId: string, sizeId: string, colorId: string, quantity: number) => Promise<void>;
+  transformToFinished: (variantId: string, quantityToTransform: number) => Promise<void>; // ✅ La función que faltaba
   
   addService: (data: Omit<Service, 'id' | 'company_id'>) => Promise<Service>;
   addCustomer: (data: Omit<Customer, 'id' | 'balance' | 'company_id'>) => Promise<Customer>;
@@ -95,7 +98,6 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
         supabase.from('colors').select('*').order('name'),
         supabase.from('payment_methods').select('*').order('name'),
         supabase.from('business_units').select('*').order('name'),
-        // 🔒 Filtramos por Empresa y traemos cost_price
         supabase.from('products').select('id, sku, name, category, cost_price, price, location, notes, company_id').eq('company_id', companyId).order('name'),
         supabase.from('customers').select('*').eq('company_id', companyId).order('name'),
         supabase.from('personalization_types').select('*').order('name'),
@@ -134,16 +136,69 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
 
   updateStock: async (productId, sizeId, colorId, quantity) => {
     try {
-      const { data: existing } = await supabase.from('product_variants').select('id, stock_quantity').eq('product_id', productId).eq('size_id', sizeId).eq('color_id', colorId).single();
+      const { data: existing } = await supabase.from('product_variants').select('*').eq('product_id', productId).eq('size_id', sizeId).eq('color_id', colorId).single();
+      
       if (existing) {
-        await supabase.from('product_variants').update({ stock_quantity: existing.stock_quantity + quantity }).eq('id', existing.id);
+        // ✅ Todo lo que ingresa entra como liso (base_quantity)
+        const newTotal = existing.stock_quantity + quantity;
+        const newBase = (existing.base_quantity || 0) + quantity;
+        
+        await supabase.from('product_variants').update({ 
+          stock_quantity: newTotal,
+          base_quantity: newBase 
+        }).eq('id', existing.id);
       } else {
-        await supabase.from('product_variants').insert([{ product_id: productId, size_id: sizeId, color_id: colorId, stock_quantity: quantity }]);
+        await supabase.from('product_variants').insert([{ 
+          product_id: productId, 
+          size_id: sizeId, 
+          color_id: colorId, 
+          stock_quantity: quantity,
+          base_quantity: quantity // ✅ Si es la primera vez, el total es igual al base
+        }]);
       }
       await get().fetchAllCatalogs();
     } catch (error) { 
       console.error('Error al actualizar stock:', error); 
       throw error; 
+    }
+  },
+
+  // ✨ LA FUNCIÓN MÁGICA
+  transformToFinished: async (variantId, quantityToTransform) => {
+    try {
+      const { data: item, error: fetchError } = await supabase
+        .from('product_variants')
+        .select('*')
+        .eq('id', variantId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const baseActual = item.base_quantity || 0;
+      const termActual = item.finished_quantity || 0;
+
+      if (baseActual >= quantityToTransform) {
+        const newBase = baseActual - quantityToTransform;
+        const newFinished = termActual + quantityToTransform;
+
+        const { error: updateError } = await supabase
+          .from('product_variants')
+          .update({
+            base_quantity: newBase,
+            finished_quantity: newFinished
+            // stock_quantity queda igual porque el total físico de la empresa es el mismo
+          })
+          .eq('id', variantId);
+
+        if (updateError) throw updateError;
+        
+        await get().fetchAllCatalogs();
+      } else {
+        throw new Error('No hay suficientes prendas lisas para esta operación.');
+      }
+    } catch (error) {
+      console.error('Error al acondicionar:', error);
+      throw error;
     }
   },
 
