@@ -1,0 +1,191 @@
+import React, { useMemo, useRef, useEffect } from 'react';
+import { useCatalogStore, type Product } from '../../../store/useCatalogStore';
+
+interface VariationPayload {
+  id: string;
+  size: string;
+  color: string;
+  quantityOrdered: number;
+  quantityDelivered: number;
+}
+
+interface OrderMatrixModalProps {
+  product: Product;
+  currentVariations: VariationPayload[];
+  onSave: (variations: VariationPayload[]) => void;
+  onClose: () => void;
+  onRequestNewVariant: () => void;
+}
+
+export const OrderMatrixModal: React.FC<OrderMatrixModalProps> = ({ 
+  product, 
+  currentVariations, 
+  onSave, 
+  onClose,
+  onRequestNewVariant
+}) => {
+  const { inventory } = useCatalogStore();
+  
+  // 🔥 OPTIMIZACIÓN EXTREMA: useRef en lugar de useState. 
+  // Esto evita que la tabla se redibuje (lag) cada vez que tipeás un número.
+  const valuesRef = useRef<Record<string, number>>({});
+
+  // Carga inicial directa a la referencia (sin render)
+  useEffect(() => {
+    const initial: Record<string, number> = {};
+    currentVariations.forEach(cv => {
+      if (cv.quantityOrdered > 0) initial[`${cv.size}-${cv.color}`] = cv.quantityOrdered;
+    });
+    valuesRef.current = initial;
+  }, [currentVariations]);
+
+  // Memoización estricta del inventario
+  const productVariants = useMemo(() => 
+    inventory.filter(v => v.product_id === product.id), 
+  [inventory, product.id]);
+
+  // Memoización estricta de ordenamiento (Solo se calcula 1 vez al abrir)
+  const { uniqueSizes, uniqueColors } = useMemo(() => {
+    const getSortWeight = (val: string) => {
+      const cleanVal = String(val).toUpperCase().trim();
+      const textSizes: Record<string, number> = { 'XXS': 1, 'XS': 2, 'S': 3, 'M': 4, 'L': 5, 'XL': 6, 'XXL': 7, '2XL': 7, '3XL': 8, '4XL': 9, '5XL': 10, 'UNICO': 99, 'U': 99 };
+      if (textSizes[cleanVal]) return textSizes[cleanVal];
+      const num = Number(cleanVal);
+      if (!isNaN(num)) return num;
+      return 1000;
+    };
+
+    const sizes = Array.from(new Set(productVariants.map(v => v.sizes?.name)))
+      .filter(Boolean)
+      .sort((a: any, b: any) => getSortWeight(a) - getSortWeight(b));
+
+    const colors = Array.from(new Set(productVariants.map(v => v.colors?.name)))
+      .filter(Boolean)
+      .sort((a: any, b: any) => String(a).localeCompare(String(b)));
+
+    return { uniqueSizes: sizes, uniqueColors: colors };
+  }, [productVariants]);
+
+  // Guardado leyendo la referencia directamente en RAM
+  const handleSave = () => {
+    const newVars: VariationPayload[] = [];
+    uniqueColors.forEach(color => {
+      uniqueSizes.forEach(size => {
+        const qty = valuesRef.current[`${size}-${color}`] || 0;
+        if (qty > 0) {
+          const existing = currentVariations.find(cv => cv.size === size && cv.color === color);
+          newVars.push({
+            id: existing ? existing.id : crypto.randomUUID(),
+            size: size as string,
+            color: color as string,
+            quantityOrdered: qty,
+            quantityDelivered: existing ? existing.quantityDelivered : 0
+          });
+        }
+      });
+    });
+    onSave(newVars);
+  };
+
+  // 🔥 Renderizado Puro: La tabla y las celdas se calculan una sola vez.
+  const matrixTable = useMemo(() => (
+    <table className="w-full text-left border-collapse">
+      <thead>
+        <tr>
+          <th className="p-4 border-b border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase tracking-widest min-w-[120px]">Color \ Talle</th>
+          {uniqueSizes.map(s => (
+            <th key={s as string} className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-white text-[11px] font-black text-center uppercase tracking-widest">
+              {s as string}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {uniqueColors.map(color => (
+          <tr key={color as string}>
+            <td className="p-4 border-r border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-[11px] font-bold uppercase tracking-widest whitespace-nowrap">
+              {color as string}
+            </td>
+            {uniqueSizes.map(size => {
+              const variant = productVariants.find(v => v.sizes?.name === size && v.colors?.name === color);
+              const key = `${size}-${color}`;
+              
+              if (!variant) {
+                return <td key={key} className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 opacity-40 pointer-events-none" style={{ background: 'repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(0,0,0,0.03) 5px, rgba(0,0,0,0.03) 10px)' }}></td>;
+              }
+
+              const stockActual = variant.stock_quantity;
+              const existing = currentVariations.find(cv => cv.size === size && cv.color === color);
+              const delivered = existing ? existing.quantityDelivered : 0;
+              const defaultValue = existing ? existing.quantityOrdered : '';
+              const isOverStockInit = typeof defaultValue === 'number' && defaultValue > stockActual;
+
+              return (
+                <td key={key} className="p-2 border-b border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/50 text-center relative hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                  <span className={`absolute top-1 left-2 text-[9px] font-black ${stockActual > 0 ? 'text-emerald-500' : 'text-slate-400'} opacity-80`}>Disp: {stockActual}</span>
+                  {delivered > 0 && <span className="absolute top-1 right-2 text-[9px] font-black text-blue-500 opacity-90" title="Entregado">Ent: {delivered}</span>}
+                  
+                  {/* INPUT NO CONTROLADO: Cero lag */}
+                  <input 
+                    type="number" 
+                    min={delivered}
+                    defaultValue={defaultValue}
+                    onChange={(e) => {
+                      // Se guarda en RAM silenciosamente
+                      valuesRef.current[key] = parseInt(e.target.value, 10) || 0;
+                    }}
+                    onInput={(e) => {
+                      // Cambio visual condicional operando directo sobre el DOM (bypass a React)
+                      e.currentTarget.classList.toggle('!text-rose-500', Number(e.currentTarget.value) > stockActual);
+                      e.currentTarget.classList.toggle('text-slate-900', Number(e.currentTarget.value) <= stockActual);
+                      e.currentTarget.classList.toggle('dark:text-white', Number(e.currentTarget.value) <= stockActual);
+                    }}
+                    className={`w-full mt-4 h-12 bg-transparent text-center font-black text-xl outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-2 focus:ring-blue-500 rounded-xl transition-all ${isOverStockInit ? '!text-rose-500' : 'text-slate-900 dark:text-white'}`}
+                    placeholder="-"
+                  />
+                </td>
+              );
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  ), [uniqueSizes, uniqueColors, productVariants, currentVariations]); // Solo redibuja si agregás un color/talle nuevo
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col border border-slate-200 dark:border-slate-700 max-h-[90vh]">
+        
+        <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900 sticky top-0 z-10">
+          <div>
+            <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">MATRIZ DE PRODUCCIÓN / VENTA</h2>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{product.name}</p>
+          </div>
+          <button onClick={onClose} className="p-2 text-slate-400 hover:text-rose-500 bg-white dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-full shadow-sm transition-all">✕</button>
+        </div>
+
+        <div className="p-8 overflow-y-auto bg-slate-50 dark:bg-slate-950 flex-1">
+          <div className="flex justify-between items-end mb-4">
+            <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest leading-relaxed">
+              Ingresá las cantidades.<br/>
+              <span className="text-rose-500">Rojo = Venta sobre pedido.</span>
+            </p>
+            <button onClick={onRequestNewVariant} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors shadow-lg shadow-indigo-500/30 flex items-center gap-1">
+              ✨ + AGREGAR COLOR/TALLE
+            </button>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+            {matrixTable}
+          </div>
+        </div>
+
+        <div className="px-8 py-5 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 sticky bottom-0 z-10">
+          <button onClick={onClose} className="px-6 py-3 rounded-xl text-xs font-black text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors uppercase tracking-widest">Cancelar</button>
+          <button onClick={handleSave} className="px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black shadow-lg shadow-blue-500/30 transition-all active:scale-95 uppercase tracking-widest">Guardar Matriz</button>
+        </div>
+
+      </div>
+    </div>
+  );
+};

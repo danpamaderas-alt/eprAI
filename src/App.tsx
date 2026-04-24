@@ -1,12 +1,12 @@
+import { WorkerDashboard } from './modules/production/components/WorkerDashboard';
+import { QuoteDashboard } from './modules/quotes/pages/QuoteDashboard';
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
-
-// 🛑 RUTAS RELATIVAS ESTRICTAS (Nivel Raíz: src/)
+import { SupplierDashboard } from './modules/inventory/pages/SupplierDashboard';
+import { AnalyticsDashboard } from './modules/finances/pages/AnalyticsDashboard';
 import { supabase } from './lib/supabase'; 
 import { useThemeStore } from './store/useThemeStore';
 import { useTenantStore } from './store/useTenantStore';
-
-// 📦 IMPORTACIÓN DE MÓDULOS (Rutas desde src/modules/...)
 import { DashboardInicio } from './modules/home/pages/DashboardInicio';
 import { SalesDashboard } from './modules/inventory/pages/SalesDashboard';
 import { ServicesDashboard } from './modules/inventory/pages/ServicesDashboard';
@@ -15,8 +15,9 @@ import { CrmDashboard } from './modules/crm/pages/CrmDashboard';
 import { InventoryDashboard } from './modules/inventory/pages/InventoryDashboard';
 import { CuentasCorrientes } from './modules/crm/pages/CuentasCorrientes';
 import { TreasuryDashboard } from './modules/inventory/pages/TreasuryDashboard';
-// ✅ IMPORTAMOS TU NUEVA PANTALLA FINANCIERA
 import { FinancialDashboard } from './modules/inventory/pages/FinancialDashboard';
+import { ProductionDashboard } from './modules/production/components/ProductionDashboard';
+import { RawMaterialDashboard } from './modules/inventory/components/RawMaterialDashboard';
 
 // ==========================================
 // COMPONENTE: ESTRUCTURA PRINCIPAL (LAYOUT)
@@ -65,25 +66,49 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
             📊 Inicio
           </Link>
 
-          <Link to="/tesoreria" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/tesoreria') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
-            💵 Tesorería
+          <Link to="/ventas" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/ventas') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
+            💰 Punto de Venta
           </Link>
-
-          {/* ✅ NUEVO BOTÓN EN EL MENÚ */}
-          <Link to="/finanzas" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/finanzas') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
-            📈 Centro Financiero
+         
+         <Link to="/pedidos" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/pedidos') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
+            📋 Pedidos
           </Link>
 
           <Link to="/inventario" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/inventario') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
             📦 Inventario
           </Link>
 
-          <Link to="/ventas" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/ventas') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
-            💰 Punto de Venta
+          <Link to="/proveedores" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/proveedores') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
+            🚚 Proveedores
           </Link>
+
+          <Link to="/tesoreria" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/tesoreria') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
+            💵 Tesorería
+          </Link>
+
+          <Link to="/finanzas" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/finanzas') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
+            📈 Centro Financiero
+          </Link>
+
+          <Link to="/rentabilidad" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/inventario') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
+           📊 Radar de Rentabilidad
+          </Link>
+                    
           
-          <Link to="/pedidos" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/pedidos') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
-            📋 Hoja de Ruta
+          <Link to="/cotizador" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/cotizador') ? 'bg-indigo-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
+           📄 Presupuestos B2B
+          </Link>
+
+          <Link to="/produccion" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/produccion') ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/30' : 'hover:bg-slate-800 hover:text-white'}`}>
+            🏭 A Fabricar
+          </Link>
+
+          <Link to="/talleristas" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/talleristas') ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20' : 'hover:bg-slate-800 hover:text-white'}`}>
+           ✂️ Equipo y Taller
+          </Link>
+
+          <Link to="/insumos" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/insumos') ? 'bg-indigo-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
+            🧵 Insumos y Taller
           </Link>
 
           <div className="pt-4 mt-4 border-t border-slate-800">
@@ -117,7 +142,8 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
           <button 
             onClick={() => supabase.auth.signOut()} 
             className="w-full py-3 bg-slate-950 hover:bg-rose-900/50 text-slate-400 hover:text-rose-500 border border-slate-800 rounded-xl font-black text-[10px] uppercase tracking-widest transition-colors"
-          >
+         
+         >
             Cerrar Sesión
           </button>
         </div>
@@ -174,19 +200,22 @@ export default function App() {
     <BrowserRouter>
       <MainLayout>
         <Routes>
+          <Route path="/rentabilidad" element={<AnalyticsDashboard />} />
           <Route path="/" element={<Navigate to="/inicio" replace />} />
-          
+          <Route path="/cotizador" element={<QuoteDashboard />} />
           <Route path="/inicio" element={<DashboardInicio />} />
           <Route path="/tesoreria" element={<TreasuryDashboard />} />
-          {/* ✅ NUEVA RUTA CONECTADA AL COMPONENTE */}
           <Route path="/finanzas" element={<FinancialDashboard />} />
           <Route path="/inventario" element={<InventoryDashboard />} />
           <Route path="/ventas" element={<SalesDashboard />} />
           <Route path="/pedidos" element={<OrdersDashboard />} />
+          <Route path="/talleristas" element={<WorkerDashboard />} />
+          <Route path="/proveedores" element={<SupplierDashboard />} />
+          <Route path="/produccion" element={<ProductionDashboard />} />
           <Route path="/servicios" element={<ServicesDashboard />} />
           <Route path="/clientes" element={<CrmDashboard />} />
           <Route path="/cuentas-corrientes" element={<CuentasCorrientes />} />
-
+          <Route path="/insumos" element={<RawMaterialDashboard />} />
           <Route path="*" element={
             <div className="h-full flex flex-col items-center justify-center text-slate-400">
               <span className="text-6xl mb-4">🚧</span>

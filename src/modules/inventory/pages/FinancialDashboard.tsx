@@ -1,157 +1,241 @@
-import { useMemo, useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
+import { useFinanceStore } from '../store/useFinanceStore';
 import { useCatalogStore } from '../../../store/useCatalogStore';
-import { TrendingUp, DollarSign, PieChart, PackageOpen } from 'lucide-react';
+import { useDebtStore } from '../../crm/store/useDebtStore'; // ✅ CONECTAMOS CUENTAS CORRIENTES
+import Swal from 'sweetalert2';
 
 export const FinancialDashboard = () => {
-  const { products, inventory, fetchAllCatalogs, isLoading } = useCatalogStore();
+  const { expenses, orders, isLoading: isFinanceLoading, fetchFinances, addExpense } = useFinanceStore();
+  const { products, inventory, fetchAllCatalogs } = useCatalogStore();
+  const { debtors, fetchDebtors } = useDebtStore(); // ✅ TRAEMOS LA DEUDA REAL
 
   useEffect(() => {
+    fetchFinances();
     fetchAllCatalogs();
-  }, [fetchAllCatalogs]);
+    fetchDebtors(); // ✅ ACTUALIZAMOS SALDOS
+  }, [fetchFinances, fetchAllCatalogs, fetchDebtors]);
 
-  // 🧮 CÁLCULOS FINANCIEROS MAESTROS
-  const { patrimonioCosto, valorVentaPotencial, margenGanancia, margenPorcentaje, totalItems } = useMemo(() => {
-    if (!products || !inventory) return { patrimonioCosto: 0, valorVentaPotencial: 0, margenGanancia: 0, margenPorcentaje: 0, totalItems: 0 };
+  // 🧠 CÁLCULO 1: FLUJO DE CAJA Y DINERO EN CALLE (VERSIÓN EXACTA)
+  const { totalIncome, totalExpenses, netBalance, totalInStreet } = useMemo(() => {
+    let income = 0;
     
-    let costoTotal = 0;
-    let ventaTotal = 0;
-    let items = 0;
+    // ✅ DINERO EN CALLE: Suma exacta y real de los saldos de Cuentas Corrientes
+    const inStreet = debtors.reduce((acc, debtor) => acc + Number(debtor.total_debt || 0), 0);
 
-    products.forEach(p => {
-      const costo = p.cost_price || 0;
-      const precioVenta = p.price || 0;
-      
-      const productVariants = inventory.filter(v => v.product_id === p.id);
-      const stockDelProducto = productVariants.reduce((sum, v) => sum + v.stock_quantity, 0);
-      
-      if (stockDelProducto > 0) {
-        costoTotal += (stockDelProducto * costo);
-        ventaTotal += (stockDelProducto * precioVenta);
-        items += stockDelProducto;
+    // CAJA: Sumamos cobros y señas
+    orders.forEach(order => {
+      const total = Number(order.total_amount || 0);
+      const advance = Number(order.advance_payment || 0);
+
+      if (order.status === 'COMPLETED') {
+        income += total;
+      } else if (order.status !== 'CANCELLED') {
+        income += advance; 
       }
     });
-    
-    const ganancia = ventaTotal - costoTotal;
-    const porcentaje = costoTotal > 0 ? (ganancia / costoTotal) * 100 : 0;
+
+    const outgoings = expenses.reduce((acc, exp) => acc + Number(exp.amount), 0);
 
     return { 
-      patrimonioCosto: costoTotal, 
-      valorVentaPotencial: ventaTotal, 
-      margenGanancia: ganancia,
-      margenPorcentaje: porcentaje,
-      totalItems: items
+      totalIncome: income, 
+      totalExpenses: outgoings, 
+      netBalance: income - outgoings,
+      totalInStreet: inStreet
     };
-  }, [products, inventory]);
+  }, [expenses, orders, debtors]);
 
-  const formatMoney = (amount: number) => 
-    new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(amount);
+  // 🧠 CÁLCULO 2: VALUACIÓN DE STOCK Y RENTABILIDAD
+  const { stockCost, stockValue, projectedProfit, avgMargin } = useMemo(() => {
+    let cost = 0;
+    let sale = 0;
+
+    inventory.forEach(item => {
+      const product = products.find(p => p.id === item.product_id);
+      if (product && item.stock_quantity > 0) {
+        cost += (Number(product.cost_price) || 0) * item.stock_quantity;
+        sale += (Number(product.price) || 0) * item.stock_quantity;
+      }
+    });
+
+    const profit = sale - cost;
+    const margin = cost > 0 ? (profit / cost) * 100 : 0;
+
+    return { 
+      stockCost: cost, 
+      stockValue: sale, 
+      projectedProfit: profit, 
+      avgMargin: margin.toFixed(2) 
+    };
+  }, [inventory, products]);
+
+  // 🎨 ALERTA PARA REGISTRAR GASTOS
+  const handleAddExpense = async () => {
+    const { value: formValues } = await Swal.fire({
+      title: 'REGISTRAR GASTO',
+      html: `
+        <div class="text-left space-y-4 mt-2">
+          <div>
+            <label class="text-[10px] font-black uppercase text-slate-400 ml-1">Monto gastado ($)</label>
+            <input id="ex-amount" type="number" class="swal2-input !w-full !m-0 !mt-1 !h-16 !bg-slate-950 !border !border-slate-800 !text-rose-400 !rounded-2xl !text-center !font-black !text-3xl focus:!border-rose-500 !transition-all" placeholder="0">
+          </div>
+          <div>
+            <label class="text-[10px] font-black uppercase text-slate-400 ml-1">Descripción corta</label>
+            <input id="ex-desc" class="swal2-input !w-full !m-0 !mt-1 !h-12 !bg-slate-950 !border !border-slate-800 !text-white !rounded-xl !text-sm !font-bold focus:!border-indigo-500 !transition-all" placeholder="Ej: Compra 5m DTF">
+          </div>
+          <div>
+            <label class="text-[10px] font-black uppercase text-slate-400 ml-1">Categoría</label>
+            <select id="ex-cat" class="swal2-input !w-full !m-0 !mt-1 !h-12 !bg-slate-950 !border !border-slate-800 !text-white !rounded-xl !text-sm !font-bold focus:!border-indigo-500 !transition-all">
+              <option value="INSUMOS">Insumos y Materia Prima</option>
+              <option value="SERVICIOS">Servicios (Luz, Internet)</option>
+              <option value="IMPUESTOS">Impuestos / Contables</option>
+              <option value="MAQUINARIA">Mantenimiento Maquinaria</option>
+              <option value="OTROS">Otros Gastos</option>
+            </select>
+          </div>
+        </div>
+      `,
+      showCancelButton: true, confirmButtonText: 'DESCONTAR DE CAJA', cancelButtonText: 'CANCELAR',
+      buttonsStyling: false,
+      customClass: {
+        popup: '!bg-slate-900 !border !border-slate-800 !rounded-[2rem] !shadow-2xl',
+        title: '!text-white !font-black !text-2xl !tracking-tighter pt-4',
+        htmlContainer: '!mx-8 !mb-8',
+        actions: '!w-full !px-8 !pb-8 !m-0 flex flex-col gap-3',
+        confirmButton: 'w-full bg-rose-600 hover:bg-rose-500 text-white font-black px-6 py-4 rounded-2xl uppercase text-xs tracking-widest transition-all active:scale-95',
+        cancelButton: 'w-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white font-black px-6 py-4 rounded-2xl uppercase text-xs tracking-widest transition-all'
+      },
+      preConfirm: () => {
+        const amount = Number((document.getElementById('ex-amount') as HTMLInputElement).value);
+        const description = (document.getElementById('ex-desc') as HTMLInputElement).value;
+        const category = (document.getElementById('ex-cat') as HTMLSelectElement).value;
+        if (!amount || !description) { Swal.showValidationMessage('Completá el monto y la descripción'); return false; }
+        return { amount, description, category, expense_date: new Date().toISOString().split('T')[0] };
+      }
+    });
+
+    if (formValues) {
+      await addExpense(formValues);
+      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Gasto registrado', showConfirmButton: false, timer: 1500, customClass: { popup: '!bg-slate-900 !text-white !rounded-xl border border-slate-800' } });
+    }
+  };
+
+  if (isFinanceLoading) return <div className="p-8 text-slate-400 font-black animate-pulse uppercase">Calculando métricas...</div>;
 
   return (
-    <div className="p-6 space-y-6 animate-in fade-in duration-500">
+    <div className="p-8 max-w-7xl mx-auto animate-in fade-in duration-500 space-y-10">
       
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 bg-white dark:bg-slate-800 p-6 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm">
+      <header className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white italic tracking-tighter">CENTRO FINANCIERO</h1>
-          <p className="text-slate-500 text-sm font-medium uppercase tracking-widest mt-1">Análisis de Patrimonio y Rentabilidad</p>
+          <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">📈 Centro <span className="text-blue-500">Financiero</span></h1>
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-2">Visión 360 de capital, deudas a cobrar y valuación de stock.</p>
         </div>
+        <button onClick={handleAddExpense} className="bg-rose-600 text-white px-6 py-3 rounded-xl font-black uppercase text-xs tracking-widest shadow-xl shadow-rose-500/20 active:scale-95 transition-all">
+          - Registrar Gasto
+        </button>
       </header>
 
-      {isLoading ? (
-        <div className="py-20 flex justify-center text-slate-400 font-bold text-sm uppercase tracking-widest animate-pulse">Calculando métricas...</div>
-      ) : (
-        <>
-          {/* 📊 TARJETAS PRINCIPALES (KPIs) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* SECCIÓN 1: CAJA Y CALLE */}
+      <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2rem] shadow-xl">
+          <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">Efectivo Cobrado</p>
+          <p className="text-3xl font-black text-white tracking-tighter">${totalIncome.toLocaleString()}</p>
+        </div>
+        
+        <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2rem] shadow-xl">
+          <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1">Gastos Operativos</p>
+          <p className="text-3xl font-black text-white tracking-tighter">${totalExpenses.toLocaleString()}</p>
+        </div>
+
+        <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2rem] shadow-xl ring-2 ring-amber-500/20">
+          <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1 flex items-center gap-1">🛣️ Dinero en Calle</p>
+          <p className="text-3xl font-black text-white tracking-tighter">${totalInStreet.toLocaleString()}</p>
+          <p className="text-[8px] font-bold text-slate-500 uppercase mt-1">Sincronizado con Cuentas Corrientes</p>
+        </div>
+
+        <div className={`p-6 rounded-[2rem] shadow-xl border ${netBalance >= 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-rose-500/10 border-rose-500/30'}`}>
+          <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${netBalance >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>Saldo Neto (Caja)</p>
+          <p className={`text-4xl font-black tracking-tighter ${netBalance >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+            ${netBalance.toLocaleString()}
+          </p>
+        </div>
+      </section>
+
+      {/* SECCIÓN 2: VALUACIÓN DE STOCK Y RENTABILIDAD */}
+      <section>
+        <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">Valuación de Mercadería Física</h2>
+        <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 shadow-xl">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             
-            {/* Tarjeta 1: Costo (Patrimonio Real) */}
-            <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                <PackageOpen className="w-24 h-24 text-blue-600" />
-              </div>
-              <div className="relative z-10">
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Valor de Costo Físico</h3>
-                <p className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">{formatMoney(patrimonioCosto)}</p>
-                <div className="mt-4 inline-flex items-center gap-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-3 py-1.5 rounded-lg text-xs font-bold uppercase">
-                  <span>En Stock: {totalItems} prendas</span>
-                </div>
-              </div>
+            <div>
+              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Inversión (Costo)</p>
+              <p className="text-2xl font-black text-white tracking-tighter">${stockCost.toLocaleString()}</p>
+              <p className="text-[9px] font-bold text-slate-600 uppercase mt-1">Plata parada en estantería</p>
             </div>
 
-            {/* Tarjeta 2: Venta Potencial */}
-            <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                <DollarSign className="w-24 h-24 text-emerald-600" />
-              </div>
-              <div className="relative z-10">
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Valor de Venta Estimado</h3>
-                <p className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">{formatMoney(valorVentaPotencial)}</p>
-                <div className="mt-4 inline-flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-bold uppercase">
-                  <span>Facturación Total Máxima</span>
-                </div>
-              </div>
+            <div>
+              <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">Valor Venta Proyectado</p>
+              <p className="text-2xl font-black text-blue-400 tracking-tighter">${stockValue.toLocaleString()}</p>
+              <p className="text-[9px] font-bold text-slate-600 uppercase mt-1">Si se vende todo hoy</p>
             </div>
 
-            {/* Tarjeta 3: Margen de Ganancia (EL MÁS IMPORTANTE) */}
-            <div className="bg-gradient-to-br from-indigo-600 to-blue-700 rounded-3xl p-6 shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-6 opacity-20">
-                <TrendingUp className="w-24 h-24 text-white" />
+            <div className="pl-6 border-l border-slate-800">
+              <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">Ganancia Estimada</p>
+              <p className="text-3xl font-black text-emerald-400 tracking-tighter">${projectedProfit.toLocaleString()}</p>
+            </div>
+
+            <div>
+              <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">Margen Promedio (%)</p>
+              <div className="flex items-end gap-1">
+                <p className="text-3xl font-black text-indigo-400 tracking-tighter">{avgMargin}%</p>
               </div>
-              <div className="relative z-10 text-white">
-                <h3 className="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-2">Ganancia Potencial Bruta</h3>
-                <p className="text-4xl font-black tracking-tighter">{formatMoney(margenGanancia)}</p>
-                <div className="mt-4 inline-flex items-center gap-2 bg-white/20 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest">
-                  <PieChart className="w-4 h-4" />
-                  <span>Rentabilidad Global: {margenPorcentaje.toFixed(1)}%</span>
-                </div>
+              <div className="w-full bg-slate-950 h-2 mt-2 rounded-full overflow-hidden">
+                <div className="bg-indigo-500 h-full rounded-full" style={{ width: `${Math.min(Number(avgMargin), 100)}%` }}></div>
               </div>
             </div>
 
           </div>
+        </div>
+      </section>
 
-          {/* 📋 TABLA DE DESGLOSE RÁPIDO */}
-          <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
-            <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-               <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">Desglose de Rentabilidad por Artículo</h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase text-slate-400 tracking-widest">
-                    <th className="py-4 px-6">Artículo</th>
-                    <th className="py-4 px-6 text-center">Stock</th>
-                    <th className="py-4 px-6 text-right text-rose-500">Costo Unit.</th>
-                    <th className="py-4 px-6 text-right text-emerald-500">Venta Unit.</th>
-                    <th className="py-4 px-6 text-right text-blue-500">Margen Unit.</th>
-                    <th className="py-4 px-6 text-right">Ganancia Total Esperada</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                  {products.map(p => {
-                    const stock = inventory?.filter(v => v.product_id === p.id).reduce((s, v) => s + v.stock_quantity, 0) || 0;
-                    if (stock === 0) return null; // Ocultamos los que no tienen stock
-
-                    const costo = p.cost_price || 0;
-                    const venta = p.price || 0;
-                    const margenUnitario = venta - costo;
-                    const gananciaTotal = margenUnitario * stock;
-
-                    return (
-                      <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-colors">
-                        <td className="py-4 px-6 font-bold text-sm text-slate-800 dark:text-white uppercase">{p.name}</td>
-                        <td className="py-4 px-6 text-center font-black">{stock}</td>
-                        <td className="py-4 px-6 text-right font-bold text-slate-500">{formatMoney(costo)}</td>
-                        <td className="py-4 px-6 text-right font-bold text-slate-500">{formatMoney(venta)}</td>
-                        <td className="py-4 px-6 text-right font-black text-blue-600 dark:text-blue-400">{formatMoney(margenUnitario)}</td>
-                        <td className="py-4 px-6 text-right font-black text-lg text-emerald-600 dark:text-emerald-400">{formatMoney(gananciaTotal)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+      {/* SECCIÓN 3: PATRIMONIO NETO DE LA EMPRESA */}
+      <section className="bg-indigo-600 rounded-[2.5rem] p-8 shadow-2xl shadow-indigo-500/20 relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-8 opacity-10 text-9xl font-black italic">RAÍCES</div>
+        <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
+          <div>
+            <h2 className="text-indigo-100 text-xs font-black uppercase tracking-widest mb-2">Patrimonio Total Estimado</h2>
+            <p className="text-6xl font-black text-white tracking-tighter">
+              ${(netBalance + totalInStreet + stockCost).toLocaleString()}
+            </p>
+            <p className="text-indigo-200 text-[10px] font-bold uppercase mt-2 italic">Valor de la empresa (Plata en caja + Deudas a cobrar + Costo del stock actual).</p>
           </div>
-        </>
-      )}
+        </div>
+      </section>
+
+      {/* SECCIÓN 4: ÚLTIMOS GASTOS */}
+      <section>
+        <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">Últimos Gastos Registrados</h2>
+        <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 shadow-xl">
+          {expenses.length === 0 ? (
+            <p className="text-center text-slate-500 font-bold text-xs uppercase py-4">No hay egresos registrados.</p>
+          ) : (
+            <div className="space-y-3">
+              {expenses.slice(0, 10).map(exp => (
+                <div key={exp.id} className="flex justify-between items-center p-4 bg-slate-950 border border-slate-800/50 rounded-2xl hover:border-slate-700 transition-colors">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-rose-500/20 text-rose-500 rounded-xl flex items-center justify-center text-xl font-black">-</div>
+                    <div>
+                      <p className="text-sm font-black text-white">{exp.description}</p>
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">{exp.category} | {exp.expense_date}</p>
+                    </div>
+                  </div>
+                  <p className="text-lg font-black text-rose-400 tracking-tighter">-${Number(exp.amount).toLocaleString()}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
     </div>
   );
 };
