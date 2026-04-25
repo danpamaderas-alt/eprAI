@@ -1,3 +1,4 @@
+import { CustomerCRM } from './modules/customers/CustomerCRM';
 import { POSDashboard } from './modules/pos/POSDashboard';
 import { ProfitabilityDashboard } from './modules/inventory/pages/ProfitabilityDashboard'; 
 import { WorkerDashboard } from './modules/production/components/WorkerDashboard';
@@ -5,7 +6,6 @@ import { QuoteDashboard } from './modules/quotes/pages/QuoteDashboard';
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { SupplierDashboard } from './modules/inventory/pages/SupplierDashboard';
-import { AnalyticsDashboard } from './modules/finances/pages/AnalyticsDashboard';
 import { supabase } from './lib/supabase'; 
 import { useThemeStore } from './store/useThemeStore';
 import { useTenantStore } from './store/useTenantStore';
@@ -13,7 +13,6 @@ import { DashboardInicio } from './modules/home/pages/DashboardInicio';
 import { SalesDashboard } from './modules/inventory/pages/SalesDashboard';
 import { ServicesDashboard } from './modules/inventory/pages/ServicesDashboard';
 import { OrdersDashboard } from './modules/orders/pages/OrdersDashboard';
-import { CrmDashboard } from './modules/crm/pages/CrmDashboard';
 import { InventoryDashboard } from './modules/inventory/pages/InventoryDashboard';
 import { CuentasCorrientes } from './modules/crm/pages/CuentasCorrientes';
 import { TreasuryDashboard } from './modules/inventory/pages/TreasuryDashboard';
@@ -93,7 +92,7 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
             📈 Centro Financiero
           </Link>
 
-          <Link to="/rentabilidad" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/inventario') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
+          <Link to="/rentabilidad" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/rentabilidad') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
            📊 Radar de Rentabilidad
           </Link>
                     
@@ -203,7 +202,7 @@ export default function App() {
     <BrowserRouter>
       <MainLayout>
         <Routes>
-          <Route path="/rentabilidad" element={<AnalyticsDashboard />} />
+          <Route path="/clientes" element={<CustomerCRM />} />
           <Route path="/cuentas-corrientes" element={<CurrentAccounts />} />
           <Route path="/rentabilidad" element={<ProfitabilityDashboard />} />
           <Route path="/" element={<Navigate to="/inicio" replace />} />
@@ -218,7 +217,6 @@ export default function App() {
           <Route path="/proveedores" element={<SupplierDashboard />} />
           <Route path="/produccion" element={<ProductionDashboard />} />
           <Route path="/servicios" element={<ServicesDashboard />} />
-          <Route path="/clientes" element={<CrmDashboard />} />
           <Route path="/cuentas-corrientes" element={<CuentasCorrientes />} />
           <Route path="/pos" element={<POSDashboard />} />
           <Route path="/insumos" element={<RawMaterialDashboard />} />
