@@ -8,13 +8,14 @@ import { ThemeToggle } from '../components/ThemeToggle';
 
 const NAV_ITEMS = [
   { path: '/inicio', label: 'Inicio', icon: '📊' },
+  { path: '/pos', label: 'Punto de Venta', icon: '💰' }, // ✅ Acá agregué Punto de Venta
   { path: '/tesoreria', label: 'Tesorería', icon: '🏦' },
   { path: '/inventario', label: 'Inventario', icon: '📦' },
-  { path: '/ventas', label: 'Ventas', icon: '💰' },
   { path: '/pedidos', label: 'Hoja de Ruta', icon: '📋' },
   { path: '/clientes', label: 'Clientes CRM', icon: '🤝' },
   { path: '/cuentas-corrientes', label: 'Cuentas Cor.', icon: '💳' },
   { path: '/revendedores', label: 'Revendedores', icon: '🚚' },
+  { path: '/rentabilidad', label: 'Radar de Rentabilidad', icon: '📈' }, // ✅ Y moví Rentabilidad a la lista principal
 ];
 
 export const DashboardLayout = () => {

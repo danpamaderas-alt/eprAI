@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAnalyticsStore } from '../store/useAnalyticsStore';
+import { AIAnalyticBrain } from '../../ai/AIAnalyticBrain'; // 🧠 LA RUTA MÁGICA DE LA IA
 
 export const AnalyticsDashboard = () => {
   const { metrics, topProducts, isLoading, fetchAnalytics } = useAnalyticsStore();
@@ -34,6 +35,11 @@ export const AnalyticsDashboard = () => {
           </select>
         </div>
       </header>
+
+      {/* 🧠 CEREBRO DE IA ENCHUFADO */}
+      <div className="w-full">
+        <AIAnalyticBrain />
+      </div>
 
       {/* MÉTRICAS PRINCIPALES (KPIs) */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

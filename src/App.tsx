@@ -1,3 +1,5 @@
+import { POSDashboard } from './modules/pos/POSDashboard';
+import { ProfitabilityDashboard } from './modules/inventory/pages/ProfitabilityDashboard'; 
 import { WorkerDashboard } from './modules/production/components/WorkerDashboard';
 import { QuoteDashboard } from './modules/quotes/pages/QuoteDashboard';
 import { useEffect, useState } from 'react';
@@ -18,6 +20,7 @@ import { TreasuryDashboard } from './modules/inventory/pages/TreasuryDashboard';
 import { FinancialDashboard } from './modules/inventory/pages/FinancialDashboard';
 import { ProductionDashboard } from './modules/production/components/ProductionDashboard';
 import { RawMaterialDashboard } from './modules/inventory/components/RawMaterialDashboard';
+import { CurrentAccounts } from './modules/accounts/CurrentAccounts';
 
 // ==========================================
 // COMPONENTE: ESTRUCTURA PRINCIPAL (LAYOUT)
@@ -201,6 +204,8 @@ export default function App() {
       <MainLayout>
         <Routes>
           <Route path="/rentabilidad" element={<AnalyticsDashboard />} />
+          <Route path="/cuentas-corrientes" element={<CurrentAccounts />} />
+          <Route path="/rentabilidad" element={<ProfitabilityDashboard />} />
           <Route path="/" element={<Navigate to="/inicio" replace />} />
           <Route path="/cotizador" element={<QuoteDashboard />} />
           <Route path="/inicio" element={<DashboardInicio />} />
@@ -215,6 +220,7 @@ export default function App() {
           <Route path="/servicios" element={<ServicesDashboard />} />
           <Route path="/clientes" element={<CrmDashboard />} />
           <Route path="/cuentas-corrientes" element={<CuentasCorrientes />} />
+          <Route path="/pos" element={<POSDashboard />} />
           <Route path="/insumos" element={<RawMaterialDashboard />} />
           <Route path="*" element={
             <div className="h-full flex flex-col items-center justify-center text-slate-400">
