@@ -5,7 +5,7 @@ export const ThemeToggle = () => {
 
   useEffect(() => {
     const isDarkSaved = localStorage.getItem('epr_theme') === 'dark';
-    setIsDark(isDarkSaved);
+    setIsDark (isDarkSaved);
     if (isDarkSaved) document.documentElement.classList.add('dark');
   }, []);
 

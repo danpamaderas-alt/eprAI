@@ -3,7 +3,7 @@ import { useCrmStore, type Customer } from '../store/useCrmStore';
 import { supabase } from '../../../lib/supabase';
 import Swal from 'sweetalert2';
 
-// Importamos el generador y la tarjeta
+import { ClientFormModal } from '../pages/ClientFormModal';
 import { generateGiftMessage, type MessageTone } from '../utils/giftHelper';
 import { GiftCardPrintable } from '../components/GiftCardPrintable';
 
@@ -16,14 +16,18 @@ const CUSTOMER_TYPES = [
 export const CrmDashboard = () => {
   const { customers, fetchCustomers, isLoading } = useCrmStore();
   
+  // Estados para búsqueda y filtros
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('');
   
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+  // ✅ Estado para el Modal de NUEVO Cliente
+  const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
+  
+  // Estados para el Modal de EDICIÓN de Cliente
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
 
-  // ✅ ESTADO PARA LA TARJETA DE REGALO 3D
+  // Estado para la tarjeta de regalo 3D
   const [printMessage, setPrintMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -40,24 +44,17 @@ export const CrmDashboard = () => {
     });
   }, [customers, searchTerm, filterType]);
 
-  const openCreateModal = () => {
-    setModalMode('create');
-    setEditForm({ name: '', phone: '', email: '', type: 'MINORISTA', cuit: '', address: '', notes: '' });
-    setIsModalOpen(true);
-  };
-
   const openEditModal = (customer: Customer) => {
-    setModalMode('edit');
     setEditForm({ ...customer });
-    setIsModalOpen(true);
+    setIsEditModalOpen(true);
   };
 
-  const closeModal = () => {
-    setIsModalOpen(false);
+  const closeEditModal = () => {
+    setIsEditModalOpen(false);
     setEditForm({});
   };
 
-  const handleSave = async () => {
+  const handleUpdate = async () => {
     if (!editForm.name) {
       Swal.fire('Atención', 'El nombre del cliente es obligatorio', 'warning');
       return;
@@ -74,21 +71,16 @@ export const CrmDashboard = () => {
         notes: editForm.notes || null,
       };
 
-      if (modalMode === 'create') {
-        const { error } = await supabase.from('customers').insert([payload]);
-        if (error) throw error;
-        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Cliente registrado', showConfirmButton: false, timer: 1500 });
-      } else {
-        const { error } = await supabase.from('customers').update(payload).eq('id', editForm.id);
-        if (error) throw error;
-        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Cliente actualizado', showConfirmButton: false, timer: 1500 });
-      }
+      const { error } = await supabase.from('customers').update(payload).eq('id', editForm.id);
+      if (error) throw error;
+      
+      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Cliente actualizado', showConfirmButton: false, timer: 1500 });
       
       fetchCustomers();
-      closeModal();
+      closeEditModal();
     } catch (err: any) {
-      console.error("Error al guardar:", err);
-      Swal.fire('Error', err.message || 'Hubo un problema al guardar en la base de datos.', 'error');
+      console.error("Error al actualizar:", err);
+      Swal.fire('Error', err.message || 'Hubo un problema al actualizar en la base de datos.', 'error');
     }
   };
 
@@ -122,7 +114,6 @@ export const CrmDashboard = () => {
     }
   };
 
-  // ✅ FUNCIÓN DE REGALO CONSTRUCTORA DEL MENSAJE 3D
   const handleGiftClick = async (customerName: string) => {
     const { value: formValues } = await Swal.fire({
       title: '🎁 REGALO DE FIDELIZACIÓN',
@@ -159,7 +150,6 @@ export const CrmDashboard = () => {
     });
 
     if (formValues) {
-      // Ponemos a cargar el Swal para que el usuario sepa que la IA está pensando
       Swal.fire({
         title: '✨ Creando mensaje con IA...',
         text: 'Escribiendo algo único para tu cliente',
@@ -168,15 +158,14 @@ export const CrmDashboard = () => {
       });
 
       try {
-        // Ahora usamos "await" porque la función es asíncrona
         const msg = await generateGiftMessage(customerName, formValues.gift, formValues.tone);
-        Swal.close(); // Cerramos el cartel de carga
-        setPrintMessage(msg); // Mostramos la tarjeta terminada
+        Swal.close(); 
+        setPrintMessage(msg); 
       } catch (e) {
         Swal.close();
         Swal.fire('Error', 'Hubo un problema generando el texto', 'error');
       }
-        }
+    }
   };
 
   const getInitials = (name: string) => name ? name.charAt(0).toUpperCase() : '?';
@@ -190,8 +179,9 @@ export const CrmDashboard = () => {
           <p className="text-slate-500 text-sm font-medium uppercase tracking-widest mt-1">Gestión de Clientes y Contactos</p>
         </div>
         
+        {/* ✅ BOTÓN NUEVO CLIENTE (Abre el Modal Limpio) */}
         <button 
-          onClick={openCreateModal}
+          onClick={() => setIsNewClientModalOpen(true)}
           className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg transition-all active:scale-95 flex items-center gap-2"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
@@ -283,10 +273,7 @@ export const CrmDashboard = () => {
                       
                       <td className="py-4 px-6 text-center align-middle">
                         <div className="flex items-center justify-center gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                          
-                          {/* ✅ NUEVO BOTÓN: REGALO 3D */}
                           <button onClick={() => handleGiftClick(c.name)} className="px-3 py-2 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 text-emerald-600 text-[10px] font-black rounded-lg transition-all uppercase border border-emerald-200 dark:border-emerald-800 shadow-sm" title="Regalo Fidelización">🎁</button>
-
                           <button onClick={() => openEditModal(c)} className="px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-600 text-[10px] font-black rounded-lg transition-all uppercase border border-slate-200 dark:border-slate-700 shadow-sm" title="Editar Cliente">✏️</button>
                           <button onClick={() => handleDelete(c)} className="px-3 py-2 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 text-rose-600 text-[10px] font-black rounded-lg transition-all uppercase border border-rose-200 dark:border-rose-800 shadow-sm" title="Eliminar Cliente">🗑️</button>
                         </div>
@@ -300,16 +287,26 @@ export const CrmDashboard = () => {
         )}
       </div>
 
-      {/* MODAL DE EDICIÓN / CREACIÓN */}
-      {isModalOpen && (
+      {/* ✅ MODAL DE CREACIÓN (COMPONENTE EXTERNO) */}
+      <ClientFormModal 
+        isOpen={isNewClientModalOpen} 
+        onClose={() => setIsNewClientModalOpen(false)}
+        onSuccess={() => {
+          setIsNewClientModalOpen(false);
+          fetchCustomers(); // Refresca la lista
+        }}
+      />
+
+      {/* MODAL DE EDICIÓN (MANTENIDO ACÁ) */}
+      {isEditModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto">
             
             <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800/80 sticky top-0 z-10">
               <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">
-                {modalMode === 'create' ? 'Nuevo Cliente' : 'Editar Cliente'}
+                Editar Cliente
               </h2>
-              <button onClick={closeModal} className="p-2 text-slate-400 hover:text-rose-500 bg-white dark:bg-slate-700 hover:bg-rose-50 rounded-full shadow-sm transition-all">
+              <button onClick={closeEditModal} className="p-2 text-slate-400 hover:text-rose-500 bg-white dark:bg-slate-700 hover:bg-rose-50 rounded-full shadow-sm transition-all">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
@@ -350,18 +347,17 @@ export const CrmDashboard = () => {
             </div>
 
             <div className="px-8 py-5 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3 sticky bottom-0 z-10">
-              <button onClick={closeModal} className="px-6 py-3 rounded-xl text-xs font-black text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors uppercase tracking-widest">
+              <button onClick={closeEditModal} className="px-6 py-3 rounded-xl text-xs font-black text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors uppercase tracking-widest">
                 Cancelar
               </button>
-              <button onClick={handleSave} className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-lg shadow-blue-500/30 transition-all active:scale-95 uppercase tracking-widest">
-                {modalMode === 'create' ? 'Guardar Cliente' : 'Actualizar Datos'}
+              <button onClick={handleUpdate} className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-lg shadow-blue-500/30 transition-all active:scale-95 uppercase tracking-widest">
+                Actualizar Datos
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ✅ EL COMPONENTE DE LA TARJETA SE RENDERIZA ACÁ */}
       {printMessage && (
         <GiftCardPrintable 
           message={printMessage} 

@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useCatalogStore } from '../../../store/useCatalogStore';
 import Swal from 'sweetalert2';
+import { ClientFormModal } from '../pages/ClientFormModal'; // (Ajustá la ruta si te tira la línea roja)
 
 const ARS = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 

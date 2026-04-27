@@ -1,18 +1,23 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
+import { ClientFormModal } from '../crm/pages/ClientFormModal'; // 👈 IMPORTAMOS EL FORMULARIO
 
 export const CustomerCRM = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [customers, setCustomers] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // 👈 ESTADO PARA ABRIR/CERRAR EL FORMULARIO DE NUEVO CLIENTE
+  const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
 
-  // 1. CARGA INICIAL DE CLIENTES
+  // 1. CARGA INICIAL DE CLIENTES (Separada para poder llamarla cuando creamos uno nuevo)
+  const fetchCustomers = async () => {
+    const { data } = await supabase.from('customers').select('*').order('name');
+    if (data) setCustomers(data);
+  };
+
   useEffect(() => {
-    const fetchCustomers = async () => {
-      const { data } = await supabase.from('customers').select('*').order('name');
-      if (data) setCustomers(data);
-    };
     fetchCustomers();
   }, []);
 
@@ -108,7 +113,18 @@ export const CustomerCRM = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* PANEL IZQUIERDO: CARTERA */}
         <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-6 h-[75vh] overflow-y-auto shadow-2xl">
-          <h2 className="text-[10px] font-black text-slate-500 uppercase mb-6 tracking-widest italic text-center">Seleccionar Cliente</h2>
+          
+          {/* 👈 ACÁ AGREGAMOS EL BOTÓN DE "+ NUEVO" AL LADO DEL TÍTULO */}
+          <div className="flex justify-between items-center mb-6 px-2">
+            <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Seleccionar Cliente</h2>
+            <button 
+              onClick={() => setIsNewClientModalOpen(true)}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-900/20"
+            >
+              + Nuevo
+            </button>
+          </div>
+
           <div className="space-y-2">
             {customers.map(c => (
               <button
@@ -210,6 +226,17 @@ export const CustomerCRM = () => {
           )}
         </div>
       </div>
+
+      {/* 👈 FORMULARIO OCULTO PARA CARGAR NUEVOS CLIENTES */}
+      <ClientFormModal 
+        isOpen={isNewClientModalOpen} 
+        onClose={() => setIsNewClientModalOpen(false)}
+        onSuccess={() => {
+          setIsNewClientModalOpen(false);
+          fetchCustomers(); // Actualiza la lista instantáneamente
+        }}
+      />
+
     </div>
   );
 };
