@@ -41,8 +41,8 @@ export interface ProductVariant {
   size_id: string;
   color_id: string;
   stock_quantity: number;
-  base_quantity: number;     // ✅ Agregado: Stock liso
-  finished_quantity: number; // ✅ Agregado: Stock procesado
+  base_quantity: number;     
+  finished_quantity: number; 
   products?: Product;
   sizes?: { name: string };
   colors?: { name: string };
@@ -63,7 +63,10 @@ interface CatalogState {
   fetchAllCatalogs: () => Promise<void>;
   updateProductComplete: (productId: string, updates: Partial<Product>) => Promise<void>;
   updateStock: (productId: string, sizeId: string, colorId: string, quantity: number) => Promise<void>;
-  transformToFinished: (variantId: string, quantityToTransform: number) => Promise<void>; // ✅ La función que faltaba
+  transformToFinished: (variantId: string, quantityToTransform: number) => Promise<void>; 
+  
+  // ✅ AGREGAMOS PROCESS SALE A LA INTERFAZ
+  processSale: (customerId: string, cart: any[], total: number) => Promise<void>;
   
   addService: (data: Omit<Service, 'id' | 'company_id'>) => Promise<Service>;
   addCustomer: (data: Omit<Customer, 'id' | 'balance' | 'company_id'>) => Promise<Customer>;
@@ -89,7 +92,6 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
   fetchAllCatalogs: async () => {
     set({ isLoading: true });
     
-    // 🏢 MULTI-TENANT: Obtenemos la empresa activa
     const companyId = useTenantStore.getState().activeCompanyId;
 
     try {
@@ -139,7 +141,6 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
       const { data: existing } = await supabase.from('product_variants').select('*').eq('product_id', productId).eq('size_id', sizeId).eq('color_id', colorId).single();
       
       if (existing) {
-        // ✅ Todo lo que ingresa entra como liso (base_quantity)
         const newTotal = existing.stock_quantity + quantity;
         const newBase = (existing.base_quantity || 0) + quantity;
         
@@ -153,7 +154,7 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
           size_id: sizeId, 
           color_id: colorId, 
           stock_quantity: quantity,
-          base_quantity: quantity // ✅ Si es la primera vez, el total es igual al base
+          base_quantity: quantity 
         }]);
       }
       await get().fetchAllCatalogs();
@@ -163,15 +164,9 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
     }
   },
 
-  // ✨ LA FUNCIÓN MÁGICA
   transformToFinished: async (variantId, quantityToTransform) => {
     try {
-      const { data: item, error: fetchError } = await supabase
-        .from('product_variants')
-        .select('*')
-        .eq('id', variantId)
-        .single();
-
+      const { data: item, error: fetchError } = await supabase.from('product_variants').select('*').eq('id', variantId).single();
       if (fetchError) throw fetchError;
 
       const baseActual = item.base_quantity || 0;
@@ -181,23 +176,37 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
         const newBase = baseActual - quantityToTransform;
         const newFinished = termActual + quantityToTransform;
 
-        const { error: updateError } = await supabase
-          .from('product_variants')
-          .update({
+        const { error: updateError } = await supabase.from('product_variants').update({
             base_quantity: newBase,
             finished_quantity: newFinished
-            // stock_quantity queda igual porque el total físico de la empresa es el mismo
-          })
-          .eq('id', variantId);
+          }).eq('id', variantId);
 
         if (updateError) throw updateError;
-        
         await get().fetchAllCatalogs();
       } else {
         throw new Error('No hay suficientes prendas lisas para esta operación.');
       }
     } catch (error) {
       console.error('Error al acondicionar:', error);
+      throw error;
+    }
+  },
+
+  // ✨ FUNCIÓN NUEVA Y LIMPIA: PROCESA LA VENTA DESCONTANDO SOLO EL STOCK FÍSICO
+  processSale: async (customerId, cart, total) => {
+    try {
+      for (const item of cart) {
+        const { data: variant } = await supabase.from('product_variants').select('finished_quantity').eq('id', item.variantId).single();
+        if (variant) {
+          await supabase.from('product_variants').update({ 
+            finished_quantity: variant.finished_quantity - item.qty 
+          }).eq('id', item.variantId);
+        }
+      }
+      // Refrescamos el catálogo para ver el stock real
+      await get().fetchAllCatalogs();
+    } catch (error) {
+      console.error('Error descontando stock en la venta:', error);
       throw error;
     }
   },
@@ -247,24 +256,24 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
     return data as CatalogItem;
   },
 
+  // ✨ CORREGIDO: AHORA GUARDA EN LA CUENTA CORRIENTE NUEVA
   registerPayment: async (customerId, amount, notes) => {
     try {
-      const type = amount < 0 ? 'DEBIT' : 'CREDIT';
+      const type = amount < 0 ? 'CARGO' : 'PAGO';
       const absAmount = Math.abs(amount);
-      const { error: txError } = await supabase.from('client_movements').insert([{ customer_id: customerId, type: type, amount: absAmount, description: notes }]);
+      
+      const { error: txError } = await supabase.from('account_movements').insert([{ 
+        customer_id: customerId, 
+        movement_type: type, 
+        amount: absAmount, 
+        description: notes 
+      }]);
+      
       if (txError) throw txError;
-      
-      const customer = get().customers.find(c => c.id === customerId);
-      const newBalance = type === 'DEBIT' ? (Number(customer?.balance || 0)) + absAmount : (Number(customer?.balance || 0)) - absAmount;
-      
-      const { error: custError } = await supabase.from('customers').update({ balance: newBalance }).eq('id', customerId);
-      if (custError) throw custError;
-      
       await get().fetchAllCatalogs();
     } catch (error: any) { 
-      console.error('Error Crítico:', error.message); 
+      console.error('Error registrando pago:', error.message); 
       throw error; 
     }
   }
-
 }));

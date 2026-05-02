@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { createColumnHelper, flexRender, getCoreRowModel, useReactTable, getSortedRowModel } from '@tanstack/react-table';
+import { supabase } from '../../../../lib/supabase'; // 🚀 CONEXIÓN A SUPABASE PARA LEER LOS NICHOS
 import Swal from 'sweetalert2';
 
 interface Variation {
@@ -22,6 +23,7 @@ interface ProductRow {
   displayColor: string;
   displayStock: number;
   variations?: Variation[];
+  niche_id?: string; // 🚀 AGREGAMOS EL CAMPO NICHO
 }
 
 interface ProductTableProps {
@@ -36,6 +38,18 @@ const ARS = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS',
 const columnHelper = createColumnHelper<ProductRow>();
 
 export const ProductTable = ({ data, onDelete, deleteVariation, onUpdateStock, onEditFullProduct }: ProductTableProps) => {
+  // 🚀 ESTADO PARA GUARDAR LOS NOMBRES DE LOS NICHOS
+  const [niches, setNiches] = useState<{id: string, name: string}[]>([]);
+
+  // 🚀 BUSCAMOS LOS NICHOS PARA TRADUCIR EL ID A TEXTO VISUAL
+  useEffect(() => {
+    const fetchNiches = async () => {
+      const { data } = await supabase.from('niches').select('id, name');
+      if (data) setNiches(data);
+    };
+    fetchNiches();
+  }, []);
+
   const flatData = useMemo(() => {
     const res: ProductRow[] = [];
     if (!data) return [];
@@ -56,12 +70,25 @@ export const ProductTable = ({ data, onDelete, deleteVariation, onUpdateStock, o
     }),
     columnHelper.accessor('name', { 
       header: 'Producto', 
-      cell: i => (
-        <div className="max-w-[200px]">
-          <p className="font-black text-sm uppercase dark:text-white truncate">{i.getValue()}</p>
-          <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">{i.row.original.category}</p>
-        </div>
-      )
+      cell: i => {
+        // 🚀 LÓGICA PARA ENCONTRAR Y MOSTRAR LA ETIQUETA DEL NICHO
+        const rowNicheId = i.row.original.niche_id;
+        const matchedNiche = niches.find(n => n.id === rowNicheId);
+        
+        return (
+          <div className="max-w-[250px]">
+            <p className="font-black text-sm uppercase dark:text-white truncate">{i.getValue()}</p>
+            <div className="flex items-center gap-2 mt-1">
+              {matchedNiche && (
+                <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-400 text-[8px] font-black uppercase tracking-widest rounded border border-indigo-200 dark:border-indigo-800">
+                  {matchedNiche.name}
+                </span>
+              )}
+              <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">{i.row.original.category}</p>
+            </div>
+          </div>
+        );
+      }
     }),
     columnHelper.accessor('displaySize', { 
       header: 'Talle', 
@@ -123,14 +150,14 @@ export const ProductTable = ({ data, onDelete, deleteVariation, onUpdateStock, o
         </div>
       )
     })
-  ], [onDelete, deleteVariation, onUpdateStock, onEditFullProduct]);
+  ], [onDelete, deleteVariation, onUpdateStock, onEditFullProduct, niches]); // 🚀 AGREGAMOS NICHES COMO DEPENDENCIA
 
   const table = useReactTable({ 
-  data: flatData, 
-  columns, 
-  getCoreRowModel: getCoreRowModel(), 
-  getSortedRowModel: getSortedRowModel() 
-});
+    data: flatData, 
+    columns, 
+    getCoreRowModel: getCoreRowModel(), 
+    getSortedRowModel: getSortedRowModel() 
+  });
 
   return (
     <div className="overflow-x-auto">

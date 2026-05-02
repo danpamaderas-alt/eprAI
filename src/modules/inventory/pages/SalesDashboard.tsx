@@ -3,6 +3,7 @@ import { useCatalogStore, type Product } from '../../../store/useCatalogStore';
 import { useCrmStore } from '../../crm/store/useCrmStore';
 import { useTreasuryStore } from '../treasury/store/useTreasuryStore';
 import { useDebtStore } from '../../crm/store/useDebtStore';
+import { supabase } from '../../../lib/supabase'; // 🚀 AGREGAMOS SUPABASE PARA CREAR EL TICKET
 import { Search, Trash2, User, X, CreditCard } from 'lucide-react';
 import Swal from 'sweetalert2';
 
@@ -19,11 +20,9 @@ interface CartItem {
 }
 
 // 🚀 OPTIMIZACIÓN 1: MEMOIZACIÓN DEL PRODUCTO
-// Esto evita que todos los productos se redibujen si solo estás buscando un cliente
 const ProductCard = memo(({ product, onAdd }: { product: Product, onAdd: (p: Product) => void }) => (
   <button 
     onClick={() => onAdd(product)}
-    // 🚀 OPTIMIZACIÓN 2: TRANSICIONES ESPECÍFICAS (NO 'all')
     className="group bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm p-4 rounded-3xl border border-slate-200 dark:border-slate-700 hover:border-blue-500 hover:shadow-xl transition-[border-color,box-shadow] flex flex-col items-start text-left"
   >
     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{product.sku || 'SIN SKU'}</span>
@@ -84,7 +83,7 @@ export const SalesDashboard = () => {
     const { value: res } = await Swal.fire({
       title: 'AGREGAR AL PEDIDO',
       width: '700px',
-      animation: false, // 🚀 OPTIMIZACIÓN 3: SIN ANIMACIÓN PESADA EN EL DOM
+      animation: false,
       html: `
         <style>
           .var-selected { background-color: #1e293b !important; border-color: #3b82f6 !important; box-shadow: 0 0 0 2px #3b82f6; }
@@ -168,7 +167,7 @@ export const SalesDashboard = () => {
 
     const confirm = await Swal.fire({
       title: '¿Confirmar Venta?',
-      text: `${paymentMethod === 'CTA_CTE' ? 'Se cargará una DEUDA de' : 'Total a cobrar:'} $${totals.total.toLocaleString('es-AR')}`,
+      text: `${paymentMethod === 'CTA_CTE' ? 'Se cargará un CARGO de' : 'Total a cobrar:'} $${totals.total.toLocaleString('es-AR')}`,
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#10b981',
@@ -177,16 +176,50 @@ export const SalesDashboard = () => {
 
     if (confirm.isConfirmed) {
       try {
+        // 1. DESCONTAMOS EL STOCK FÍSICO
         for (const item of cart) {
+          // Acá usamos tu función updateStock pero ojo, la cantidad va en negativo porque restamos
           await updateStock(item.product_id, item.size_id, item.color_id, -item.quantity);
         }
 
         const clienteObj = customers.find(c => c.id === selectedCustomerId);
-        const conceptSummary = `Venta: ${cart.map(i => `${i.quantity}x ${i.name}`).join(', ')}`;
+        const itemsText = cart.map(i => `${i.quantity}x ${i.name}`).join(', ');
+        const conceptSummary = `Venta POS: ${itemsText}`.substring(0, 150);
 
+        // 2. CREAMOS EL TICKET PARA EL HISTORIAL DE VENTAS
+        const { error: saleError } = await supabase.from('sales').insert([{
+          customer_id: selectedCustomerId || null,
+          total_amount: totals.total,
+          payment_method: paymentMethod,
+          items: cart,
+          status: paymentMethod === 'CTA_CTE' ? 'DEUDA' : 'COBRADO' 
+        }]);
+
+        if (saleError) console.error("Error guardando ticket:", saleError);
+
+        // 3. INYECCIÓN DIRECTA A LA CUENTA CORRIENTE (LA TABLA NUEVA) 🚀
         if (paymentMethod === 'CTA_CTE') {
-          await addDebt(selectedCustomerId!, totals.total, conceptSummary);
+          
+          const { error: movementError } = await supabase.from('account_movements').insert([{
+            customer_id: selectedCustomerId,
+            amount: totals.total, 
+            movement_type: 'CARGO', // Usamos el formato nuevo 'CARGO'
+            description: conceptSummary
+            // Le sacamos el status: 'PENDIENTE' porque la tabla nueva no lo necesita
+          }]);
+
+          if (movementError) throw new Error("Fallo al insertar movimiento: " + movementError.message);
+
+          // También actualizamos el balance rápido del CRM para que se vea reflejado en la agenda
+          const currentBalance = Number(clienteObj?.balance) || 0; 
+          const { error: balanceError } = await supabase.from('customers')
+            .update({ balance: currentBalance + totals.total }) 
+            .eq('id', selectedCustomerId);
+
+          if (balanceError) throw new Error("Fallo al actualizar el saldo del cliente: " + balanceError.message);
+
         } else {
+          // Tesorería
           await addTransaction({
             date: new Date().toISOString(),
             description: `VENTA: ${clienteObj?.name || 'Consumidor Final'} (${conceptSummary})`,
@@ -199,17 +232,23 @@ export const SalesDashboard = () => {
           });
         }
 
-        Swal.fire({ title: '¡Venta Exitosa!', text: paymentMethod === 'CTA_CTE' ? 'La deuda ha sido cargada al cliente.' : 'La caja ha sido actualizada.', icon: 'success', animation: false });
+        Swal.fire({ 
+          title: '¡Venta Exitosa!', 
+          text: paymentMethod === 'CTA_CTE' ? 'El CARGO se inyectó correctamente en la Cta. Corriente.' : 'La caja ha sido actualizada.', 
+          icon: 'success', 
+          animation: false 
+        });
+        
         setCart([]); setSelectedCustomerId(null); setClientSearch(''); setPaymentMethod(null);
         fetchAllCatalogs(); 
       } catch (err: any) {
-        Swal.fire({ title: 'Error', text: 'No se pudo procesar la venta: ' + (err.message || 'Error desconocido'), icon: 'error', animation: false });
+        Swal.fire({ title: 'Error Crítico', text: err.message, icon: 'error', animation: false });
       }
     }
   };
 
   return (
-    <div className="flex h-screen gap-6 overflow-hidden bg-slate-50/20 p-4">
+    <div className="flex h-screen gap-6 overflow-hidden bg-slate-50/20 p-4 animate-in fade-in duration-500">
       <div className="flex flex-1 flex-col space-y-4 overflow-hidden">
         <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md p-4 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm">
           <div className="relative">

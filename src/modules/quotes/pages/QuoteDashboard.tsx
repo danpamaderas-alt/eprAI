@@ -1,186 +1,297 @@
-import React, { useEffect, useState } from 'react';
-import { useQuoteStore, type QuoteItem } from '../store/useQuoteStore';
+import { useState, useEffect } from 'react';
+import { supabase } from '../../../lib/supabase';
 import Swal from 'sweetalert2';
+import { useCatalogStore, type Product } from '../../../store/useCatalogStore';
+import { generateQuotePDF } from '../../../utils/printQuotePDF';
+
+// Interfaces
+interface Client {
+  id: string;
+  name: string;
+  cuit?: string; 
+}
+
+interface QuoteItemForm {
+  product_id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+}
 
 export const QuoteDashboard = () => {
-  const { quotes, isLoading, fetchQuotes, addQuote, updateStatus, deleteQuote } = useQuoteStore();
+  const { products, fetchAllCatalogs } = useCatalogStore();
+  const [clients, setClients] = useState<Client[]>([]);
+  const [quotes, setQuotes] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Estados del Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState('');
+  const [quoteNotes, setQuoteNotes] = useState('');
   
-  // Estado del formulario de nuevo presupuesto
-  const [customerName, setCustomerName] = useState('');
-  const [customerContact, setCustomerContact] = useState('');
-  const [items, setItems] = useState<QuoteItem[]>([{ description: '', quantity: 1, unit_price: 0 }]);
+  // Lista de renglones del presupuesto
+  const [quoteItems, setQuoteItems] = useState<QuoteItemForm[]>([
+    { product_id: '', description: '', quantity: 1, unit_price: 0 }
+  ]);
 
-  useEffect(() => { fetchQuotes(); }, [fetchQuotes]);
+  useEffect(() => {
+    fetchAllCatalogs();
+    fetchData();
+  }, []);
 
-  const handleAddItem = () => setItems([...items, { description: '', quantity: 1, unit_price: 0 }]);
-  const handleRemoveItem = (index: number) => setItems(items.filter((_, i) => i !== index));
-  const handleItemChange = (index: number, field: keyof QuoteItem, value: string | number) => {
-    const newItems = [...items];
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      // 1. Cargamos los clientes para el buscador
+      const { data: clientsData, error: clientsError } = await supabase
+        .from('customers')
+        .select('*')
+        .order('name');
+        
+      if (clientsError) throw clientsError;
+      setClients(clientsData || []);
+
+      // 2. Traemos presupuestos vinculando con la tabla customers
+      const { data: quotesData, error: quotesError } = await supabase
+        .from('quotes')
+        .select('*, customers(name)')
+        .order('created_at', { ascending: false });
+        
+      if (quotesError) throw quotesError;
+      setQuotes(quotesData || []);
+      
+    } catch (error: any) {
+      console.error("Error detectado:", error);
+      Swal.fire('Error de Conexión', `No pudimos cargar los datos: ${error.message}`, 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // --- LÓGICA DE FILAS ---
+  const addItemRow = () => {
+    setQuoteItems([...quoteItems, { product_id: '', description: '', quantity: 1, unit_price: 0 }]);
+  };
+
+  const removeItemRow = (index: number) => {
+    setQuoteItems(quoteItems.filter((_, i) => i !== index));
+  };
+
+  const updateItemRow = (index: number, field: keyof QuoteItemForm, value: any) => {
+    const newItems = [...quoteItems];
     newItems[index] = { ...newItems[index], [field]: value };
-    setItems(newItems);
+
+    if (field === 'product_id') {
+      const selectedProduct = products.find(p => p.id === value);
+      if (selectedProduct) {
+        newItems[index].unit_price = selectedProduct.price || 0;
+        newItems[index].description = selectedProduct.name || '';
+      }
+    }
+    setQuoteItems(newItems);
   };
 
-  const totalAmount = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+  const calculateTotal = () => {
+    return quoteItems.reduce((acc, item) => acc + (item.quantity * item.unit_price), 0);
+  };
 
-  const handleSubmit = async () => {
-    if (!customerName || items.some(i => !i.description || i.unit_price <= 0)) {
-      Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Completá todos los campos y precios', showConfirmButton: false, timer: 2000 });
-      return;
+  // --- PDF ---
+  const handleDownloadPDF = async (quote: any) => {
+    try {
+      const { data: items, error } = await supabase.from('quote_items').select('*').eq('quote_id', quote.id);
+      if (error) throw error;
+      
+      const quoteForPdf = {
+        ...quote,
+        clients: { name: quote.customers?.name, document_id: '' } 
+      };
+
+      generateQuotePDF(quoteForPdf, items || []);
+    } catch (error) {
+      Swal.fire('Error', 'No se pudo generar el PDF.', 'error');
     }
+  };
 
-    const validUntil = new Date();
-    validUntil.setDate(validUntil.getDate() + 15); // Validez de 15 días por defecto
+  // --- GUARDAR PRESUPUESTO ---
+  const handleSaveQuote = async () => {
+    if (!selectedClient) return Swal.fire('Atención', 'Debes seleccionar un cliente.', 'warning');
+    if (quoteItems.some(i => !i.product_id)) return Swal.fire('Atención', 'Todos los renglones deben tener un producto.', 'warning');
 
-    const success = await addQuote({
-      customer_name: customerName,
-      customer_contact: customerContact,
-      items,
-      total_amount: totalAmount,
-      status: 'BORRADOR',
-      valid_until: validUntil.toISOString().split('T')[0]
-    });
+    try {
+      const quoteNumber = `PRE-${String(quotes.length + 1).padStart(3, '0')}`;
+      const totalAmount = calculateTotal();
 
-    if (success) {
+      // Inserción en la tabla quotes usando customer_id
+      const { data: newQuote, error: quoteError } = await supabase.from('quotes').insert([{
+        customer_id: selectedClient,
+        quote_number: quoteNumber,
+        total: totalAmount,
+        notes: quoteNotes,
+        status: 'ENVIADO'
+      }]).select().single();
+
+      if (quoteError) throw quoteError;
+
+      const itemsToInsert = quoteItems.map(item => ({
+        quote_id: newQuote.id,
+        product_id: item.product_id,
+        description: item.description,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        subtotal: item.quantity * item.unit_price
+      }));
+
+      const { error: itemsError } = await supabase.from('quote_items').insert(itemsToInsert);
+      if (itemsError) throw itemsError;
+
+      Swal.fire({ toast: true, icon: 'success', title: 'Presupuesto Generado', position: 'top-end', showConfirmButton: false, timer: 1500 });
       setIsModalOpen(false);
-      setCustomerName(''); setCustomerContact(''); setItems([{ description: '', quantity: 1, unit_price: 0 }]);
-      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Presupuesto creado', showConfirmButton: false, timer: 1500, customClass: { popup: '!bg-slate-900 !text-white' } });
-    }
-  };
+      
+      setSelectedClient('');
+      setQuoteNotes('');
+      setQuoteItems([{ product_id: '', description: '', quantity: 1, unit_price: 0 }]);
+      fetchData();
 
-  // Colores según el estado
-  const statusColors: Record<string, string> = {
-    'BORRADOR': 'bg-slate-800 text-slate-300',
-    'ENVIADO': 'bg-blue-500/20 text-blue-400 border border-blue-500/30',
-    'APROBADO': 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.2)]',
-    'RECHAZADO': 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+    } catch (error: any) {
+      Swal.fire('Error', `No se pudo guardar: ${error.message}`, 'error');
+    }
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto animate-in fade-in duration-500 space-y-8">
+    <div className="space-y-6 animate-in fade-in duration-500">
       
-      <header className="flex justify-between items-center bg-slate-900 border border-slate-800 p-8 rounded-[2rem] shadow-xl">
+      <header className="flex justify-between items-end gap-4">
         <div>
-          <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">📄 Cotizador <span className="text-indigo-500">B2B</span></h1>
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-2">Propuestas comerciales e institucionales.</p>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Cotizador de Ventas</h1>
+          <p className="text-sm font-bold text-slate-500 uppercase">Presupuestos para Empresas e Instituciones</p>
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all">
-          + Nuevo Presupuesto
+        <button onClick={() => setIsModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-black uppercase text-xs shadow-lg active:scale-95 transition-all">
+          + Generar Presupuesto
         </button>
       </header>
 
-      {/* LISTA DE PRESUPUESTOS */}
-      {isLoading ? (
-         <div className="p-8 text-center text-slate-400 font-black animate-pulse uppercase">Cargando propuestas...</div>
-      ) : quotes.length === 0 ? (
-         <div className="p-12 text-center border-2 border-dashed border-slate-800 rounded-[2rem] text-slate-500 font-bold uppercase tracking-widest">No hay presupuestos activos.</div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {quotes.map(quote => (
-            <div key={quote.id} className="bg-slate-900 border border-slate-800 rounded-[2rem] p-6 shadow-xl relative overflow-hidden group">
-              
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h3 className="text-lg font-black text-white uppercase tracking-tighter">{quote.customer_name}</h3>
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{quote.customer_contact || 'Sin contacto'}</p>
-                </div>
-                <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg ${statusColors[quote.status]}`}>
-                  {quote.status}
-                </span>
+      {/* TABLA DE HISTORIAL */}
+      <div className="bg-white dark:bg-slate-800 rounded-3xl border dark:border-slate-700 shadow-xl overflow-hidden">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="bg-slate-50 dark:bg-slate-900/50 text-[10px] font-black uppercase text-slate-500 border-b dark:border-slate-700">
+              <th className="p-5">Número / Fecha</th>
+              <th className="p-5">Cliente</th>
+              <th className="p-5 text-center">Estado</th>
+              <th className="p-5 text-right">Total</th>
+              <th className="p-5 text-center">Acciones</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y dark:divide-slate-700">
+            {quotes.length === 0 ? (
+              <tr><td colSpan={5} className="p-8 text-center text-sm font-bold text-slate-400">Sin presupuestos registrados.</td></tr>
+            ) : (
+              quotes.map(q => (
+                <tr key={q.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all">
+                  <td className="p-5">
+                    <span className="font-black text-sm dark:text-white block">{q.quote_number}</span>
+                    <span className="text-[10px] font-bold text-slate-400">{new Date(q.created_at).toLocaleDateString('es-AR')}</span>
+                  </td>
+                  <td className="p-5 font-bold text-sm dark:text-slate-300 uppercase">{q.customers?.name}</td>
+                  <td className="p-5 text-center">
+                    <span className="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-black uppercase rounded-lg">
+                      {q.status}
+                    </span>
+                  </td>
+                  <td className="p-5 text-right font-black text-emerald-600 dark:text-emerald-400">
+                    ${q.total.toLocaleString('es-AR')}
+                  </td>
+                  <td className="p-5 text-center">
+                    <button 
+                      onClick={() => handleDownloadPDF(q)}
+                      className="px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-600 hover:text-white text-indigo-600 dark:text-indigo-400 text-[10px] font-black rounded-lg uppercase shadow-sm transition-all"
+                    >
+                      Bajar PDF 📄
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* MODAL NUEVO PRESUPUESTO */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-4xl border dark:border-slate-700 overflow-hidden max-h-[90vh] flex flex-col">
+            
+            <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
+              <h2 className="font-black dark:text-white uppercase tracking-tighter text-xl">📄 Nuevo Presupuesto</h2>
+              <button onClick={() => setIsModalOpen(false)} className="dark:text-white text-xl">✕</button>
+            </div>
+
+            <div className="p-8 space-y-6 overflow-y-auto flex-1">
+              <div className="bg-indigo-50 dark:bg-indigo-900/10 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
+                <label className="text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-400 mb-2 block tracking-widest">Cliente</label>
+                <select value={selectedClient} onChange={e => setSelectedClient(e.target.value)} className="w-full p-3 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-slate-700 rounded-xl text-sm font-bold dark:text-white outline-none focus:border-indigo-500">
+                  <option value="">-- Seleccionar cliente del CRM --</option>
+                  {clients.map(c => <option key={c.id} value={c.id}>{c.name} {c.cuit ? `(CUIT: ${c.cuit})` : ''}</option>)}
+                </select>
               </div>
 
-              <div className="space-y-2 mb-6">
-                {quote.items.slice(0, 3).map((item, i) => (
-                  <div key={i} className="flex justify-between items-center text-[11px] font-bold text-slate-400 bg-slate-950 px-3 py-2 rounded-xl">
-                    <span className="truncate pr-2">{item.quantity}x {item.description}</span>
-                    <span className="text-slate-300">${(item.quantity * item.unit_price).toLocaleString()}</span>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center border-b dark:border-slate-700 pb-2">
+                  <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest">Artículos del Catálogo</h3>
+                  <button onClick={addItemRow} className="text-[10px] bg-slate-900 dark:bg-slate-700 text-white px-3 py-1.5 rounded-lg uppercase font-black">+ Agregar Fila</button>
+                </div>
+
+                {quoteItems.map((item, index) => (
+                  <div key={index} className="flex flex-col md:flex-row gap-3 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border dark:border-slate-700 animate-in slide-in-from-top-1 items-start md:items-center">
+                    <div className="w-full md:w-1/3">
+                      <select value={item.product_id} onChange={e => updateItemRow(index, 'product_id', e.target.value)} className="w-full p-2.5 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded-lg text-xs font-bold dark:text-white outline-none">
+                        <option value="">-- Producto --</option>
+                        {products.map(p => <option key={p.id} value={p.id}>{p.sku} | {p.name}</option>)}
+                      </select>
+                    </div>
+                    <div className="w-full md:w-1/3">
+                      <input type="text" placeholder="Descripción adicional" value={item.description} onChange={e => updateItemRow(index, 'description', e.target.value)} className="w-full p-2.5 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded-lg text-xs font-medium dark:text-white outline-none" />
+                    </div>
+                    <div className="w-full md:w-24">
+                      <input type="number" min="1" value={item.quantity} onChange={e => updateItemRow(index, 'quantity', Number(e.target.value))} className="w-full p-2.5 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded-lg text-xs font-black text-center dark:text-white outline-none" />
+                    </div>
+                    <div className="w-full md:w-32">
+                      <input type="number" value={item.unit_price} onChange={e => updateItemRow(index, 'unit_price', Number(e.target.value))} className="w-full p-2.5 bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800 rounded-lg text-xs font-black text-emerald-600 dark:text-emerald-400 outline-none" />
+                    </div>
+                    <div className="w-full md:w-32 text-right">
+                      <span className="text-sm font-black text-slate-800 dark:text-white">${(item.quantity * item.unit_price).toLocaleString('es-AR')}</span>
+                    </div>
+                    {quoteItems.length > 1 && (
+                      <button onClick={() => removeItemRow(index)} className="text-rose-500 px-2">✕</button>
+                    )}
                   </div>
                 ))}
-                {quote.items.length > 3 && <p className="text-[10px] text-slate-500 text-center font-black mt-2">+ {quote.items.length - 3} ítems más</p>}
               </div>
 
-              <div className="flex justify-between items-end pt-4 border-t border-slate-800 mb-6">
-                <div>
-                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Cotizado</p>
-                  <p className="text-2xl font-black text-white tracking-tighter">${Number(quote.total_amount).toLocaleString()}</p>
+              <div className="flex flex-col md:flex-row justify-between items-start pt-6 border-t dark:border-slate-700 gap-6">
+                <div className="w-full md:w-1/2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">Observaciones</label>
+                  <textarea placeholder="Validez del precio, tiempos de entrega, etc." value={quoteNotes} onChange={e => setQuoteNotes(e.target.value)} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-xl dark:text-white font-medium resize-none" rows={3} />
                 </div>
-                <div className="text-right">
-                   <p className="text-[8px] font-bold text-slate-500 uppercase">Válido hasta</p>
-                   <p className="text-[10px] font-black text-indigo-400">{new Date(quote.valid_until || '').toLocaleDateString('es-AR')}</p>
-                </div>
-              </div>
-
-              {/* CONTROLES DE ESTADO */}
-              <div className="grid grid-cols-4 gap-2 border-t border-slate-800 pt-4">
-                <button onClick={() => updateStatus(quote.id, 'ENVIADO')} title="Marcar como Enviado" className="p-2 bg-slate-950 hover:bg-blue-600 text-slate-400 hover:text-white rounded-xl transition-colors flex justify-center">📤</button>
-                <button onClick={() => updateStatus(quote.id, 'APROBADO')} title="Marcar Aprobado" className="p-2 bg-slate-950 hover:bg-emerald-600 text-slate-400 hover:text-white rounded-xl transition-colors flex justify-center">✅</button>
-                <button onClick={() => updateStatus(quote.id, 'RECHAZADO')} title="Marcar Rechazado" className="p-2 bg-slate-950 hover:bg-rose-600 text-slate-400 hover:text-white rounded-xl transition-colors flex justify-center">❌</button>
-                <button onClick={() => deleteQuote(quote.id)} title="Borrar" className="p-2 bg-slate-950 hover:bg-red-900 text-slate-600 hover:text-white rounded-xl transition-colors flex justify-center">🗑️</button>
-              </div>
-
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* MODAL CREADOR DE PRESUPUESTOS (NATIVO, SIN ALERTAS FEAS) */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
-          <div className="bg-slate-900 w-full max-w-3xl rounded-[2.5rem] border border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            
-            <div className="p-8 border-b border-slate-800 flex justify-between items-center bg-slate-900">
-              <h2 className="text-2xl font-black italic uppercase text-white tracking-tighter">Armar Cotización</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-500 hover:text-rose-500 font-black text-xl">✕</button>
-            </div>
-
-            <div className="p-8 overflow-y-auto flex-1 space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Cliente / Institución</label>
-                  <input type="text" value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="w-full mt-2 bg-slate-950 border border-slate-800 text-white px-4 py-3 rounded-2xl font-bold focus:border-indigo-500 outline-none" placeholder="Ej: Registro Provincial" />
-                </div>
-                <div>
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-2">Contacto / Teléfono (Opcional)</label>
-                  <input type="text" value={customerContact} onChange={(e) => setCustomerContact(e.target.value)} className="w-full mt-2 bg-slate-950 border border-slate-800 text-white px-4 py-3 rounded-2xl font-bold focus:border-indigo-500 outline-none" placeholder="Ej: Juan Perez - 221..." />
-                </div>
-              </div>
-
-              <div className="bg-slate-950 p-6 rounded-[2rem] border border-slate-800">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Ítems a Cotizar</h3>
-                  <button onClick={handleAddItem} className="text-[10px] bg-slate-800 hover:bg-slate-700 text-white font-black px-4 py-2 rounded-xl uppercase tracking-widest transition-colors">+ Fila</button>
-                </div>
-                
-                <div className="space-y-3">
-                  {items.map((item, index) => (
-                    <div key={index} className="flex gap-3 items-center">
-                      <input type="text" value={item.description} onChange={(e) => handleItemChange(index, 'description', e.target.value)} placeholder="Descripción del producto..." className="flex-1 bg-slate-900 border border-slate-800 text-white px-4 py-3 rounded-xl font-bold text-sm focus:border-indigo-500 outline-none" />
-                      <input type="number" min="1" value={item.quantity} onChange={(e) => handleItemChange(index, 'quantity', Number(e.target.value))} placeholder="Cant." className="w-24 bg-slate-900 border border-slate-800 text-white px-4 py-3 rounded-xl font-black text-sm text-center focus:border-indigo-500 outline-none" />
-                      <div className="relative w-36">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-black">$</span>
-                        <input type="number" value={item.unit_price} onChange={(e) => handleItemChange(index, 'unit_price', Number(e.target.value))} placeholder="Precio U." className="w-full bg-slate-900 border border-slate-800 text-white pl-8 pr-4 py-3 rounded-xl font-black text-sm focus:border-indigo-500 outline-none" />
-                      </div>
-                      <button onClick={() => handleRemoveItem(index)} className="w-12 h-12 flex items-center justify-center bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl transition-colors font-black">✕</button>
-                    </div>
-                  ))}
+                <div className="w-full md:w-1/3 bg-slate-50 dark:bg-slate-900 p-6 rounded-2xl border dark:border-slate-700 text-right">
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total</p>
+                  <p className="text-3xl font-black text-emerald-600 dark:text-emerald-400">
+                    ${calculateTotal().toLocaleString('es-AR')}
+                  </p>
                 </div>
               </div>
             </div>
 
-            <div className="p-8 border-t border-slate-800 bg-slate-900 flex justify-between items-center">
-              <div>
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Presupuestado</p>
-                <p className="text-4xl font-black text-indigo-400 tracking-tighter">${totalAmount.toLocaleString()}</p>
-              </div>
-              <button onClick={handleSubmit} className="bg-indigo-600 hover:bg-indigo-500 text-white px-10 py-5 rounded-2xl font-black uppercase text-sm tracking-widest shadow-xl shadow-indigo-500/20 active:scale-95 transition-all">
-                Guardar Presupuesto
+            <div className="p-6 bg-slate-50 dark:bg-slate-900/50 border-t dark:border-slate-700 flex justify-end gap-3">
+              <button onClick={() => setIsModalOpen(false)} className="uppercase text-[10px] font-black text-slate-400 px-4 hover:text-slate-600">Cancelar</button>
+              <button onClick={handleSaveQuote} className="bg-indigo-600 hover:bg-indigo-700 text-white px-10 py-3 rounded-2xl font-black uppercase text-xs shadow-lg active:scale-95 transition-all">
+                Guardar y Emitir Presupuesto 🚀
               </button>
             </div>
 
           </div>
         </div>
       )}
-
     </div>
   );
 };
