@@ -197,17 +197,6 @@ export const SalesDashboard = () => {
 
         if (saleError) console.error("Error guardando ticket:", saleError);
 
-<<<<<<< HEAD
-        // 3. INYECCIÓN DIRECTA (AHORA SÍ CON LA COLUMNA 'BALANCE')
-        if (paymentMethod === 'CTA_CTE') {
-          
-          const { error: movementError } = await supabase.from('client_movements').insert([{
-            customer_id: selectedCustomerId,
-            amount: totals.total, 
-            type: 'CARGO',
-            description: conceptSummary,
-            status: 'PENDIENTE'    
-=======
         // 3. INYECCIÓN DIRECTA A LA CUENTA CORRIENTE (LA TABLA NUEVA) 🚀
         if (paymentMethod === 'CTA_CTE') {
           
@@ -217,16 +206,11 @@ export const SalesDashboard = () => {
             movement_type: 'CARGO', // Usamos el formato nuevo 'CARGO'
             description: conceptSummary
             // Le sacamos el status: 'PENDIENTE' porque la tabla nueva no lo necesita
->>>>>>> 074298303a43c4b7ef95d4be2ebaf1f67b5476d2
           }]);
 
           if (movementError) throw new Error("Fallo al insertar movimiento: " + movementError.message);
 
-<<<<<<< HEAD
-          // 🚀 EL ARREGLO ESTÁ ACÁ: Volvemos a usar 'balance'
-=======
           // También actualizamos el balance rápido del CRM para que se vea reflejado en la agenda
->>>>>>> 074298303a43c4b7ef95d4be2ebaf1f67b5476d2
           const currentBalance = Number(clienteObj?.balance) || 0; 
           const { error: balanceError } = await supabase.from('customers')
             .update({ balance: currentBalance + totals.total }) 

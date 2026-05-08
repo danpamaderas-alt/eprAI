@@ -115,74 +115,16 @@ export const InventoryDashboard = () => {
   };
 
   const handleSave = async () => {
-<<<<<<< HEAD
-    if (!editForm.name) {
-      Swal.fire('Falta información', 'El Nombre del artículo es obligatorio.', 'warning');
-      return;
-    }
-
-    try {
-      let productId = editForm.id;
-      
-      // 1. Guardamos o actualizamos la cabecera del producto
-      if (modalMode === 'create') {
-        const newProd = await addProduct(editForm as Omit<Product, 'id'>);
-        if (!newProd || !newProd.id) throw new Error("Error al generar el producto.");
-=======
     if (!editForm.name) return;
     try {
       let productId = editForm.id;
       if (modalMode === 'create') {
         const newProd = await addProduct(editForm as Omit<Product, 'id'>);
->>>>>>> 074298303a43c4b7ef95d4be2ebaf1f67b5476d2
         productId = newProd.id;
       } else {
         await updateProductComplete(productId!, editForm);
       }
 
-<<<<<<< HEAD
-      // --- 2. LA MAGIA: Lógica Inteligente para Variantes ---
-      for (const v of quickVariants) {
-        if (v.sizeId && v.colorId) {
-          const qtyToSave = Number(v.qty) || 0;
-          
-          // A) Buscamos si este Talle+Color ya existe para este producto
-          const { data: existingVariant } = await supabase
-            .from('product_variants')
-            .select('id')
-            .eq('product_id', productId)
-            .eq('size_id', v.sizeId)
-            .eq('color_id', v.colorId)
-            .single();
-
-          if (existingVariant) {
-            // B) Si YA EXISTE, usamos tu función original para sumar/restar la diferencia
-            const delta = qtyToSave - (v.originalQty || 0);
-            if (delta !== 0) await updateStock(productId!, v.sizeId, v.colorId, delta);
-          } else if (qtyToSave > 0) {
-            // C) Si NO EXISTE, creamos el "cajón" nuevo en la base de datos directamente
-            await supabase
-              .from('product_variants')
-              .insert([{
-                product_id: productId,
-                size_id: v.sizeId,
-                color_id: v.colorId,
-                stock_quantity: qtyToSave,
-                base_quantity: qtyToSave // Lo cargamos en base también para que puedas "acondicionar" después
-              }]);
-          }
-        }
-      }
-
-      setIsModalOpen(false);
-      fetchAllCatalogs(); // Refrescamos todo para que la tabla reaccione
-      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: '¡Guardado perfecto!', showConfirmButton: false, timer: 1500 });
-      
-    } catch (e: any) {
-      console.error("🔥 Error detectado:", e);
-      Swal.fire('Error de guardado', e.message || 'Mirá la consola F12 para ver el detalle.', 'error');
-    }
-=======
       for (const v of quickVariants) {
         if (v.sizeId && v.colorId) {
           const delta = (Number(v.qty) || 0) - (v.originalQty || 0);
@@ -193,7 +135,6 @@ export const InventoryDashboard = () => {
       fetchAllCatalogs();
       Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Cambios guardados', showConfirmButton: false, timer: 1500 });
     } catch (e) { Swal.fire('Error', 'Error al guardar', 'error'); }
->>>>>>> 074298303a43c4b7ef95d4be2ebaf1f67b5476d2
   };
 
   // --- FUNCIONES ORIGINALES RESTAURADAS ---
@@ -235,29 +176,10 @@ export const InventoryDashboard = () => {
         </div>
         <div className="flex gap-3">
           <button onClick={handleOpenReportConfig} className="bg-white dark:bg-slate-800 border dark:border-slate-700 dark:text-white px-5 py-3 rounded-2xl font-black text-xs uppercase shadow-sm">🖨️ Reporte</button>
-<<<<<<< HEAD
-          
-          {/* BOTÓN AGREGAR NICHO */}
-          <button onClick={handleAddNiche} className="bg-slate-100 dark:bg-slate-700 dark:text-white px-5 py-3 rounded-2xl font-black text-xs uppercase border dark:border-slate-600 shadow-sm">+ Nicho</button>
-          
-=======
->>>>>>> 074298303a43c4b7ef95d4be2ebaf1f67b5476d2
           <button onClick={openCreateModal} className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-black uppercase text-xs shadow-lg active:scale-95 transition-all">Nuevo Artículo +</button>
         </div>
       </header>
 
-<<<<<<< HEAD
-      {/* FILTROS */}
-      <div className="bg-white dark:bg-slate-800 p-4 rounded-3xl border dark:border-slate-700 shadow-sm flex gap-4">
-        <input type="text" placeholder="🔍 Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="flex-1 p-3 bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-xl text-sm font-bold dark:text-white outline-none" />
-        <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="p-3 bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-xl text-xs font-black uppercase dark:text-white focus:outline-none">
-          <option value="" className="bg-white text-black dark:bg-slate-800 dark:text-white">Categorías</option>
-          {allCategories.map(c => <option key={c} value={c} className="bg-white text-black dark:bg-slate-800 dark:text-white">{c}</option>)}
-        </select>
-      </div>
-
-      {/* TABLA MATRIZ DE STOCK */}
-=======
       {/* FILTROS (Original) */}
       <div className="bg-white dark:bg-slate-800 p-4 rounded-3xl border dark:border-slate-700 shadow-sm flex gap-4">
         <input type="text" placeholder="🔍 Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="flex-1 p-3 bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-xl text-sm font-bold dark:text-white outline-none" />
@@ -268,7 +190,6 @@ export const InventoryDashboard = () => {
       </div>
 
       {/* TABLA CON MATRIZ DE STOCK (Nueva Función) */}
->>>>>>> 074298303a43c4b7ef95d4be2ebaf1f67b5476d2
       <div className="bg-white dark:bg-slate-800 rounded-3xl border dark:border-slate-700 shadow-xl overflow-hidden">
         <table className="w-full text-left">
           <thead>
@@ -330,11 +251,7 @@ export const InventoryDashboard = () => {
         </table>
       </div>
 
-<<<<<<< HEAD
-      {/* MODAL INTEGRADO */}
-=======
       {/* MODAL INTEGRADO (Original + Nuevas Funciones) */}
->>>>>>> 074298303a43c4b7ef95d4be2ebaf1f67b5476d2
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
           <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-2xl border dark:border-slate-700 overflow-hidden max-h-[90vh] overflow-y-auto">
@@ -344,20 +261,10 @@ export const InventoryDashboard = () => {
             </div>
             <div className="p-8 space-y-6">
               <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
-<<<<<<< HEAD
-                <div className="flex justify-between items-center mb-2">
-                  <label className="text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-400 block tracking-widest">Nicho (Holding)</label>
-                  <button onClick={handleAddNiche} className="text-[9px] font-black text-indigo-500 uppercase">+ Crear Nuevo</button>
-                </div>
-                <select value={editForm.niche_id || ''} onChange={e => setEditForm({...editForm, niche_id: e.target.value})} className="w-full p-3 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-slate-700 rounded-xl text-sm font-bold dark:text-white outline-none focus:outline-none">
-                  <option value="" className="bg-white text-black dark:bg-slate-800 dark:text-white">-- Seleccionar --</option>
-                  {niches.map(n => <option key={n.id} value={n.id} className="bg-white text-black dark:bg-slate-800 dark:text-white">{n.name}</option>)}
-=======
                 <label className="text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-400 block mb-2 tracking-widest">Nicho (Holding)</label>
                 <select value={editForm.niche_id || ''} onChange={e => setEditForm({...editForm, niche_id: e.target.value})} className="w-full p-3 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-slate-700 rounded-xl text-sm font-bold dark:text-white outline-none">
                   <option value="">-- Seleccionar --</option>
                   {niches.map(n => <option key={n.id} value={n.id}>{n.name}</option>)}
->>>>>>> 074298303a43c4b7ef95d4be2ebaf1f67b5476d2
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -371,39 +278,19 @@ export const InventoryDashboard = () => {
                 <input type="number" placeholder="Costo ($)" value={editForm.cost_price || ''} onChange={e => setEditForm({...editForm, cost_price: Number(e.target.value)})} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-xl dark:text-rose-500 font-bold" />
                 <input type="number" placeholder="Precio ($)" value={editForm.price || ''} onChange={e => setEditForm({...editForm, price: Number(e.target.value)})} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-xl dark:text-emerald-500 font-bold" />
               </div>
-<<<<<<< HEAD
-              
-=======
->>>>>>> 074298303a43c4b7ef95d4be2ebaf1f67b5476d2
               <div className="bg-blue-50/50 dark:bg-blue-900/10 p-5 rounded-2xl space-y-4 border dark:border-slate-700 shadow-inner">
                 <div className="flex justify-between items-center"><span className="text-[10px] font-black uppercase text-blue-600 tracking-widest">Variantes y Cantidades</span><button onClick={() => setQuickVariants([...quickVariants, {sizeId: '', colorId: '', qty: ''}])} className="text-[9px] bg-blue-600 text-white px-3 py-1.5 rounded-lg uppercase font-black shadow-md">+ Añadir Fila</button></div>
                 <div className="space-y-2">
                   {quickVariants.map((v, i) => (
-<<<<<<< HEAD
-                    <div key={i} className="flex gap-2 bg-white dark:bg-slate-900 p-3 rounded-xl border dark:border-slate-700 shadow-sm">
-                      <select value={v.sizeId} onChange={e => { const n = [...quickVariants]; n[i].sizeId = e.target.value; setQuickVariants(n); }} className="flex-1 bg-transparent text-[11px] font-bold dark:text-white uppercase focus:outline-none">
-                        <option value="" className="bg-white text-black dark:bg-slate-800 dark:text-white">Talle</option>
-                        {sizes.map(s => <option key={s.id} value={s.id} className="bg-white text-black dark:bg-slate-800 dark:text-white">{s.name}</option>)}
-                      </select>
-                      <select value={v.colorId} onChange={e => { const n = [...quickVariants]; n[i].colorId = e.target.value; setQuickVariants(n); }} className="flex-1 bg-transparent text-[11px] font-bold dark:text-white uppercase focus:outline-none">
-                        <option value="" className="bg-white text-black dark:bg-slate-800 dark:text-white">Color</option>
-                        {colors.map(c => <option key={c.id} value={c.id} className="bg-white text-black dark:bg-slate-800 dark:text-white">{c.name}</option>)}
-                      </select>
-=======
                     <div key={i} className="flex gap-2 bg-white dark:bg-slate-900 p-3 rounded-xl border dark:border-slate-700 shadow-sm animate-in slide-in-from-top-1">
                       <select value={v.sizeId} onChange={e => { const n = [...quickVariants]; n[i].sizeId = e.target.value; setQuickVariants(n); }} className="flex-1 bg-transparent text-[11px] font-bold dark:text-white uppercase"><option value="">Talle</option>{sizes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
                       <select value={v.colorId} onChange={e => { const n = [...quickVariants]; n[i].colorId = e.target.value; setQuickVariants(n); }} className="flex-1 bg-transparent text-[11px] font-bold dark:text-white uppercase"><option value="">Color</option>{colors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
->>>>>>> 074298303a43c4b7ef95d4be2ebaf1f67b5476d2
                       <input type="number" placeholder="0" value={v.qty} onChange={e => { const n = [...quickVariants]; n[i].qty = e.target.value; setQuickVariants(n); }} className="w-16 bg-blue-50 dark:bg-slate-800 text-center font-black rounded-lg text-xs dark:text-blue-400 outline-none" />
                       {quickVariants.length > 1 && <button onClick={() => setQuickVariants(quickVariants.filter((_, idx) => idx !== i))} className="text-rose-500 px-1 font-bold">✕</button>}
                     </div>
                   ))}
                 </div>
               </div>
-<<<<<<< HEAD
-              <textarea placeholder="Notas / Ubicación específica" value={editForm.notes || ''} onChange={e => setEditForm({...editForm, notes: e.target.value})} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-xl dark:text-white text-sm" rows={2} />
-=======
->>>>>>> 074298303a43c4b7ef95d4be2ebaf1f67b5476d2
             </div>
             <div className="p-6 bg-slate-50 dark:bg-slate-900/50 border-t dark:border-slate-700 flex justify-end gap-3 sticky bottom-0">
               <button onClick={() => setIsModalOpen(false)} className="uppercase text-[10px] font-black text-slate-400 px-4">Cancelar</button>
