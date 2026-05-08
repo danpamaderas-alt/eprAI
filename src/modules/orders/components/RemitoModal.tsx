@@ -24,11 +24,12 @@ export const RemitoModal = ({ isOpen, onClose, order }: any) => {
     }
   }, [order, isOpen]);
 
-  // 🖨️ 2. Lógica de impresión profesional
+  // 🖨️ 2. Lógica de impresión profesional (BLINDADA para todas las versiones)
   const handlePrint = useReactToPrint({
-    content: () => componentRef.current,
+    content: () => componentRef.current, // Para react-to-print v2
+    contentRef: componentRef,            // Para react-to-print v3
     documentTitle: `Remito_${order?.customerName || 'Raices'}`,
-  });
+  } as any);
 
   if (!isOpen || !order) return null;
 
@@ -38,7 +39,11 @@ export const RemitoModal = ({ isOpen, onClose, order }: any) => {
     ));
   };
 
-  const itemsToPrint = deliveryItems.filter(i => i.current > 0);
+  // 🧠 LÓGICA INTELIGENTE: 
+  const hasSelections = deliveryItems.some(i => i.current > 0);
+  const itemsToPrint = hasSelections 
+    ? deliveryItems.filter(i => i.current > 0) 
+    : deliveryItems.filter(i => (i.total - i.delivered) > 0);
 
   const totalAgordado = Number(order.total_amount || order.totalAmount || 0);
   const senaRecibida = Number(order.advance_payment || order.advancePayment || 0);
@@ -117,21 +122,20 @@ export const RemitoModal = ({ isOpen, onClose, order }: any) => {
             </div>
           </div>
           
-          {/* 🚀 BOTÓN QUE LLAMA A LA LIBRERÍA */}
           <button 
             onClick={handlePrint} 
-            disabled={itemsToPrint.length === 0}
+            disabled={deliveryItems.length === 0}
             className="px-10 py-5 bg-blue-600 disabled:bg-slate-700 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-900/20 hover:scale-105 active:scale-95 transition-all"
           >
-            🖨️ Imprimir Remito
+            🖨️ Imprimir Remito / Orden
           </button>
         </div>
       </div>
 
       {/* ==========================================
-          📄 DOCUMENTO PARA IMPRIMIR (ESCONDIDO EN LA WEB)
+          📄 DOCUMENTO PARA IMPRIMIR (ESCONDIDO FUERA DE PANTALLA)
           ========================================== */}
-      <div style={{ display: 'none' }}>
+      <div className="absolute top-[-9999px] left-[-9999px] opacity-0 pointer-events-none z-[-1]">
         <div 
           ref={componentRef} 
           className="bg-white text-black font-sans p-12"
@@ -143,7 +147,9 @@ export const RemitoModal = ({ isOpen, onClose, order }: any) => {
               <p className="text-[11px] font-black uppercase tracking-[0.2em] mt-2 text-gray-600">Confección & Diseño Textil</p>
             </div>
             <div className="text-right">
-              <h2 className="text-2xl font-black uppercase tracking-tight">Remito de Entrega</h2>
+              <h2 className="text-2xl font-black uppercase tracking-tight">
+                {hasSelections ? 'Remito de Entrega' : 'Orden de Armado'}
+              </h2>
               <div className="mt-2 text-sm">
                 <p><span className="font-bold text-gray-500 uppercase text-[10px]">Fecha:</span> <span className="font-black">{new Date().toLocaleDateString('es-AR')}</span></p>
                 <p><span className="font-bold text-gray-500 uppercase text-[10px]">Pedido:</span> <span className="font-black">#{order.id.split('-')[0].toUpperCase()}</span></p>
@@ -161,7 +167,9 @@ export const RemitoModal = ({ isOpen, onClose, order }: any) => {
               <tr className="border-b-2 border-black bg-gray-50">
                 <th className="py-3 px-2 text-[10px] font-black uppercase tracking-widest">Artículo</th>
                 <th className="py-3 px-2 text-[10px] font-black uppercase tracking-widest text-center">Variante</th>
-                <th className="py-3 px-2 text-[10px] font-black uppercase tracking-widest text-center">Cant. Entregada</th>
+                <th className="py-3 px-2 text-[10px] font-black uppercase tracking-widest text-center">
+                  {hasSelections ? 'Cant. Entregada' : 'A Preparar'}
+                </th>
                 <th className="py-3 px-2 text-[10px] font-black uppercase tracking-widest text-right">Saldo</th>
               </tr>
             </thead>
@@ -172,7 +180,13 @@ export const RemitoModal = ({ isOpen, onClose, order }: any) => {
                   <tr key={idx} className="border-b border-gray-200">
                     <td className="py-6 px-2 font-bold uppercase text-sm">{item.name}</td>
                     <td className="py-6 px-2 text-center text-xs uppercase font-bold text-gray-600">T{item.size} - {item.color}</td>
-                    <td className="py-6 px-2 text-center font-black text-3xl">x {item.current}</td>
+                    <td className="py-6 px-2 text-center font-black text-3xl">
+                      {item.current > 0 ? (
+                        `x ${item.current}`
+                      ) : (
+                        <span className="inline-block w-16 border-b-2 border-gray-400"></span>
+                      )}
+                    </td>
                     <td className="py-6 px-2 text-right text-[10px] font-black uppercase text-gray-500 italic">
                       {pending > 0 ? `Quedan ${pending}` : 'ENTREGA FINAL'}
                     </td>

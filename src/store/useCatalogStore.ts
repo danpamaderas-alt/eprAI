@@ -134,32 +134,49 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
     }
   },
 
-  updateStock: async (productId, sizeId, colorId, quantity) => {
+ updateStock: async (productId, sizeId, colorId, quantity) => {
     try {
-      const { data: existing } = await supabase.from('product_variants').select('*').eq('product_id', productId).eq('size_id', sizeId).eq('color_id', colorId).single();
+      // 1. Buscamos si existe. Supabase tira error PGRST116 si no encuentra nada (lo cual es normal si es nuevo)
+      const { data: existing, error: searchError } = await supabase
+        .from('product_variants')
+        .select('*')
+        .eq('product_id', productId)
+        .eq('size_id', sizeId)
+        .eq('color_id', colorId)
+        .single();
+
+      if (searchError && searchError.code !== 'PGRST116') {
+        throw searchError; // Si es un error grave, lo frenamos acá
+      }
       
       if (existing) {
-        // ✅ Todo lo que ingresa entra como liso (base_quantity)
+        // ACTUALIZAR EXISTENTE
         const newTotal = existing.stock_quantity + quantity;
         const newBase = (existing.base_quantity || 0) + quantity;
         
-        await supabase.from('product_variants').update({ 
+        const { error: updateError } = await supabase.from('product_variants').update({ 
           stock_quantity: newTotal,
           base_quantity: newBase 
         }).eq('id', existing.id);
+
+        if (updateError) throw updateError; // ALARMA DE ERROR AL ACTUALIZAR
+
       } else {
-        await supabase.from('product_variants').insert([{ 
+        // CREAR NUEVO (Acá estaba fallando en silencio)
+        const { error: insertError } = await supabase.from('product_variants').insert([{ 
           product_id: productId, 
           size_id: sizeId, 
           color_id: colorId, 
           stock_quantity: quantity,
-          base_quantity: quantity // ✅ Si es la primera vez, el total es igual al base
+          base_quantity: quantity 
         }]);
+
+        if (insertError) throw insertError; // ALARMA DE ERROR AL INSERTAR
       }
       await get().fetchAllCatalogs();
-    } catch (error) { 
-      console.error('Error al actualizar stock:', error); 
-      throw error; 
+    } catch (error: any) { 
+      console.error('🔥 Error Real en updateStock:', error); 
+      throw error; // Esto lanza el error para que tu modal rojo lo atrape y te lo muestre
     }
   },
 

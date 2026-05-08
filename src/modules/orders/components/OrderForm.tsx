@@ -279,16 +279,41 @@ export const OrderForm = ({ orderToEdit, onClose, onSuccess }: OrderFormProps) =
   };
 
 
-  const onSubmit = async (data: OrderFormValues) => {
+const onSubmit = async (data: OrderFormValues) => {
     setIsSubmitting(true);
     onSuccess(); // Cerrado optimista
 
     try {
+      // 🧠 LÓGICA MÁGICA: Auto-calcular el estado del pedido
+      let totalOrdered = 0;
+      let totalDelivered = 0;
+
+      // Recorremos todos los renglones y sumamos las cantidades
+      data.items.forEach((item: any) => {
+        item.variations?.forEach((v: any) => {
+          totalOrdered += Number(v.quantityOrdered || 0);
+          totalDelivered += Number(v.quantityDelivered || 0);
+        });
+      });
+
+      let newStatus = data.status; // Por defecto usamos el que ya tenía
+
+      // Si el pedido no está cancelado, evaluamos si se completó
+      if (newStatus !== 'CANCELLED' && totalOrdered > 0) {
+        if (totalDelivered >= totalOrdered) {
+          newStatus = 'COMPLETED'; // Todo entregado ✅
+        } else if (totalDelivered > 0) {
+          newStatus = 'PARCIAL';   // Faltan cosas ⏳
+        } else {
+          newStatus = 'PENDING';   // No se entregó nada 🛑
+        }
+      }
+
       const payload = {
         company_id: useTenantStore.getState().activeCompanyId,
         due_date: data.dueDate,
         customer_name: data.customerName,
-        status: data.status,
+        status: newStatus, // <--- ACÁ LE INYECTAMOS EL ESTADO AUTOCALCULADO
         business_unit: data.businessUnit,
         total_amount: data.totalAmount,
         advance_payment: data.advancePayment,

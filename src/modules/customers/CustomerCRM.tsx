@@ -1,17 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
-import { ClientFormModal } from '../crm/pages/ClientFormModal'; // 👈 IMPORTAMOS EL FORMULARIO
+import { ClientFormModal } from '../crm/pages/ClientFormModal'; 
 
 export const CustomerCRM = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [customers, setCustomers] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  
-  // 👈 ESTADO PARA ABRIR/CERRAR EL FORMULARIO DE NUEVO CLIENTE
   const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
 
-  // 1. CARGA INICIAL DE CLIENTES (Separada para poder llamarla cuando creamos uno nuevo)
   const fetchCustomers = async () => {
     const { data } = await supabase.from('customers').select('*').order('name');
     if (data) setCustomers(data);
@@ -21,19 +18,16 @@ export const CustomerCRM = () => {
     fetchCustomers();
   }, []);
 
-  // 2. FUNCIÓN DE AUDITORÍA: CARGA Y CLASIFICA MOVIMIENTOS
   const loadCustomerHistory = async (customerId: string) => {
     setIsLoading(true);
     setHistory([]);
     
-    // Traemos pedidos y movimientos de cuenta
     const [salesRes, transRes] = await Promise.all([
       supabase.from('orders').select('*').eq('customer_id', customerId),
       supabase.from('client_movements').select('*').eq('customer_id', customerId)
     ]);
 
     const combined = [
-      // Tabla 'orders': Siempre son deudas (SALE)
       ...(salesRes.data || []).map(s => ({ 
         ...s, 
         type: 'SALE', 
@@ -41,24 +35,22 @@ export const CustomerCRM = () => {
         description: `Pedido #${s.id.split('-')[0].toUpperCase()}`
       })),
       
-      // Tabla 'client_movements': Clasificación inteligente
       ...(transRes.data || []).map(t => {
         const typeUpper = t.type?.toUpperCase() || '';
         const descUpper = t.description?.toUpperCase() || '';
         
-        // Lógica para detectar si es una VENTA (Deuda) o un PAGO (Ingreso)
         const isDebt = 
-          ['VENTA', 'DEBITO', 'ORDEN', 'SISTEMA'].includes(typeUpper) || 
+          ['VENTA', 'DEBITO', 'ORDEN', 'SISTEMA', 'DEUDA', 'CARGO'].includes(typeUpper) || 
           descUpper.includes('HOJAS') || 
           descUpper.includes('PEDIDO') ||
           descUpper.includes('RESPUESTO') ||
-          t.amount < 0; // Si el monto es negativo en la base, suele ser deuda
+          t.amount < 0; 
 
         return {
           ...t,
           type: isDebt ? 'SALE' : 'PAYMENT',
           amount: Math.abs(t.amount || 0),
-          description: t.description || (isDebt ? 'Cargo de Sistema' : 'Entrega de Dinero'),
+          description: t.description || (isDebt ? 'Cargo en Cuenta' : 'Entrega de Dinero'),
           categoryLabel: isDebt ? 'Débito' : 'Crédito'
         };
       })
@@ -68,7 +60,6 @@ export const CustomerCRM = () => {
     setIsLoading(false);
   };
 
-  // 3. CÁLCULO DE TOTALES PARA EL RADAR FINANCIERO
   const stats = useMemo(() => {
     const totalSales = history
       .filter(h => h.type === 'SALE')
@@ -85,13 +76,12 @@ export const CustomerCRM = () => {
     };
   }, [history]);
 
-  // 4. WHATSAPP ENGINE
   const handleSendReminder = () => {
     if (!selectedCustomer) return;
     const message = `*ESTADO DE CUENTA - RAÍCES*%0A` +
       `--------------------------------%0A` +
       `*Cliente:* ${selectedCustomer.name}%0A` +
-      `*Total Compras:* $${stats.totalSales.toLocaleString()}%0A` +
+      `*Total Compras/Cargos:* $${stats.totalSales.toLocaleString()}%0A` +
       `*Total Abonado:* $${stats.totalPayments.toLocaleString()}%0A` +
       `*SALDO PENDIENTE:* $${stats.currentBalance.toLocaleString()}%0A` +
       `--------------------------------%0A` +
@@ -111,10 +101,8 @@ export const CustomerCRM = () => {
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* PANEL IZQUIERDO: CARTERA */}
         <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-6 h-[75vh] overflow-y-auto shadow-2xl">
           
-          {/* 👈 ACÁ AGREGAMOS EL BOTÓN DE "+ NUEVO" AL LADO DEL TÍTULO */}
           <div className="flex justify-between items-center mb-6 px-2">
             <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Seleccionar Cliente</h2>
             <button 
@@ -138,6 +126,7 @@ export const CustomerCRM = () => {
               >
                 <div className="flex justify-between items-center">
                   <p className="font-black uppercase text-sm truncate pr-2">{c.name}</p>
+                  {/* 🚀 ACÁ DEVOLVEMOS A LA VIDA LOS SALDOS REALES */}
                   <p className={`text-[10px] font-black ${c.balance > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
                     ${Number(c.balance || 0).toLocaleString()}
                   </p>
@@ -147,11 +136,9 @@ export const CustomerCRM = () => {
           </div>
         </div>
 
-        {/* PANEL DERECHO: DETALLE FINANCIERO */}
         <div className="lg:col-span-2 space-y-6">
           {selectedCustomer ? (
             <>
-              {/* RESUMEN DE SALDOS */}
               <div className="bg-slate-900 border border-slate-800 rounded-[3rem] p-10 shadow-2xl relative overflow-hidden">
                 <div className="flex justify-between items-start mb-10">
                   <div>
@@ -182,7 +169,6 @@ export const CustomerCRM = () => {
                 </div>
               </div>
 
-              {/* TIMELINE DE ACTIVIDAD */}
               <div className="bg-slate-900 border border-slate-800 rounded-[3rem] p-10 shadow-xl">
                 <h2 className="text-xs font-black text-slate-500 uppercase tracking-[0.3em] mb-10 italic">Línea de Tiempo de Actividad</h2>
                 
@@ -227,16 +213,14 @@ export const CustomerCRM = () => {
         </div>
       </div>
 
-      {/* 👈 FORMULARIO OCULTO PARA CARGAR NUEVOS CLIENTES */}
       <ClientFormModal 
         isOpen={isNewClientModalOpen} 
         onClose={() => setIsNewClientModalOpen(false)}
         onSuccess={() => {
           setIsNewClientModalOpen(false);
-          fetchCustomers(); // Actualiza la lista instantáneamente
+          fetchCustomers(); 
         }}
       />
-
     </div>
   );
 };

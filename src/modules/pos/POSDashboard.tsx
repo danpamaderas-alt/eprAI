@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useCatalogStore } from '../../store/useCatalogStore';
+import { useDebtStore } from '../crm/store/useDebtStore'; // 👈 IMPORTAMOS EL CEREBRO DE LAS DEUDAS
 import Swal from 'sweetalert2';
 
 interface CartItem {
@@ -11,14 +12,19 @@ interface CartItem {
   color: string;
   price: number;
   qty: number;
-  maxQty: number; // Para no vender más de lo que hay terminado
+  maxQty: number; 
 }
 
 export const POSDashboard = () => {
   const { products, inventory, customers, fetchAllCatalogs, processSale } = useCatalogStore();
+  const { addDebt } = useDebtStore(); // 👈 TRAEMOS LA FUNCIÓN PARA ANOTAR EN LA LIBRETA
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState('');
+  
+  // 👈 NUEVO ESTADO PARA EL MEDIO DE PAGO
+  const [paymentMethod, setPaymentMethod] = useState('EFECTIVO'); 
+  
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -26,7 +32,6 @@ export const POSDashboard = () => {
     fetchAllCatalogs();
   }, [fetchAllCatalogs]);
 
-  // Filtramos solo los productos que tengan STOCK TERMINADO > 0
   const availableVariants = useMemo(() => {
     return inventory.filter(v => (v.finished_quantity || 0) > 0).map(v => {
       const prod = products.find(p => p.id === v.product_id);
@@ -83,22 +88,38 @@ export const POSDashboard = () => {
     const cliente = customers.find(c => c.id === selectedCustomer);
 
     const result = await Swal.fire({
-      title: 'Confirmar Venta Comercial',
-      html: `¿Facturar <b>${cart.length} artículos</b> por un total de <b>$${cartTotal.toLocaleString('es-AR')}</b> a <b>${cliente?.name}</b>?`,
+      title: 'Confirmar Venta',
+      html: `¿Facturar <b>${cart.length} artículos</b> por <b>$${cartTotal.toLocaleString('es-AR')}</b> a <b>${cliente?.name}</b>?<br/><br/><span style="color:#64748b; font-size: 14px;">Medio de Pago: <b>${paymentMethod.replace('_', ' ')}</b></span>`,
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#10b981',
       cancelButtonColor: '#64748b',
-      confirmButtonText: 'Sí, registrar salida'
+      confirmButtonText: 'Sí, registrar venta'
     });
 
     if (result.isConfirmed) {
       setIsProcessing(true);
       try {
+        // 1. Procesamos la mercadería como siempre
         await processSale(selectedCustomer, cart, cartTotal);
-        Swal.fire('¡Venta Registrada!', 'La mercadería se descontó del galpón y el saldo se actualizó.', 'success');
+
+        // 2. 🚀 EL PUENTE: Si es cuenta corriente, impactamos la deuda en el CRM
+        if (paymentMethod === 'CUENTA_CORRIENTE') {
+          await addDebt(selectedCustomer, cartTotal, `Venta en POS - ${cart.length} artículos`);
+        }
+
+        Swal.fire(
+          '¡Venta Registrada!', 
+          paymentMethod === 'CUENTA_CORRIENTE' 
+            ? 'Mercadería descontada y saldo cargado en la Cuenta Corriente del cliente.'
+            : 'La mercadería se descontó del galpón correctamente.', 
+          'success'
+        );
+        
         setCart([]);
         setSelectedCustomer('');
+        setPaymentMethod('EFECTIVO'); // Reseteamos al método por defecto
+        
       } catch (error: any) {
         Swal.fire('Error', error.message || 'No se pudo procesar la venta.', 'error');
       } finally {
@@ -194,10 +215,26 @@ export const POSDashboard = () => {
         </div>
 
         <div className="p-6 bg-slate-900 border-t border-slate-800">
+          
+          {/* 👈 NUEVO: SELECTOR DE MEDIO DE PAGO */}
+          <div className="mb-6">
+            <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block tracking-widest">Medio de Pago / Condición</label>
+            <select
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+              className="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white outline-none focus:border-emerald-500 transition-all"
+            >
+              <option value="EFECTIVO">💵 Contado / Efectivo</option>
+              <option value="TRANSFERENCIA">🏦 Transferencia / Billetera</option>
+              <option value="CUENTA_CORRIENTE">📒 Fiar (Anotar en Cta. Corriente)</option>
+            </select>
+          </div>
+
           <div className="flex justify-between items-end mb-6">
             <span className="text-xs font-black uppercase text-slate-400 tracking-widest">Total Venta</span>
             <span className="text-3xl font-black text-emerald-400">${cartTotal.toLocaleString('es-AR')}</span>
           </div>
+
           <button 
             onClick={handleCheckout}
             disabled={cart.length === 0 || isProcessing}

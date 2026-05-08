@@ -20,6 +20,7 @@ import { FinancialDashboard } from './modules/inventory/pages/FinancialDashboard
 import { ProductionDashboard } from './modules/production/components/ProductionDashboard';
 import { RawMaterialDashboard } from './modules/inventory/components/RawMaterialDashboard';
 import { CurrentAccounts } from './modules/accounts/CurrentAccounts';
+import { CrmDashboard } from './modules/crm/pages/CrmDashboard';
 
 // ==========================================
 // COMPONENTE: ESTRUCTURA PRINCIPAL (LAYOUT)
@@ -76,6 +77,10 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
             📋 Pedidos
           </Link>
 
+          <Link to="/crm" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/crm') ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'hover:bg-slate-800 hover:text-white'}`}>
+            🤝 Embudo y CRM
+          </Link>
+
           <Link to="/inventario" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/inventario') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
             📦 Inventario
           </Link>
@@ -96,9 +101,8 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
            📊 Radar de Rentabilidad
           </Link>
                     
-          
           <Link to="/cotizador" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/cotizador') ? 'bg-indigo-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
-           📄 Presupuestos B2B
+            📄 Presupuestos B2B
           </Link>
 
           <Link to="/produccion" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/produccion') ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/30' : 'hover:bg-slate-800 hover:text-white'}`}>
@@ -106,7 +110,7 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
           </Link>
 
           <Link to="/talleristas" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/talleristas') ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20' : 'hover:bg-slate-800 hover:text-white'}`}>
-           ✂️ Equipo y Taller
+            ✂️ Equipo y Taller
           </Link>
 
           <Link to="/insumos" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/insumos') ? 'bg-indigo-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
@@ -115,11 +119,6 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
 
           <div className="pt-4 mt-4 border-t border-slate-800">
              <p className="px-4 text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">CRM y Contactos</p>
-             
-             <Link to="/clientes" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/clientes') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
-               🤝 Clientes CRM
-             </Link>
-
              <Link to="/cuentas-corrientes" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/cuentas-corrientes') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
                💳 Cuentas Corrientes
              </Link>
@@ -135,18 +134,18 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
 
         <div className="p-4 border-t border-slate-800">
           <div className="flex items-center gap-3 px-2 mb-4">
-             <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-black text-xs">A</div>
+             <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white font-black text-xs">J</div>
              <div>
-               <p className="text-xs font-bold text-white">Admin</p>
-               <p className="text-[9px] text-emerald-400 font-black uppercase tracking-widest">Online</p>
+               <p className="text-xs font-bold text-white">Jorge (Local)</p>
+               <p className="text-[9px] text-emerald-400 font-black uppercase tracking-widest">Sin Candados 🔓</p>
              </div>
           </div>
+          {/* BOTÓN DESACTIVADO: Ya no hay sesión que cerrar */}
           <button 
-            onClick={() => supabase.auth.signOut()} 
-            className="w-full py-3 bg-slate-950 hover:bg-rose-900/50 text-slate-400 hover:text-rose-500 border border-slate-800 rounded-xl font-black text-[10px] uppercase tracking-widest transition-colors"
-         
+            type="button"
+            className="w-full py-3 bg-slate-950/50 text-slate-600 border border-slate-800/50 rounded-xl font-black text-[10px] uppercase tracking-widest cursor-not-allowed"
          >
-            Cerrar Sesión
+            Bloqueo Desactivado
           </button>
         </div>
       </aside>
@@ -161,48 +160,16 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
 };
 
 // ==========================================
-// COMPONENTE PRINCIPAL: APP (RUTAS Y LOGIN)
+// COMPONENTE PRINCIPAL: APP (RUTAS LIBERADAS)
 // ==========================================
 export default function App() {
-  const [session, setSession] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setIsLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  if (isLoading) {
-    return <div className="h-screen w-screen bg-slate-900 flex items-center justify-center text-white font-black animate-pulse">Cargando Entorno...</div>;
-  }
-
-  if (!session) {
-    return (
-      <div className="h-screen w-screen bg-slate-950 flex flex-col items-center justify-center p-4">
-        <h1 className="text-4xl font-black text-white mb-8 italic">Raíces <span className="text-blue-500">ERP</span></h1>
-        <button 
-          onClick={() => supabase.auth.signInWithPassword({ email: 'test@test.com', password: 'password' })} 
-          className="bg-blue-600 text-white font-black px-8 py-4 rounded-2xl shadow-xl hover:bg-blue-500 transition-all active:scale-95 uppercase tracking-widest text-sm"
-        >
-          Acceso Autorizado
-        </button>
-      </div>
-    );
-  }
-
+  
+  // 🚀 MODO LOCAL ACTIVO: Retornamos las rutas directamente sin validación
   return (
     <BrowserRouter>
       <MainLayout>
         <Routes>
-          <Route path="/clientes" element={<CustomerCRM />} />
+          <Route path="/crm" element={<CrmDashboard />} />
           <Route path="/cuentas-corrientes" element={<CurrentAccounts />} />
           <Route path="/rentabilidad" element={<ProfitabilityDashboard />} />
           <Route path="/" element={<Navigate to="/inicio" replace />} />
@@ -217,7 +184,6 @@ export default function App() {
           <Route path="/proveedores" element={<SupplierDashboard />} />
           <Route path="/produccion" element={<ProductionDashboard />} />
           <Route path="/servicios" element={<ServicesDashboard />} />
-          <Route path="/cuentas-corrientes" element={<CuentasCorrientes />} />
           <Route path="/pos" element={<POSDashboard />} />
           <Route path="/insumos" element={<RawMaterialDashboard />} />
           <Route path="*" element={

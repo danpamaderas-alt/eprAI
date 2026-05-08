@@ -1,11 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTreasuryStore, type Transaction } from '../treasury/store/useTreasuryStore';
+import { useCrmStore } from '../../crm/store/useCrmStore'; // <-- MAGIA: Traemos la agenda real
 import Swal from 'sweetalert2';
 
 const ARS = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 
 export const TreasuryDashboard = () => {
   const { transactions, fetchTransactions, addTransaction, deleteTransaction, isLoading } = useTreasuryStore();
+  // Traemos los clientes para calcular el dinero en calle real
+  const { customers, fetchCustomers } = useCrmStore();
   
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
@@ -19,7 +22,8 @@ export const TreasuryDashboard = () => {
 
   useEffect(() => {
     fetchTransactions();
-  }, [fetchTransactions]);
+    fetchCustomers(); // Actualizamos los clientes de fondo
+  }, [fetchTransactions, fetchCustomers]);
 
   const balances = useMemo(() => {
     let mp = 0; let banco = 0; let efectivo = 0; let total = 0;
@@ -29,7 +33,6 @@ export const TreasuryDashboard = () => {
         const value = tx.type === 'INCOME' ? tx.amount : -tx.amount;
         total += value;
         
-        // Buscamos con o sin guión bajo por compatibilidad
         const method = (tx.paymentMethod || (tx as any).payment_method || 'EFECTIVO').toUpperCase();
         
         if (method === 'MERCADO_PAGO') mp += value;
@@ -40,6 +43,11 @@ export const TreasuryDashboard = () => {
 
     return { mp, banco, efectivo, total };
   }, [transactions]);
+
+  // CÁLCULO EXACTO DEL DINERO EN CALLE BASADO EN LA AGENDA
+  const dineroEnCalle = useMemo(() => {
+    return customers.reduce((acc, client) => acc + (Number(client.balance) || 0), 0);
+  }, [customers]);
 
   const handleOpenEdit = (tx: Transaction) => {
     setEditingTx(tx);
@@ -64,14 +72,13 @@ export const TreasuryDashboard = () => {
     if (!amount || !description) return;
 
     try {
-      // ✅ ARMAMOS EL PAQUETE CON GUIONES BAJOS PARA SUPABASE
       const payload = {
         amount: Number(amount),
         description: description,
         type: type,
         category: category,
-        business_unit: businessUnit, // Snake case
-        payment_method: paymentMethod, // Snake case
+        business_unit: businessUnit,
+        payment_method: paymentMethod,
         date: editingTx ? editingTx.date : new Date().toISOString(),
         status: 'COMPLETED'
       };
@@ -86,12 +93,7 @@ export const TreasuryDashboard = () => {
       }
       resetForm();
     } catch (error: any) {
-      // 🚨 ACÁ ESTÁ LA MAGIA: Si falla, nos dirá el error EXACTO de la base de datos
-      Swal.fire({ 
-        icon: 'error', 
-        title: 'Error de Supabase', 
-        text: error.message || 'Revisa la consola para más detalles.' 
-      });
+      Swal.fire({ icon: 'error', title: 'Error de Supabase', text: error.message || 'Revisa la consola para más detalles.' });
       console.error("Error completo al guardar:", error);
     }
   };
@@ -120,23 +122,39 @@ export const TreasuryDashboard = () => {
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* GRILLA DE 5 TARJETAS */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        
+        {/* TOTAL EN CAJA */}
         <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col justify-between">
-          <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Saldo Total</p>
-          <p className={`text-4xl font-black mt-2 tabular-nums tracking-tighter ${balances.total >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{ARS.format(balances.total)}</p>
+          <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Caja Total</p>
+          <p className={`text-3xl lg:text-2xl xl:text-3xl font-black mt-2 tabular-nums tracking-tighter ${balances.total >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{ARS.format(balances.total)}</p>
         </div>
-        <div className="bg-[#009EE3]/10 p-6 rounded-3xl border border-[#009EE3]/20">
+
+        {/* MERCADO PAGO */}
+        <div className="bg-[#009EE3]/10 p-6 rounded-3xl border border-[#009EE3]/20 flex flex-col justify-between">
           <p className="text-[10px] font-black uppercase text-[#009EE3] tracking-widest">Mercado Pago</p>
-          <p className="text-3xl font-black text-slate-900 mt-2 tabular-nums">{ARS.format(balances.mp)}</p>
+          <p className="text-2xl lg:text-xl xl:text-2xl font-black text-slate-900 mt-2 tabular-nums">{ARS.format(balances.mp)}</p>
         </div>
-        <div className="bg-slate-100 p-6 rounded-3xl border border-slate-200">
+
+        {/* BANCO */}
+        <div className="bg-slate-100 p-6 rounded-3xl border border-slate-200 flex flex-col justify-between">
           <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Banco</p>
-          <p className="text-3xl font-black text-slate-900 mt-2 tabular-nums">{ARS.format(balances.banco)}</p>
+          <p className="text-2xl lg:text-xl xl:text-2xl font-black text-slate-900 mt-2 tabular-nums">{ARS.format(balances.banco)}</p>
         </div>
-        <div className="bg-emerald-50 p-6 rounded-3xl border border-emerald-100">
+
+        {/* EFECTIVO */}
+        <div className="bg-emerald-50 p-6 rounded-3xl border border-emerald-100 flex flex-col justify-between">
           <p className="text-[10px] font-black uppercase text-emerald-600 tracking-widest">Efectivo</p>
-          <p className="text-3xl font-black text-slate-900 mt-2 tabular-nums">{ARS.format(balances.efectivo)}</p>
+          <p className="text-2xl lg:text-xl xl:text-2xl font-black text-slate-900 mt-2 tabular-nums">{ARS.format(balances.efectivo)}</p>
         </div>
+
+        {/* DINERO EN CALLE (CALCULADO DIRECTO DE LA AGENDA) */}
+        <div className="bg-amber-50 p-6 rounded-3xl border border-amber-200 flex flex-col justify-between shadow-sm">
+          <p className="text-[10px] font-black uppercase text-amber-600 tracking-widest">Dinero en Calle</p>
+          <p className="text-3xl lg:text-2xl xl:text-3xl font-black text-amber-700 mt-2 tabular-nums tracking-tighter">{ARS.format(dineroEnCalle)}</p>
+        </div>
+
       </div>
 
       {isFormOpen && (

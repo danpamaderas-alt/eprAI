@@ -1,26 +1,27 @@
 import React, { useEffect, useMemo } from 'react';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { useCatalogStore } from '../../../store/useCatalogStore';
-import { useDebtStore } from '../../crm/store/useDebtStore'; // ✅ CONECTAMOS CUENTAS CORRIENTES
+import { useCrmStore } from '../../crm/store/useCrmStore'; // ✅ CONECTAMOS LA ÚNICA VERDAD DE LA AGENDA
 import Swal from 'sweetalert2';
 
 export const FinancialDashboard = () => {
   const { expenses, orders, isLoading: isFinanceLoading, fetchFinances, addExpense } = useFinanceStore();
   const { products, inventory, fetchAllCatalogs } = useCatalogStore();
-  const { debtors, fetchDebtors } = useDebtStore(); // ✅ TRAEMOS LA DEUDA REAL
+  const { customers, fetchCustomers } = useCrmStore(); // ✅ TRAEMOS LA BASE REAL DE CLIENTES
 
   useEffect(() => {
     fetchFinances();
     fetchAllCatalogs();
-    fetchDebtors(); // ✅ ACTUALIZAMOS SALDOS
-  }, [fetchFinances, fetchAllCatalogs, fetchDebtors]);
+    fetchCustomers(); // ✅ ACTUALIZAMOS SALDOS DE VERDAD
+  }, [fetchFinances, fetchAllCatalogs, fetchCustomers]);
 
-  // 🧠 CÁLCULO 1: FLUJO DE CAJA Y DINERO EN CALLE (VERSIÓN EXACTA)
+  // 🧠 CÁLCULO 1: FLUJO DE CAJA Y DINERO EN CALLE (VERSIÓN ALINEADA A TESORERÍA)
   const { totalIncome, totalExpenses, netBalance, totalInStreet } = useMemo(() => {
     let income = 0;
     
-    // ✅ DINERO EN CALLE: Suma exacta y real de los saldos de Cuentas Corrientes
-    const inStreet = debtors.reduce((acc, debtor) => acc + Number(debtor.total_debt || 0), 0);
+    // 🚀 LECTURA DIRECTA: Sumamos el saldo (balance) de todos los clientes activos. 
+    // Igual que lo armamos en la otra pantalla.
+    const inStreet = customers.reduce((acc, client) => acc + (Number(client.balance) || 0), 0);
 
     // CAJA: Sumamos cobros y señas
     orders.forEach(order => {
@@ -42,7 +43,7 @@ export const FinancialDashboard = () => {
       netBalance: income - outgoings,
       totalInStreet: inStreet
     };
-  }, [expenses, orders, debtors]);
+  }, [expenses, orders, customers]);
 
   // 🧠 CÁLCULO 2: VALUACIÓN DE STOCK Y RENTABILIDAD
   const { stockCost, stockValue, projectedProfit, avgMargin } = useMemo(() => {

@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
+
+
 import { zodResolver } from '@hookform/resolvers/zod';
 import { productSchema, type ProductFormValues } from '../schemas/productSchema';
+import { supabase } from '../../../../lib/supabase';
 
 interface ProductFormProps { initialData?: ProductFormValues; onSubmitSuccess: (data: ProductFormValues) => void; onCancel: () => void; }
 
@@ -13,6 +16,9 @@ export const ProductForm = ({ initialData, onSubmitSuccess, onCancel }: ProductF
   const [availableSizes, setAvailableSizes] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('sizes') || 'null') || DEFAULT_SIZES; } catch { return DEFAULT_SIZES; } });
   const [availableColors, setAvailableColors] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('colors') || 'null') || DEFAULT_COLORS; } catch { return DEFAULT_COLORS; } });
   const [availableCats, setAvailableCats] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('cats') || 'null') || DEFAULT_CATS; } catch { return DEFAULT_CATS; } });
+  
+  // 🚀 NUEVO ESTADO PARA GUARDAR LOS NICHOS DE LA BASE DE DATOS
+  const [niches, setNiches] = useState<{id: string, name: string}[]>([]);
 
   const [newSize, setNewSize] = useState(''); const [newColor, setNewColor] = useState(''); const [newCat, setNewCat] = useState('');
   
@@ -22,11 +28,21 @@ export const ProductForm = ({ initialData, onSubmitSuccess, onCancel }: ProductF
 
   const { register, control, handleSubmit, setValue, getValues, formState: { isSubmitting } } = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
-    defaultValues: initialData || { sku: '', name: '', category: '', price: 0, cost: 0, notes: '', location: '', stock: 0, minStock: 5, variations: [] }
+    // 🚀 AGREGAMOS niche_id AL VALOR POR DEFECTO
+    defaultValues: initialData || { sku: '', name: '', niche_id: '', category: '', price: 0, cost: 0, notes: '', location: '', stock: 0, minStock: 5, variations: [] }
   });
 
   const currentCat = useWatch({ control, name: 'category' });
   const { fields, replace } = useFieldArray({ control, name: 'variations' });
+
+  // 🚀 BUSCAMOS LOS NICHOS APENAS CARGA EL FORMULARIO
+  useEffect(() => {
+    const fetchNiches = async () => {
+      const { data } = await supabase.from('niches').select('id, name');
+      if (data) setNiches(data);
+    };
+    fetchNiches();
+  }, []);
 
   useEffect(() => {
     if (!hasVariations) { replace([]); return; }
@@ -72,40 +88,56 @@ export const ProductForm = ({ initialData, onSubmitSuccess, onCancel }: ProductF
           <input {...register('name')} className="w-full px-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 dark:text-white" />
         </div>
 
-        <div className="md:col-span-2 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border dark:border-slate-700">
-          <label className="text-[10px] font-black uppercase text-slate-500 block mb-2">Categoría</label>
-          <div className="flex flex-wrap gap-2 mb-3">
-            {availableCats.map(c => <button type="button" key={c} onClick={()=>setValue('category', c)} className={`px-3 py-1 text-xs font-bold rounded-lg ${currentCat === c ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 border dark:text-slate-300'}`}>{c}</button>)}
-          </div>
-          <div className="flex gap-2"><input value={newCat} onChange={e=>setNewCat(e.target.value)} className="px-3 py-1 rounded-lg border dark:bg-slate-900 dark:text-white text-xs" placeholder="Nueva categoría"/><button type="button" onClick={handleAddCat} className="px-3 py-1 bg-slate-200 dark:bg-slate-700 rounded-lg text-xs font-bold dark:text-white">+</button></div>
+        {/* 🚀 NUEVO SELECTOR DE NICHO */}
+        <div className="md:col-span-2 bg-indigo-50 dark:bg-indigo-900/10 p-4 rounded-xl border border-indigo-100 dark:border-indigo-900/30">
+          <label className="text-[10px] font-black uppercase text-indigo-600 dark:text-indigo-400 block mb-2 flex items-center gap-1">
+            🏢 Unidad de Negocio (Nicho)
+          </label>
+          <select 
+            {...register('niche_id')} 
+            className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-slate-700 dark:text-white font-bold outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+          >
+            <option value="">-- Seleccionar a qué web pertenece --</option>
+            {niches.map(n => (
+              <option key={n.id} value={n.id}>{n.name}</option>
+            ))}
+          </select>
         </div>
 
-        <div><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Costo ($)</label><input type="number" {...register('cost',{valueAsNumber:true})} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 text-rose-500 font-bold" /></div>
-        <div><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Precio ($)</label><input type="number" {...register('price',{valueAsNumber:true})} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 text-emerald-500 font-bold" /></div>
-        <div><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">📍 Ubicación / Estante</label><input {...register('location')} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 dark:text-blue-400 font-bold" /></div>
-        <div><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Notas</label><input {...register('notes')} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 dark:text-white" /></div>
+        <div className="md:col-span-2 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border dark:border-slate-700">
+          <label className="text-[10px] font-black uppercase text-slate-500 block mb-2">Categoría Interna</label>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {availableCats.map(c => <button type="button" key={c} onClick={()=>setValue('category', c)} className={`px-3 py-1 text-xs font-bold rounded-lg transition-colors ${currentCat === c ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 border dark:text-slate-300'}`}>{c}</button>)}
+          </div>
+          <div className="flex gap-2"><input value={newCat} onChange={e=>setNewCat(e.target.value)} className="px-3 py-1 rounded-lg border dark:bg-slate-900 dark:text-white text-xs outline-none focus:border-blue-500" placeholder="Nueva categoría"/><button type="button" onClick={handleAddCat} className="px-3 py-1 bg-slate-200 dark:bg-slate-700 rounded-lg text-xs font-bold dark:text-white hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">+</button></div>
+        </div>
+
+        <div><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Costo ($)</label><input type="number" {...register('cost',{valueAsNumber:true})} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 text-rose-500 font-bold outline-none" /></div>
+        <div><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Precio ($)</label><input type="number" {...register('price',{valueAsNumber:true})} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 text-emerald-500 font-bold outline-none" /></div>
+        <div><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">📍 Ubicación / Estante</label><input {...register('location')} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 dark:text-blue-400 font-bold outline-none" /></div>
+        <div><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Notas</label><input {...register('notes')} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 dark:text-white outline-none" /></div>
       </div>
 
       <div className="border-t dark:border-slate-700 pt-6">
-        <div className="flex items-center gap-2 mb-4"><input type="checkbox" checked={hasVariations} onChange={e=>setHasVariations(e.target.checked)} className="w-4 h-4"/><label className="text-sm font-black dark:text-white uppercase tracking-widest">Gestionar Stock por Talles y Colores</label></div>
+        <div className="flex items-center gap-2 mb-4"><input type="checkbox" checked={hasVariations} onChange={e=>setHasVariations(e.target.checked)} className="w-4 h-4 cursor-pointer"/><label className="text-sm font-black dark:text-white uppercase tracking-widest cursor-pointer" onClick={()=>setHasVariations(!hasVariations)}>Gestionar Stock por Talles y Colores</label></div>
         
         {!hasVariations ? (
           <div className="flex gap-4">
-            <div className="flex-1"><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Stock</label><input type="number" {...register('stock',{valueAsNumber:true})} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 dark:text-white" /></div>
-            <div className="flex-1"><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Mínimo (Alerta)</label><input type="number" {...register('minStock',{valueAsNumber:true})} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 dark:text-white" /></div>
+            <div className="flex-1"><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Stock Inicial</label><input type="number" {...register('stock',{valueAsNumber:true})} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 dark:text-white outline-none" /></div>
+            <div className="flex-1"><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Mínimo (Alerta)</label><input type="number" {...register('minStock',{valueAsNumber:true})} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 dark:text-white outline-none" /></div>
           </div>
         ) : (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-[10px] font-black uppercase text-slate-500 block mb-2">1. Talles</label>
-                <div className="flex flex-wrap gap-2 mb-2">{availableSizes.map(s=><button type="button" key={s} onClick={()=>setSelectedSizes(p=>p.includes(s)?p.filter(x=>x!==s):[...p,s])} className={`px-2 py-1 text-xs font-bold rounded ${selectedSizes.includes(s)?'bg-blue-600 text-white':'bg-slate-100 dark:bg-slate-800 dark:text-white'}`}>{s}</button>)}</div>
-                <div className="flex gap-2"><input value={newSize} onChange={e=>setNewSize(e.target.value)} className="w-20 px-2 border rounded text-xs dark:bg-slate-900 dark:text-white"/><button type="button" onClick={handleAddSize} className="px-2 bg-slate-200 dark:bg-slate-700 rounded font-bold dark:text-white">+</button></div>
+                <div className="flex flex-wrap gap-2 mb-2">{availableSizes.map(s=><button type="button" key={s} onClick={()=>setSelectedSizes(p=>p.includes(s)?p.filter(x=>x!==s):[...p,s])} className={`px-2 py-1 text-xs font-bold rounded transition-colors ${selectedSizes.includes(s)?'bg-blue-600 text-white':'bg-slate-100 dark:bg-slate-800 dark:text-white'}`}>{s}</button>)}</div>
+                <div className="flex gap-2"><input value={newSize} onChange={e=>setNewSize(e.target.value)} className="w-20 px-2 border rounded text-xs dark:bg-slate-900 dark:text-white outline-none"/><button type="button" onClick={handleAddSize} className="px-2 bg-slate-200 dark:bg-slate-700 rounded font-bold dark:text-white hover:bg-slate-300 transition-colors">+</button></div>
               </div>
               <div>
                 <label className="text-[10px] font-black uppercase text-slate-500 block mb-2">2. Colores</label>
-                <div className="flex flex-wrap gap-2 mb-2">{availableColors.map(c=><button type="button" key={c} onClick={()=>setSelectedColors(p=>p.includes(c)?p.filter(x=>x!==c):[...p,c])} className={`px-2 py-1 text-xs font-bold rounded ${selectedColors.includes(c)?'bg-slate-800 text-white':'bg-slate-100 dark:bg-slate-800 dark:text-white'}`}>{c}</button>)}</div>
-                <div className="flex gap-2"><input value={newColor} onChange={e=>setNewColor(e.target.value)} className="w-24 px-2 border rounded text-xs dark:bg-slate-900 dark:text-white"/><button type="button" onClick={handleAddColor} className="px-2 bg-slate-200 dark:bg-slate-700 rounded font-bold dark:text-white">+</button></div>
+                <div className="flex flex-wrap gap-2 mb-2">{availableColors.map(c=><button type="button" key={c} onClick={()=>setSelectedColors(p=>p.includes(c)?p.filter(x=>x!==c):[...p,c])} className={`px-2 py-1 text-xs font-bold rounded transition-colors ${selectedColors.includes(c)?'bg-slate-800 text-white':'bg-slate-100 dark:bg-slate-800 dark:text-white'}`}>{c}</button>)}</div>
+                <div className="flex gap-2"><input value={newColor} onChange={e=>setNewColor(e.target.value)} className="w-24 px-2 border rounded text-xs dark:bg-slate-900 dark:text-white outline-none"/><button type="button" onClick={handleAddColor} className="px-2 bg-slate-200 dark:bg-slate-700 rounded font-bold dark:text-white hover:bg-slate-300 transition-colors">+</button></div>
               </div>
             </div>
             
@@ -119,14 +151,14 @@ export const ProductForm = ({ initialData, onSubmitSuccess, onCancel }: ProductF
                 </tbody></table>
               </div>
             )}
-            <div className="w-1/3 pt-2"><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Mínimo Global (Alerta)</label><input type="number" {...register('minStock',{valueAsNumber:true})} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 dark:text-white font-bold" /></div>
+            <div className="w-1/3 pt-2"><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Mínimo Global (Alerta)</label><input type="number" {...register('minStock',{valueAsNumber:true})} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 dark:text-white font-bold outline-none" /></div>
           </div>
         )}
       </div>
 
       <div className="flex justify-end gap-2 pt-4 border-t dark:border-slate-700">
-        <button type="button" onClick={onCancel} className="px-6 py-2 text-xs font-black text-slate-500 uppercase">Cancelar</button>
-        <button type="submit" disabled={isSubmitting} className="px-6 py-3 bg-blue-600 text-white rounded-xl font-black text-xs uppercase shadow-lg shadow-blue-500/30 active:scale-95">{isSubmitting ? 'Guardando...' : (initialData ? 'Guardar Cambios' : 'Guardar Artículo')}</button>
+        <button type="button" onClick={onCancel} className="px-6 py-2 text-xs font-black text-slate-500 uppercase hover:text-slate-800 dark:hover:text-white transition-colors">Cancelar</button>
+        <button type="submit" disabled={isSubmitting} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-xs uppercase shadow-lg shadow-blue-500/30 active:scale-95 transition-all">{isSubmitting ? 'Guardando...' : (initialData ? 'Guardar Cambios' : 'Guardar Artículo')}</button>
       </div>
     </form>
   );
