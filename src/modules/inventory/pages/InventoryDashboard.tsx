@@ -50,39 +50,7 @@ export const InventoryDashboard = () => {
     if (data) setNiches(data);
   };
 
-<<<<<<< HEAD
-  // --- NUEVA FUNCIÓN: AGREGAR NICHO (Para las Camperas y lo que venga) ---
-  const handleAddNiche = async () => {
-    const { value: nicheName } = await Swal.fire({
-      title: '✨ NUEVO NICHO',
-      input: 'text',
-      inputLabel: 'Nombre de la categoría',
-      inputPlaceholder: 'Ej: CAMPERAS',
-      showCancelButton: true,
-      confirmButtonText: 'Guardar',
-      confirmButtonColor: '#2563eb',
-      cancelButtonText: 'Cancelar',
-      inputValidator: (value) => { if (!value) return '¡Escribí un nombre!'; }
-    });
-
-    if (nicheName) {
-      try {
-        const { error } = await supabase
-          .from('niches')
-          .insert([{ 
-            name: nicheName.toUpperCase(), 
-            slug: nicheName.toLowerCase().trim().replace(/\s+/g, '-') 
-          }]);
-        if (error) throw error;
-        await fetchNiches();
-        Swal.fire({ icon: 'success', title: 'Nicho creado', timer: 1500, showConfirmButton: false });
-     } catch (e) { Swal.fire('Error', 'No se pudo crear el nicho', 'error'); }
-    }
-  };
-
-=======
   // --- LÓGICA DE FILTROS Y CÁLCULOS (Original) ---
->>>>>>> 074298303a43c4b7ef95d4be2ebaf1f67b5476d2
   const allCategories = useMemo(() => {
     const fromDB = products.map(p => p.category).filter(Boolean) as string[];
     return Array.from(new Set([...PREDEFINED_CATEGORIES, ...fromDB, ...customCategories])).sort();

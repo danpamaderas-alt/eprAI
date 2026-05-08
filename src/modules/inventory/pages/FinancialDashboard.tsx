@@ -68,19 +68,7 @@ export const FinancialDashboard = () => {
     }
   };
 
-<<<<<<< HEAD
-    return { 
-      totalIncome: income, 
-      totalExpenses: outgoings, 
-      netBalance: income - outgoings,
-      totalInStreet: inStreet
-    };
-  }, [expenses, orders, customers]);
-
-  // 🧠 CÁLCULO 2: VALUACIÓN DE STOCK Y RENTABILIDAD
-=======
   // 🧠 VALUACIÓN DE STOCK (Se mantiene igual, es lógica de catálogo)
->>>>>>> 074298303a43c4b7ef95d4be2ebaf1f67b5476d2
   const { stockCost, stockValue, projectedProfit, avgMargin } = useMemo(() => {
     let cost = 0;
     let sale = 0;

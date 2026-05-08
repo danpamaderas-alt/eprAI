@@ -152,10 +152,6 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
       }
       
       if (existing) {
-<<<<<<< HEAD
-        // ACTUALIZAR EXISTENTE
-=======
->>>>>>> 074298303a43c4b7ef95d4be2ebaf1f67b5476d2
         const newTotal = existing.stock_quantity + quantity;
         const newBase = (existing.base_quantity || 0) + quantity;
         

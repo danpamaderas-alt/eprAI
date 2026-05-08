@@ -1,10 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useCatalogStore } from '../../store/useCatalogStore';
-<<<<<<< HEAD
-import { useDebtStore } from '../crm/store/useDebtStore'; // 👈 IMPORTAMOS EL CEREBRO DE LAS DEUDAS
-=======
 import { supabase } from '../../lib/supabase'; // 👈 CONEXIÓN DIRECTA A LA BASE DE DATOS NUEVA
->>>>>>> 074298303a43c4b7ef95d4be2ebaf1f67b5476d2
 import Swal from 'sweetalert2';
 
 interface CartItem {

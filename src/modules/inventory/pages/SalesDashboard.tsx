@@ -176,11 +176,7 @@ export const SalesDashboard = () => {
 
     if (confirm.isConfirmed) {
       try {
-<<<<<<< HEAD
-        // 1. DESCONTAMOS EL STOCK
-=======
         // 1. DESCONTAMOS EL STOCK FÍSICO
->>>>>>> 074298303a43c4b7ef95d4be2ebaf1f67b5476d2
         for (const item of cart) {
           // Acá usamos tu función updateStock pero ojo, la cantidad va en negativo porque restamos
           await updateStock(item.product_id, item.size_id, item.color_id, -item.quantity);
