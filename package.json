@@ -16,6 +16,10 @@
     "@tanstack/react-query": "^5.96.2",
     "@tanstack/react-table": "^8.21.3",
     "axios": "^1.14.0",
+<<<<<<< HEAD
+=======
+    "jspdf": "^4.2.1",
+>>>>>>> 074298303a43c4b7ef95d4be2ebaf1f67b5476d2
     "jspdf-autotable": "^5.0.7",
     "lucide-react": "^1.8.0",
     "react": "^19.2.4",

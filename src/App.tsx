@@ -20,7 +20,6 @@ import { FinancialDashboard } from './modules/inventory/pages/FinancialDashboard
 import { ProductionDashboard } from './modules/production/components/ProductionDashboard';
 import { RawMaterialDashboard } from './modules/inventory/components/RawMaterialDashboard';
 import { CurrentAccounts } from './modules/accounts/CurrentAccounts';
-import { CrmDashboard } from './modules/crm/pages/CrmDashboard';
 
 // ==========================================
 // COMPONENTE: ESTRUCTURA PRINCIPAL (LAYOUT)
@@ -77,10 +76,6 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
             📋 Pedidos
           </Link>
 
-          <Link to="/crm" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/crm') ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'hover:bg-slate-800 hover:text-white'}`}>
-            🤝 Embudo y CRM
-          </Link>
-
           <Link to="/inventario" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/inventario') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
             📦 Inventario
           </Link>
@@ -119,6 +114,11 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
 
           <div className="pt-4 mt-4 border-t border-slate-800">
              <p className="px-4 text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">CRM y Contactos</p>
+             
+             <Link to="/clientes" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/clientes') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
+               🤝 Clientes CRM
+             </Link>
+
              <Link to="/cuentas-corrientes" className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all ${isActive('/cuentas-corrientes') ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-slate-800 hover:text-white'}`}>
                💳 Cuentas Corrientes
              </Link>
@@ -142,8 +142,9 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
           </div>
           {/* BOTÓN DESACTIVADO: Ya no hay sesión que cerrar */}
           <button 
-            type="button"
-            className="w-full py-3 bg-slate-950/50 text-slate-600 border border-slate-800/50 rounded-xl font-black text-[10px] uppercase tracking-widest cursor-not-allowed"
+            onClick={() => supabase.auth.signOut()} 
+            className="w-full py-3 bg-slate-950 hover:bg-rose-900/50 text-slate-400 hover:text-rose-500 border border-slate-800 rounded-xl font-black text-[10px] uppercase tracking-widest transition-colors"
+         
          >
             Bloqueo Desactivado
           </button>
@@ -169,7 +170,7 @@ export default function App() {
     <BrowserRouter>
       <MainLayout>
         <Routes>
-          <Route path="/crm" element={<CrmDashboard />} />
+          <Route path="/clientes" element={<CustomerCRM />} />
           <Route path="/cuentas-corrientes" element={<CurrentAccounts />} />
           <Route path="/rentabilidad" element={<ProfitabilityDashboard />} />
           <Route path="/" element={<Navigate to="/inicio" replace />} />

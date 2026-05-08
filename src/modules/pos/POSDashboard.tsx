@@ -1,6 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useCatalogStore } from '../../store/useCatalogStore';
+<<<<<<< HEAD
 import { useDebtStore } from '../crm/store/useDebtStore'; // 👈 IMPORTAMOS EL CEREBRO DE LAS DEUDAS
+=======
+import { supabase } from '../../lib/supabase'; // 👈 CONEXIÓN DIRECTA A LA BASE DE DATOS NUEVA
+>>>>>>> 074298303a43c4b7ef95d4be2ebaf1f67b5476d2
 import Swal from 'sweetalert2';
 
 interface CartItem {
@@ -22,7 +26,10 @@ export const POSDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState('');
   
+<<<<<<< HEAD
   // 👈 NUEVO ESTADO PARA EL MEDIO DE PAGO
+=======
+>>>>>>> 074298303a43c4b7ef95d4be2ebaf1f67b5476d2
   const [paymentMethod, setPaymentMethod] = useState('EFECTIVO'); 
   
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -78,7 +85,7 @@ export const POSDashboard = () => {
     setCart(prev => prev.filter(item => item.variantId !== variantId));
   };
 
-  const handleCheckout = async () => {
+ const handleCheckout = async () => {
     if (!selectedCustomer) {
       Swal.fire('Atención', 'Seleccioná un cliente o institución para asignarle la venta.', 'warning');
       return;
@@ -100,12 +107,35 @@ export const POSDashboard = () => {
     if (result.isConfirmed) {
       setIsProcessing(true);
       try {
+<<<<<<< HEAD
         // 1. Procesamos la mercadería como siempre
         await processSale(selectedCustomer, cart, cartTotal);
 
         // 2. 🚀 EL PUENTE: Si es cuenta corriente, impactamos la deuda en el CRM
         if (paymentMethod === 'CUENTA_CORRIENTE') {
           await addDebt(selectedCustomer, cartTotal, `Venta en POS - ${cart.length} artículos`);
+=======
+        console.log("1. Descontando stock del inventario...");
+        await processSale(selectedCustomer, cart, cartTotal);
+        
+        if (paymentMethod === 'CUENTA_CORRIENTE') {
+          console.log("2. Enviando deuda a Supabase...", { selectedCustomer, cartTotal });
+          
+          const payload = {
+            customer_id: selectedCustomer,
+            movement_type: 'CARGO',
+            amount: cartTotal,
+            description: `Venta POS - ${cart.length} artículos`
+          };
+
+          const { error: debtError } = await supabase.from('account_movements').insert([payload]);
+          
+          if (debtError) {
+            console.error("❌ Error oculto de Supabase:", debtError);
+            throw new Error(`Supabase rechazó la deuda: ${debtError.message}`);
+          }
+          console.log("✅ Deuda guardada exitosamente en la base de datos.");
+>>>>>>> 074298303a43c4b7ef95d4be2ebaf1f67b5476d2
         }
 
         Swal.fire(
@@ -118,10 +148,15 @@ export const POSDashboard = () => {
         
         setCart([]);
         setSelectedCustomer('');
+<<<<<<< HEAD
         setPaymentMethod('EFECTIVO'); // Reseteamos al método por defecto
+=======
+        setPaymentMethod('EFECTIVO'); 
+>>>>>>> 074298303a43c4b7ef95d4be2ebaf1f67b5476d2
         
       } catch (error: any) {
-        Swal.fire('Error', error.message || 'No se pudo procesar la venta.', 'error');
+        console.error("❌ Fallo capturado:", error);
+        Swal.fire('Error Crítico', error.message || 'No se pudo procesar la venta.', 'error');
       } finally {
         setIsProcessing(false);
       }
@@ -216,7 +251,10 @@ export const POSDashboard = () => {
 
         <div className="p-6 bg-slate-900 border-t border-slate-800">
           
+<<<<<<< HEAD
           {/* 👈 NUEVO: SELECTOR DE MEDIO DE PAGO */}
+=======
+>>>>>>> 074298303a43c4b7ef95d4be2ebaf1f67b5476d2
           <div className="mb-6">
             <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block tracking-widest">Medio de Pago / Condición</label>
             <select
