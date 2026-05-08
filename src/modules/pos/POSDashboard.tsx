@@ -22,10 +22,6 @@ export const POSDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState('');
   
-<<<<<<< HEAD
-  // 👈 NUEVO ESTADO PARA EL MEDIO DE PAGO
-=======
->>>>>>> 074298303a43c4b7ef95d4be2ebaf1f67b5476d2
   const [paymentMethod, setPaymentMethod] = useState('EFECTIVO'); 
   
   const [cart, setCart] = useState<CartItem[]>([]);
