@@ -1,61 +1,82 @@
 import React from 'react';
 
-export const OrderLabel = ({ order }: any) => {
+// 1. 🛡️ CHAU "ANY": Definimos exactamente qué trae el pedido para evitar cuelgues
+interface OrderLabelProps {
+  order: {
+    id: string;
+    customer_name?: string;
+    customerName?: string;
+    items?: Array<{
+      variations?: Array<{ quantityOrdered: number | string | null }>;
+    }>;
+  };
+}
+
+// 2. 🧠 MATEMÁTICA SEGURA AFUERA DEL HTML: Blindado contra valores nulos o textos
+const calculateTotalItems = (items?: OrderLabelProps['order']['items']): number => {
+  if (!items) return 0;
+  
+  return items.reduce((total, item) => {
+    const itemQuantity = item.variations?.reduce((sum, v) => {
+      const qty = Number(v.quantityOrdered || 0);
+      return sum + (isNaN(qty) ? 0 : qty); // Si no es número, suma 0.
+    }, 0) || 0;
+    
+    return total + itemQuantity;
+  }, 0);
+};
+
+export const OrderLabel = ({ order }: OrderLabelProps) => {
   if (!order) return null;
 
-  // Calculamos cuántas prendas hay en total en el pedido
-  const totalItems = order.items?.reduce((acc: number, item: any) => {
-    return acc + item.variations?.reduce((sum: number, v: any) => sum + v.quantityOrdered, 0);
-  }, 0) || 0;
+  const totalItems = calculateTotalItems(order.items);
+  
+  // Normalizamos nombres por si vienen distinto de la base de datos
+  const shortId = order.id ? order.id.split('-')[0].toUpperCase() : 'S/N';
+  const clientName = order.customer_name || order.customerName || 'Cliente sin nombre';
 
   return (
-    <div className="w-[100mm] h-[150mm] bg-white text-black p-6 flex flex-col font-sans border border-gray-200">
+    <div className="bg-white text-black p-6 border-2 border-black w-80 font-sans flex flex-col gap-4">
       
       {/* CABECERA */}
-      <div className="border-b-4 border-black pb-4 mb-4 flex justify-between items-center">
-        <div>
-          <h1 className="text-4xl font-black italic tracking-tighter">RAÍCES</h1>
-          <p className="text-[8px] font-black uppercase tracking-[0.2em] mt-1">Berisso, Buenos Aires</p>
-        </div>
-        <div className="text-right">
-          <p className="text-[10px] font-bold uppercase border border-black px-2 py-1 rounded-md">
-            Pedido: #{order.id?.split('-')[0].toUpperCase()}
-          </p>
-        </div>
+      <div className="flex justify-between items-center border-b-2 border-black pb-2">
+        <h2 className="text-2xl font-black tracking-tighter">RAÍCES</h2>
+        <p className="text-sm font-black border border-black px-2 py-1 rounded-none uppercase">
+          Pedido: #{shortId}
+        </p>
       </div>
 
-      {/* DESTINATARIO */}
-      <div className="flex-1">
-        <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Entregar a:</p>
-        <h2 className="text-3xl font-black uppercase leading-none mb-4">
-          {order.customer_name || order.customerName}
-        </h2>
+      {/* DATOS DEL CLIENTE */}
+      <div>
+        <p className="text-[10px] uppercase font-bold text-gray-500 tracking-widest">Para:</p>
+        <p className="text-xl font-black uppercase leading-tight truncate">
+          {clientName}
+        </p>
+      </div>
+
+      {/* CANTIDAD TOTAL */}
+      <div className="bg-black text-white p-3 flex justify-between items-center">
+        <p className="text-xs uppercase font-bold tracking-widest">Prendas Totales</p>
+        <p className="text-2xl font-black">{totalItems}</p>
+      </div>
+
+      {/* ALERTA DE PEDIDO VACÍO */}
+      {totalItems === 0 && (
+        <p className="text-xs font-bold text-rose-600 uppercase text-center border border-rose-600 py-1">
+          ⚠️ Sin prendas registradas
+        </p>
+      )}
+
+      {/* PIE Y FECHA */}
+      <div className="flex justify-between items-end pt-4 mt-auto border-t-2 border-black">
+        <p className="text-sm font-black">{new Date().toLocaleDateString('es-AR')}</p>
         
-        {/* INFO DEL BULTO */}
-        <div className="mt-6 border-2 border-black p-4 rounded-xl bg-gray-50">
-          <p className="text-xs font-bold uppercase mb-2 border-b border-gray-300 pb-2">Detalle del Bulto</p>
-          <p className="text-lg font-black">{totalItems} <span className="text-sm font-bold text-gray-600">PRENDAS EN TOTAL</span></p>
-        </div>
-      </div>
-
-      {/* PIE DE ETIQUETA / FECHA */}
-      <div className="border-t-2 border-black pt-4 mt-4 flex justify-between items-end">
-        <div>
-          <p className="text-[8px] font-black uppercase tracking-widest text-gray-500">Fecha de Empaque</p>
-          <p className="text-sm font-black">{new Date().toLocaleDateString('es-AR')}</p>
-        </div>
-        {/* Un código de barras falso de adorno para que quede pro */}
-        <div className="font-barcode text-4xl opacity-80 tracking-widest">
+        {/* Código de barras estético */}
+        <div className="font-barcode text-4xl opacity-80 tracking-widest pointer-events-none">
           ||||| | ||| || |||
         </div>
       </div>
-
-      <style>{`
-        @media print {
-          @page { size: 100mm 150mm; margin: 0; }
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        }
-      `}</style>
+      
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 
 interface GiftCardProps {
   message: string;
@@ -6,6 +6,16 @@ interface GiftCardProps {
 }
 
 export const GiftCardPrintable: React.FC<GiftCardProps> = ({ message, onClose }) => {
+  
+  // ✅ FIX: Cerramos el modal si el usuario aprieta la tecla "Escape"
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [onClose]);
+
   const handlePrint = () => {
     window.print();
   };
@@ -15,16 +25,17 @@ export const GiftCardPrintable: React.FC<GiftCardProps> = ({ message, onClose })
       
       {/* Botonera superior */}
       <div className="flex gap-4 mb-6 print:hidden">
-        <button onClick={handlePrint} className="px-6 py-3 bg-indigo-500 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-lg hover:bg-indigo-400 transition-colors">
+        <button onClick={handlePrint} className="px-6 py-3 bg-indigo-500 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-lg hover:bg-indigo-400 transition-colors active:scale-95">
           ✨ Imprimir Tarjeta
         </button>
-        <button onClick={onClose} className="px-6 py-3 bg-slate-800 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-lg hover:bg-rose-500 transition-colors">
+        <button onClick={onClose} className="px-6 py-3 bg-slate-800 text-white font-black uppercase tracking-widest text-xs rounded-2xl shadow-lg hover:bg-rose-500 transition-colors active:scale-95">
           ✕ Cerrar
         </button>
       </div>
 
       {/* LA TARJETA - Estructura Holding */}
-      <div className="w-[100mm] h-[150mm] bg-[#f8fafc] p-3 print:m-0 relative overflow-hidden box-border shadow-2xl print:shadow-none">
+      {/* ✅ FIX: Agregado max-w-full y max-h-full para que no rompa en pantallas chicas */}
+      <div className="w-[100mm] h-[150mm] max-w-full max-h-full bg-[#f8fafc] p-3 print:m-0 relative overflow-hidden box-border shadow-2xl print:shadow-none">
 
         {/* 🎨 Blobs de colores de la división tecnológica */}
         <div className="absolute top-[-50px] left-[-50px] w-48 h-48 bg-indigo-200 rounded-full mix-blend-multiply filter blur-2xl opacity-70"></div>
@@ -56,8 +67,9 @@ export const GiftCardPrintable: React.FC<GiftCardProps> = ({ message, onClose })
           <div className="w-8 h-1 bg-gradient-to-r from-indigo-300 to-cyan-300 mx-auto my-6 rounded-full opacity-50"></div>
 
           {/* Cuerpo del mensaje */}
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-slate-700 text-sm font-medium text-center leading-relaxed italic px-2">
+          {/* ✅ FIX: overflow-hidden y break-words para que textos súper largos no rompan el papel */}
+          <div className="flex-1 flex items-center justify-center overflow-hidden">
+            <p className="text-slate-700 text-sm font-medium text-center leading-relaxed italic px-2 break-words text-balance">
               "{message}"
             </p>
           </div>

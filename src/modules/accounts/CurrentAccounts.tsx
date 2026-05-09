@@ -1,12 +1,31 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
 import Swal from 'sweetalert2';
-import { Search, CreditCard, TrendingUp, ArrowLeft, Plus } from 'lucide-react';
+import { Search, CreditCard, TrendingUp, ArrowLeft } from 'lucide-react';
+
+// 1. 🛡️ INTERFACES ESTRICTAS (Chau "any")
+interface CustomerBalance {
+  customer_id: string;
+  customer_name: string;
+  current_balance: number;
+}
+
+interface AccountMovement {
+  id: string;
+  customer_id: string;
+  date: string;
+  description: string;
+  movement_type: 'PAGO' | 'CARGO';
+  amount: number;
+}
+
+// 2. 🧹 HELPER PARA LIMPIAR CÓDIGO DE MONEDA
+const formatMoney = (amount: number) => `$${Math.abs(amount).toLocaleString('es-AR')}`;
 
 export const CurrentAccounts = () => {
-  const [balances, setBalances] = useState<any[]>([]);
+  const [balances, setBalances] = useState<CustomerBalance[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
-  const [movements, setMovements] = useState<any[]>([]);
+  const [movements, setMovements] = useState<AccountMovement[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -22,62 +41,87 @@ export const CurrentAccounts = () => {
     if (selectedCustomerId) fetchMovements(selectedCustomerId);
   }, [selectedCustomerId]);
 
-const fetchGlobalBalances = async () => {
+  const fetchGlobalBalances = async () => {
     setIsLoading(true);
     try {
-      console.log("Intentando leer la vista v_customer_balances...");
-      
       const { data, error } = await supabase
         .from('v_customer_balances')
         .select('*')
         .order('current_balance', { ascending: false });
 
       if (error) {
-        // 🚨 Si hay un error, nos va a avisar con un cartel
         console.error("Error de Supabase:", error);
         Swal.fire('Error en la Vista', error.message, 'error');
         return;
       }
-
-      console.log("Datos recibidos:", data);
       setBalances(data || []);
-
     } catch (err: any) {
       console.error("Fallo total:", err);
+      Swal.fire('Error', 'Fallo al conectar con el servidor', 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
+  // ✅ FIX: try/catch agregado para evitar que se cuelgue si falla la conexión
   const fetchMovements = async (id: string) => {
-    const { data } = await supabase.from('account_movements').select('*').eq('customer_id', id).order('date', { ascending: false });
-    setMovements(data || []);
+    try {
+      const { data, error } = await supabase
+        .from('account_movements')
+        .select('*')
+        .eq('customer_id', id)
+        .order('date', { ascending: false });
+        
+      if (error) throw error;
+      setMovements(data || []);
+    } catch (error) {
+      console.error('Error al cargar movimientos:', error);
+      Swal.fire('Error', 'No se pudieron cargar los movimientos.', 'error');
+    }
   };
 
-  // Cálculos de cabecera
   const globalTotal = useMemo(() => 
     balances.reduce((acc, curr) => curr.current_balance > 0 ? acc + curr.current_balance : acc, 0)
   , [balances]);
 
-  const filteredBalances = balances.filter(b => b.customer_name.toLowerCase().includes(searchTerm.toLowerCase()));
+  // ✅ FIX: useMemo para que la barra de búsqueda no alente el sistema
+  const filteredBalances = useMemo(() => 
+    balances.filter(b => b.customer_name.toLowerCase().includes(searchTerm.toLowerCase()))
+  , [balances, searchTerm]);
 
+  // ✅ FIX: Validación militar de montos y variables
   const handleSaveMovement = async () => {
-    if (formParams.amount <= 0 || !formParams.description) return;
+    if (!selectedCustomerId) {
+      Swal.fire('Error', 'No hay cliente seleccionado.', 'error');
+      return;
+    }
+    if (isNaN(formParams.amount) || formParams.amount <= 0 || !formParams.description.trim()) {
+      Swal.fire('Atención', 'El monto debe ser mayor a 0 y tener una descripción.', 'warning');
+      return;
+    }
+
     try {
       const { error } = await supabase.from('account_movements').insert([{
         customer_id: selectedCustomerId,
         ...formParams
       }]);
       if (error) throw error;
+
       Swal.fire({ toast: true, icon: 'success', title: 'Registrado', position: 'top-end', showConfirmButton: false, timer: 1500 });
       setIsModalOpen(false);
       setFormParams({ movement_type: 'PAGO', amount: 0, description: '' });
-      fetchMovements(selectedCustomerId!);
+      
+      // Refrescamos datos
+      fetchMovements(selectedCustomerId);
       fetchGlobalBalances();
-    } catch (e) { Swal.fire('Error', 'No se pudo guardar', 'error'); }
+    } catch (e) { 
+      Swal.fire('Error', 'No se pudo guardar el movimiento', 'error'); 
+    }
   };
 
+  // ==========================================
   // VISTA DE DETALLE (Cuando seleccionas un cliente)
+  // ==========================================
   if (selectedCustomerId) {
     const customer = balances.find(b => b.customer_id === selectedCustomerId);
     return (
@@ -93,8 +137,8 @@ const fetchGlobalBalances = async () => {
           </div>
           <div className="text-right">
             <p className="text-[10px] font-black uppercase text-slate-400">Saldo Actual</p>
-            <p className={`text-4xl font-black ${customer?.current_balance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-              ${Math.abs(customer?.current_balance || 0).toLocaleString('es-AR')}
+            <p className={`text-4xl font-black ${customer && customer.current_balance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+              {formatMoney(customer?.current_balance || 0)}
             </p>
           </div>
         </div>
@@ -106,35 +150,37 @@ const fetchGlobalBalances = async () => {
               + Nuevo Movimiento
             </button>
           </div>
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-slate-50 dark:bg-slate-900/80 text-[10px] font-black uppercase text-slate-400 border-b border-slate-200">
-                <th className="p-5">Fecha</th>
-                <th className="p-5">Detalle</th>
-                <th className="p-5 text-center">Tipo</th>
-                <th className="p-5 text-right">Monto</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50 text-sm font-bold">
-              {movements.map(mov => (
-                <tr key={mov.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/20">
-                  <td className="p-5 text-slate-500">{new Date(mov.date).toLocaleDateString('es-AR')}</td>
-                  <td className="p-5 text-slate-800 dark:text-slate-200">{mov.description}</td>
-                  <td className="p-5 text-center">
-                    <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase ${mov.movement_type === 'PAGO' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                      {mov.movement_type === 'PAGO' ? 'Pago' : 'Cargo'}
-                    </span>
-                  </td>
-                  <td className={`p-5 text-right font-black ${mov.movement_type === 'PAGO' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    {mov.movement_type === 'PAGO' ? '-' : '+'}${Number(mov.amount).toLocaleString('es-AR')}
-                  </td>
+          {/* ✅ FIX: overflow-x-auto agregado para pantallas chicas */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left min-w-[600px]">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-900/80 text-[10px] font-black uppercase text-slate-400 border-b border-slate-200">
+                  <th className="p-5">Fecha</th>
+                  <th className="p-5">Detalle</th>
+                  <th className="p-5 text-center">Tipo</th>
+                  <th className="p-5 text-right">Monto</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50 text-sm font-bold">
+                {movements.map(mov => (
+                  <tr key={mov.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/20">
+                    <td className="p-5 text-slate-500">{new Date(mov.date).toLocaleDateString('es-AR')}</td>
+                    <td className="p-5 text-slate-800 dark:text-slate-200">{mov.description}</td>
+                    <td className="p-5 text-center">
+                      <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase ${mov.movement_type === 'PAGO' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                        {mov.movement_type === 'PAGO' ? 'Pago' : 'Cargo'}
+                      </span>
+                    </td>
+                    <td className={`p-5 text-right font-black ${mov.movement_type === 'PAGO' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      {mov.movement_type === 'PAGO' ? '-' : '+'}{formatMoney(mov.amount)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        {/* MODAL REUTILIZADO */}
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
             <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-md p-8 space-y-5 border border-slate-200">
@@ -146,11 +192,26 @@ const fetchGlobalBalances = async () => {
                   </button>
                 ))}
               </div>
-              <input type="number" placeholder="Monto $" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-xl font-black outline-none focus:border-blue-500" value={formParams.amount || ''} onChange={e => setFormParams({...formParams, amount: Number(e.target.value)})} />
-              <input type="text" placeholder="¿Por qué concepto?" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-blue-500" value={formParams.description} onChange={e => setFormParams({...formParams, description: e.target.value})} />
+              {/* ✅ FIX: Input con validación min="0" y step para decimales */}
+              <input 
+                type="number" 
+                min="0" 
+                step="0.01" 
+                placeholder="Monto $" 
+                className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-xl font-black outline-none focus:border-blue-500" 
+                value={formParams.amount || ''} 
+                onChange={e => setFormParams({...formParams, amount: parseFloat(e.target.value)})} 
+              />
+              <input 
+                type="text" 
+                placeholder="¿Por qué concepto?" 
+                className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:border-blue-500" 
+                value={formParams.description} 
+                onChange={e => setFormParams({...formParams, description: e.target.value})} 
+              />
               <div className="flex justify-end gap-3 pt-4">
-                <button onClick={() => setIsModalOpen(false)} className="uppercase text-[10px] font-black text-slate-400 px-4">Cancelar</button>
-                <button onClick={handleSaveMovement} className="bg-blue-600 text-white px-8 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg">Guardar</button>
+                <button onClick={() => setIsModalOpen(false)} className="uppercase text-[10px] font-black text-slate-400 px-4 hover:text-slate-700 transition-colors">Cancelar</button>
+                <button onClick={handleSaveMovement} className="bg-blue-600 text-white px-8 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg active:scale-95 transition-all">Guardar</button>
               </div>
             </div>
           </div>
@@ -159,7 +220,9 @@ const fetchGlobalBalances = async () => {
     );
   }
 
+  // ==========================================
   // VISTA DE RADAR (General)
+  // ==========================================
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <header>
@@ -172,19 +235,21 @@ const fetchGlobalBalances = async () => {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-[10px] font-black uppercase text-rose-600 dark:text-rose-400 tracking-widest mb-1">Total en la calle</p>
-              <h3 className="text-4xl font-black text-rose-700 dark:text-rose-500">${globalTotal.toLocaleString('es-AR')}</h3>
+              <h3 className="text-4xl font-black text-rose-700 dark:text-rose-500">{formatMoney(globalTotal)}</h3>
             </div>
             <TrendingUp className="text-rose-400 w-8 h-8" />
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 p-6 rounded-3xl shadow-sm flex items-center">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-6 rounded-3xl shadow-sm flex items-center">
           <div className="relative w-full">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
             <input 
-              type="text" placeholder="Buscar deudor por nombre..." 
-              className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-blue-500"
-              value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+              type="text" 
+              placeholder="Buscar deudor por nombre..." 
+              className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-bold outline-none focus:border-blue-500"
+              value={searchTerm} 
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
         </div>
@@ -209,7 +274,7 @@ const fetchGlobalBalances = async () => {
               <div>
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Saldo</p>
                 <p className={`text-2xl font-black ${b.current_balance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                  ${Math.abs(b.current_balance).toLocaleString('es-AR')}
+                  {formatMoney(b.current_balance)}
                 </p>
               </div>
               <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-2xl group-hover:bg-blue-600 group-hover:text-white transition-colors">

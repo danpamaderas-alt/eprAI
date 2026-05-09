@@ -8,14 +8,14 @@ import { ThemeToggle } from '../components/ThemeToggle';
 
 const NAV_ITEMS = [
   { path: '/inicio', label: 'Inicio', icon: '📊' },
-  { path: '/pos', label: 'Punto de Venta', icon: '💰' }, // ✅ Acá agregué Punto de Venta
+  { path: '/pos', label: 'Punto de Venta', icon: '💰' },
   { path: '/tesoreria', label: 'Tesorería', icon: '🏦' },
   { path: '/inventario', label: 'Inventario', icon: '📦' },
   { path: '/pedidos', label: 'Hoja de Ruta', icon: '📋' },
   { path: '/clientes', label: 'Clientes CRM', icon: '🤝' },
   { path: '/cuentas-corrientes', label: 'Cuentas Cor.', icon: '💳' },
   { path: '/revendedores', label: 'Revendedores', icon: '🚚' },
-  { path: '/rentabilidad', label: 'Radar de Rentabilidad', icon: '📈' }, // ✅ Y moví Rentabilidad a la lista principal
+  { path: '/rentabilidad', label: 'Radar de Rentabilidad', icon: '📈' },
 ];
 
 export const DashboardLayout = () => {
@@ -55,13 +55,23 @@ export const DashboardLayout = () => {
     }
   };
 
+  // ✅ FIX: Solo cerramos el menú si estamos en un celular (pantalla menor a 1024px)
+  const handleMobileNavClick = () => {
+    if (window.innerWidth < 1024) {
+      setIsSidebarOpen(false);
+    }
+  };
+
+  // ✅ FIX: Salvavidas para que el avatar no tire error mientras carga el usuario
+  const userInitial = userEmail ? userEmail.charAt(0).toUpperCase() : 'U';
+
   return (
     <div className="flex h-screen bg-slate-100 dark:bg-slate-900 transition-colors duration-300 overflow-hidden relative">
       
       {/* BOTÓN HAMBURGUESA (Solo visible en móviles) */}
       <button 
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className="lg:hidden absolute top-4 left-4 z-50 p-2 bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-lg"
+        className="lg:hidden absolute top-4 left-4 z-50 p-2 bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-lg active:scale-95 transition-all"
       >
         {isSidebarOpen ? '✕' : '☰'}
       </button>
@@ -87,7 +97,7 @@ export const DashboardLayout = () => {
             <NavLink
               key={path}
               to={path}
-              onClick={() => setIsSidebarOpen(false)} 
+              onClick={handleMobileNavClick} 
               className={({ isActive }) => `
                 flex items-center gap-3 px-4 py-3.5 rounded-xl font-semibold transition-all duration-200
                 ${isActive 
@@ -106,10 +116,12 @@ export const DashboardLayout = () => {
           <div className="bg-slate-800/40 rounded-2xl border border-slate-700/50 p-4 space-y-4">
             <div className="flex items-center gap-3 overflow-hidden">
               <div className="w-11 h-11 shrink-0 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center font-bold text-white shadow-inner uppercase">
-                {userEmail?.charAt(0)}
+                {userInitial}
               </div>
               <div className="overflow-hidden">
-                <p className="text-xs font-bold text-white truncate lowercase italic">{userEmail}</p>
+                <p className="text-xs font-bold text-white truncate lowercase italic">
+                  {userEmail || 'Cargando...'}
+                </p>
                 <p className="text-[10px] text-emerald-500 uppercase font-black tracking-widest leading-none mt-1">● Online</p>
               </div>
             </div>
@@ -117,7 +129,7 @@ export const DashboardLayout = () => {
             <button 
               onClick={handleLogout}
               disabled={isLoggingOut}
-              className="w-full py-2.5 bg-slate-900 hover:bg-rose-600/90 text-slate-400 hover:text-white rounded-xl text-[11px] font-black transition-all duration-300 uppercase tracking-widest border border-slate-700 disabled:opacity-50"
+              className="w-full py-2.5 bg-slate-900 hover:bg-rose-600/90 text-slate-400 hover:text-white rounded-xl text-[11px] font-black transition-all duration-300 uppercase tracking-widest border border-slate-700 disabled:opacity-50 active:scale-95"
             >
               {isLoggingOut ? 'Saliendo...' : 'Cerrar Sesión'}
             </button>
@@ -129,12 +141,12 @@ export const DashboardLayout = () => {
       {isSidebarOpen && (
         <div 
           onClick={() => setIsSidebarOpen(false)}
-          className="lg:hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-30"
+          className="lg:hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-30 transition-opacity"
         />
       )}
 
       {/* ÁREA PRINCIPAL CON SOPORTE PARA MODO OSCURO */}
-      <main className="flex-1 overflow-y-auto relative scroll-smooth bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
+      <main className="flex-1 overflow-y-auto relative scroll-smooth bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
         
         {/* === ACÁ ESTÁ EL BOTÓN FLOTANTE MÁGICO === */}
         <div className="absolute top-4 right-4 lg:top-8 lg:right-8 z-40">

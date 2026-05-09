@@ -16,29 +16,38 @@ const CUSTOMER_TYPES = [
 export const CrmDashboard = () => {
   const { customers, fetchCustomers, isLoading } = useCrmStore();
   
-  // Estados para búsqueda y filtros
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('');
   
-  // ✅ Estado para el Modal de NUEVO Cliente
   const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
   
-  // Estados para el Modal de EDICIÓN de Cliente
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editForm, setEditForm] = useState<any>({});
+  const [editForm, setEditForm] = useState<Partial<Customer>>({});
 
-  // Estado para la tarjeta de regalo 3D
   const [printMessage, setPrintMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCustomers();
   }, [fetchCustomers]);
 
+  useEffect(() => {
+    if (isEditModalOpen) {
+      const handleEscape = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') closeEditModal();
+      };
+      document.addEventListener('keydown', handleEscape);
+      return () => document.removeEventListener('keydown', handleEscape);
+    }
+  }, [isEditModalOpen]);
+
   const filteredCustomers = useMemo(() => {
     if (!customers) return [];
-    return customers.filter((c: any) => {
+    return customers.filter((c: Customer) => {
       const searchLower = searchTerm.toLowerCase();
-      const matchText = c.name?.toLowerCase().includes(searchLower) || c.phone?.includes(searchTerm) || c.email?.toLowerCase().includes(searchLower);
+      const matchText = 
+        c.name?.toLowerCase().includes(searchLower) || 
+        c.phone?.includes(searchTerm) || 
+        c.email?.toLowerCase().includes(searchLower);
       const matchType = filterType === '' || c.type === filterType;
       return matchText && matchType;
     });
@@ -55,20 +64,20 @@ export const CrmDashboard = () => {
   };
 
   const handleUpdate = async () => {
-    if (!editForm.name) {
+    if (!editForm.name?.trim()) {
       Swal.fire('Atención', 'El nombre del cliente es obligatorio', 'warning');
       return;
     }
 
     try {
       const payload = {
-        name: editForm.name,
-        phone: editForm.phone || null,
-        email: editForm.email || null,
+        name: editForm.name.trim(),
+        phone: editForm.phone?.trim() || null,
+        email: editForm.email?.trim() || null,
         type: editForm.type || 'MINORISTA',
-        cuit: editForm.cuit || null, 
-        address: editForm.address || null,
-        notes: editForm.notes || null,
+        cuit: editForm.cuit?.trim() || null, 
+        address: editForm.address?.trim() || null,
+        notes: editForm.notes?.trim() || null,
       };
 
       const { error } = await supabase.from('customers').update(payload).eq('id', editForm.id);
@@ -179,10 +188,9 @@ export const CrmDashboard = () => {
           <p className="text-slate-500 text-sm font-medium uppercase tracking-widest mt-1">Gestión de Clientes y Contactos</p>
         </div>
         
-        {/* ✅ BOTÓN NUEVO CLIENTE (Abre el Modal Limpio) */}
         <button 
           onClick={() => setIsNewClientModalOpen(true)}
-          className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg transition-all active:scale-95 flex items-center gap-2"
+          className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
           Nuevo Cliente
@@ -209,7 +217,7 @@ export const CrmDashboard = () => {
       <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="py-20 flex justify-center text-slate-400 font-bold text-sm uppercase tracking-widest animate-pulse">Cargando Directorio...</div>
-        ) : filteredCustomers.length === 0 ? (
+        ) : filteredCustomers.length === 0 ? 
           <div className="text-center py-20 border-2 border-dashed border-slate-200 dark:border-slate-800 m-8 rounded-3xl bg-slate-50/50 dark:bg-slate-900/50">
             <span className="text-4xl block mb-2 opacity-50">📇</span>
             <p className="text-slate-400 text-xs font-black uppercase tracking-widest">No hay clientes registrados</p>
@@ -226,7 +234,7 @@ export const CrmDashboard = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                {filteredCustomers.map((c: any) => {
+                {filteredCustomers.map((c: Customer) => {
                   const typeInfo = CUSTOMER_TYPES.find(t => t.id === c.type) || CUSTOMER_TYPES[0];
 
                   return (
@@ -248,7 +256,7 @@ export const CrmDashboard = () => {
                           {c.phone ? (
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{c.phone}</span>
-                              <button onClick={() => openWhatsApp(c.phone)} className="text-[9px] font-black bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800 flex items-center hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors">
+                              <button onClick={() => openWhatsApp(c.phone!)} className="text-[9px] font-black bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800 flex items-center hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors">
                                 💬 WA
                               </button>
                             </div>
@@ -287,20 +295,25 @@ export const CrmDashboard = () => {
         )}
       </div>
 
-      {/* ✅ MODAL DE CREACIÓN (COMPONENTE EXTERNO) */}
       <ClientFormModal 
         isOpen={isNewClientModalOpen} 
         onClose={() => setIsNewClientModalOpen(false)}
         onSuccess={() => {
           setIsNewClientModalOpen(false);
-          fetchCustomers(); // Refresca la lista
+          fetchCustomers();
         }}
       />
 
-      {/* MODAL DE EDICIÓN (MANTENIDO ACÁ) */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto">
+        <div 
+          onMouseDown={closeEditModal} 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+        >
+          {/* ✅ FIX: Le sacamos el scroll doble al contenedor principal */}
+          <div 
+            onMouseDown={(e) => e.stopPropagation()} 
+            className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-700"
+          >
             
             <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800/80 sticky top-0 z-10">
               <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">
@@ -311,7 +324,8 @@ export const CrmDashboard = () => {
               </button>
             </div>
 
-            <div className="p-8 space-y-6">
+            {/* ✅ FIX: El scroll se lo dejamos solo al formulario interno */}
+            <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="md:col-span-2">
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nombre / Razón Social *</label>
@@ -319,7 +333,7 @@ export const CrmDashboard = () => {
                 </div>
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Tipo de Cliente</label>
-                  <select value={editForm.type || 'MINORISTA'} onChange={e => setEditForm({...editForm, type: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none">
+                  <select value={editForm.type || 'MINORISTA'} onChange={e => setEditForm({...editForm, type: e.target.value as any})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none">
                     {CUSTOMER_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
                   </select>
                 </div>
@@ -335,10 +349,13 @@ export const CrmDashboard = () => {
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Correo Electrónico</label>
                   <input type="email" placeholder="cliente@correo.com" value={editForm.email || ''} onChange={e => setEditForm({...editForm, email: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
+                
+                {/* ✅ FIX: Etiqueta limpia y profesional */}
                 <div className="md:col-span-2">
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Empresa / Negocio (Aparece en celeste)</label>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Empresa / Marca</label>
                   <input type="text" placeholder="Ej: ROJO SHOWROOM" value={editForm.notes || ''} onChange={e => setEditForm({...editForm, notes: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" />
                 </div>
+
                 <div className="md:col-span-2">
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Dirección de Entrega</label>
                   <input type="text" placeholder="Calle, Número, Localidad" value={editForm.address || ''} onChange={e => setEditForm({...editForm, address: e.target.value})} className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-800 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" />

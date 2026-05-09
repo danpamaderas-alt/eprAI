@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 import { supabase } from '../../../lib/supabase'; // Asegurate de que esta ruta a Supabase sea correcta
 
@@ -8,7 +8,14 @@ const CUSTOMER_TYPES = [
   { id: 'INSTITUCION', label: '🏛️ Institución / Empresa' }
 ];
 
-export const ClientFormModal = ({ isOpen, onClose, onSuccess }: any) => {
+// 1. 🛡️ CHAU ANY: Definimos la interfaz estricta para los props
+interface ClientFormModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+export const ClientFormModal: React.FC<ClientFormModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
     name: '',
     type: 'MINORISTA',
@@ -20,28 +27,51 @@ export const ClientFormModal = ({ isOpen, onClose, onSuccess }: any) => {
   });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Ref para manejar el focus automático
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  // 2. 🪄 EFECTOS UX: Escape para cerrar y Autofocus al abrir
+  useEffect(() => {
+    if (isOpen) {
+      // Le da foco al input de nombre apenas abre (con un pequeño delay para que termine la animación)
+      setTimeout(() => nameInputRef.current?.focus(), 100);
+      
+      const handleEscape = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') onClose();
+      };
+      document.addEventListener('keydown', handleEscape);
+      return () => document.removeEventListener('keydown', handleEscape);
+    }
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validación de espacios vacíos (usando trim)
     if (!formData.name.trim()) {
       Swal.fire('Atención', 'El nombre del cliente es obligatorio', 'warning');
+      // Le devolvemos el foco al usuario
+      nameInputRef.current?.focus();
       return;
     }
 
     setIsSubmitting(true);
     try {
-      // Guardamos en la base de datos (Supabase)
-      const { error } = await supabase.from('customers').insert([{
-        name: formData.name,
+      // 3. 🧹 FILTRO ANTI-BASURA: Usamos trim() en todos los campos de texto
+      // Así evitamos guardar "   " en la base de datos
+      const cleanData = {
+        name: formData.name.trim(),
         type: formData.type,
-        phone: formData.phone || null,
-        email: formData.email || null,
-        address: formData.address || null,
-        cuit: formData.cuit || null,
-        notes: formData.notes || null,
-      }]);
+        phone: formData.phone.trim() || null,
+        email: formData.email.trim() || null,
+        address: formData.address.trim() || null,
+        cuit: formData.cuit.trim() || null,
+        notes: formData.notes.trim() || null,
+      };
+
+      const { error } = await supabase.from('customers').insert([cleanData]);
 
       if (error) throw error;
 
@@ -54,7 +84,9 @@ export const ClientFormModal = ({ isOpen, onClose, onSuccess }: any) => {
         timer: 1500
       });
       
-      onSuccess(); // Cierra el modal y actualiza la lista principal
+      // Reseteamos el formulario al salir para que esté limpio la próxima vez
+      setFormData({ name: '', type: 'MINORISTA', phone: '', email: '', address: '', cuit: '', notes: '' });
+      onSuccess(); 
       
     } catch (error: any) {
       console.error("Error guardando cliente:", error);
@@ -65,8 +97,16 @@ export const ClientFormModal = ({ isOpen, onClose, onSuccess }: any) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+    // 4. 🖱️ CIERRE AL CLIC AFUERA: onMouseDown en el fondo oscuro
+    <div 
+      onMouseDown={onClose} 
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+    >
+      {/* Detenemos la propagación del clic para que no se cierre si hace clic adentro de la tarjeta blanca */}
+      <div 
+        onMouseDown={(e) => e.stopPropagation()} 
+        className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
+      >
         
         {/* CABECERA */}
         <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800/80 sticky top-0 z-10">
@@ -79,12 +119,13 @@ export const ClientFormModal = ({ isOpen, onClose, onSuccess }: any) => {
         </div>
 
         {/* FORMULARIO */}
-        <form onSubmit={handleSubmit} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             
             <div className="md:col-span-2">
               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nombre / Razón Social *</label>
               <input 
+                ref={nameInputRef} // Acá conectamos la referencia para el Autofocus
                 type="text" 
                 required
                 placeholder="Ej: Jorge Adrian Silva"

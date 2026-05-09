@@ -283,7 +283,7 @@ export const CuentasCorrientes = () => {
                 <tr><td colSpan={4} className="p-10 text-center animate-pulse font-bold text-slate-400">Cargando deudores...</td></tr>
               ) : filteredDebtors.length === 0 ? (
                 <tr><td colSpan={4} className="p-10 text-center font-bold text-slate-400 uppercase text-xs tracking-widest">No hay clientes con deuda activa</td></tr>
-              ) : (
+              ) : 
                 filteredDebtors.map(d => (
                   <tr key={d.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-colors group">
                     <td className="px-6 py-4">
@@ -306,7 +306,7 @@ export const CuentasCorrientes = () => {
                     </td>
                   </tr>
                 ))
-              )}
+              }
             </tbody>
           </table>
         </div>

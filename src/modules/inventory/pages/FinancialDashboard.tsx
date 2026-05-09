@@ -1,38 +1,18 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../../lib/supabase'; // 🚀 IMPORT DIRECTO PARA LAS VISTAS
 import { useCatalogStore } from '../../../store/useCatalogStore';
-<<<<<<< HEAD
-import { useCrmStore } from '../../crm/store/useCrmStore'; // ✅ CONECTAMOS LA ÚNICA VERDAD DE LA AGENDA
-=======
->>>>>>> 074298303a43c4b7ef95d4be2ebaf1f67b5476d2
 import Swal from 'sweetalert2';
 
 export const FinancialDashboard = () => {
   const { products, inventory, fetchAllCatalogs } = useCatalogStore();
-<<<<<<< HEAD
-  const { customers, fetchCustomers } = useCrmStore(); // ✅ TRAEMOS LA BASE REAL DE CLIENTES
-=======
   
   // Estados para los datos reales de la DB
   const [treasuryMetrics, setTreasuryMetrics] = useState({ income: 0, expenses: 0, net: 0 });
   const [moneyInStreet, setMoneyInStreet] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
->>>>>>> 074298303a43c4b7ef95d4be2ebaf1f67b5476d2
 
   useEffect(() => {
     fetchAllCatalogs();
-<<<<<<< HEAD
-    fetchCustomers(); // ✅ ACTUALIZAMOS SALDOS DE VERDAD
-  }, [fetchFinances, fetchAllCatalogs, fetchCustomers]);
-
-  // 🧠 CÁLCULO 1: FLUJO DE CAJA Y DINERO EN CALLE (VERSIÓN ALINEADA A TESORERÍA)
-  const { totalIncome, totalExpenses, netBalance, totalInStreet } = useMemo(() => {
-    let income = 0;
-    
-    // 🚀 LECTURA DIRECTA: Sumamos el saldo (balance) de todos los clientes activos. 
-    // Igual que lo armamos en la otra pantalla.
-    const inStreet = customers.reduce((acc, client) => acc + (Number(client.balance) || 0), 0);
-=======
     fetchRealTimeFinances();
   }, [fetchAllCatalogs]);
 
@@ -45,7 +25,6 @@ export const FinancialDashboard = () => {
       
       // 2. Traemos el Dinero en Calle (Suma de saldos de Cuentas Corrientes)
       const { data: cData } = await supabase.from('v_customer_balances').select('current_balance');
->>>>>>> 074298303a43c4b7ef95d4be2ebaf1f67b5476d2
 
       if (tData) {
         setTreasuryMetrics({
