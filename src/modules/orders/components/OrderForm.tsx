@@ -42,7 +42,7 @@ export const OrderForm = ({ orderToEdit, onClose, onSuccess }: OrderFormProps) =
     } else {
       setTimeout(() => { fetchCustomers(); }, 1000);
     }
-  }, []); // Dependencias vacías
+  }, [products.length, sizes.length, customers.length, fetchAllCatalogs, fetchCustomers]);
 
   const { register, control, handleSubmit, watch, setValue } = useForm<OrderFormValues>({
     resolver: zodResolver(orderSchema),
@@ -57,7 +57,7 @@ export const OrderForm = ({ orderToEdit, onClose, onSuccess }: OrderFormProps) =
     } : {
       dueDate: new Date().toISOString().split('T')[0],
       customerName: 'Consumidor Final',
-      status: 'PENDING',
+      status: 'PENDIENTE', // 🛠️ FIX: Unificado a español
       businessUnit: 'ROJO_SHOWROOM',
       items: [],
       totalAmount: 0,
@@ -279,7 +279,7 @@ export const OrderForm = ({ orderToEdit, onClose, onSuccess }: OrderFormProps) =
   };
 
 
-const onSubmit = async (data: OrderFormValues) => {
+  const onSubmit = async (data: OrderFormValues) => {
     setIsSubmitting(true);
     onSuccess(); // Cerrado optimista
 
@@ -298,14 +298,15 @@ const onSubmit = async (data: OrderFormValues) => {
 
       let newStatus = data.status; // Por defecto usamos el que ya tenía
 
-      // Si el pedido no está cancelado, evaluamos si se completó
-      if (newStatus !== 'CANCELLED' && totalOrdered > 0) {
+      // 🛠️ FIX: Sincronización de estados al español
+      // Si el pedido no está cancelado ni entregado, evaluamos si se completó
+      if (newStatus !== 'CANCELADO' && newStatus !== 'ENTREGADO' && totalOrdered > 0) {
         if (totalDelivered >= totalOrdered) {
-          newStatus = 'COMPLETED'; // Todo entregado ✅
+          newStatus = 'FINALIZADO'; // Todo producido ✅
         } else if (totalDelivered > 0) {
-          newStatus = 'PARCIAL';   // Faltan cosas ⏳
+          newStatus = 'PARCIAL';    // Faltan cosas ⏳
         } else {
-          newStatus = 'PENDING';   // No se entregó nada 🛑
+          newStatus = 'PENDIENTE';  // No se entregó/produjo nada 🛑
         }
       }
 
@@ -313,7 +314,7 @@ const onSubmit = async (data: OrderFormValues) => {
         company_id: useTenantStore.getState().activeCompanyId,
         due_date: data.dueDate,
         customer_name: data.customerName,
-        status: newStatus, // <--- ACÁ LE INYECTAMOS EL ESTADO AUTOCALCULADO
+        status: newStatus as any, // 🛠️ Inyectamos estado corregido (forzamos any por si Zod espera otra cosa)
         business_unit: data.businessUnit,
         total_amount: data.totalAmount,
         advance_payment: data.advancePayment,

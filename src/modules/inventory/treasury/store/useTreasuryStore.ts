@@ -19,6 +19,9 @@ interface TreasuryState {
   fetchTransactions: () => Promise<void>;
   addTransaction: (tx: any) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
+  // 1. Agregamos las funciones faltantes al "contrato" de TypeScript
+  updateTransaction: (id: string, data: Partial<Transaction>) => Promise<void>;
+  resolvePayment: (id: string) => Promise<void>;
 }
 
 export const useTreasuryStore = create<TreasuryState>((set, get) => ({
@@ -54,6 +57,21 @@ export const useTreasuryStore = create<TreasuryState>((set, get) => ({
 
   deleteTransaction: async (id) => {
     const { error } = await supabase.from('treasury').delete().eq('id', id);
+    if (error) throw error;
+    await get().fetchTransactions();
+  },
+
+  // 2. Implementamos la lógica de actualización
+  updateTransaction: async (id, data) => {
+    const { error } = await supabase.from('treasury').update(data).eq('id', id);
+    if (error) throw error;
+    await get().fetchTransactions();
+  },
+
+  // 3. Implementamos la lógica de resolución rápida
+  resolvePayment: async (id) => {
+    // Pasa el estado a COMPLETADO (podés cambiar la palabra si usás 'PAGADO' o 'ACREDITADO' en tu BD)
+    const { error } = await supabase.from('treasury').update({ status: 'COMPLETADO' }).eq('id', id);
     if (error) throw error;
     await get().fetchTransactions();
   }
