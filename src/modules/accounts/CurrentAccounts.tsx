@@ -44,17 +44,30 @@ export const CurrentAccounts = () => {
   const fetchGlobalBalances = async () => {
     setIsLoading(true);
     try {
+      // 🧠 MAGIA UNIFICADA: Leemos el "balance" real de la tabla general de clientes
       const { data, error } = await supabase
-        .from('v_customer_balances')
-        .select('*')
-        .order('current_balance', { ascending: false });
+        .from('customers')
+        .select('id, name, balance');
 
       if (error) {
         console.error("Error de Supabase:", error);
         Swal.fire('Error en la Vista', error.message, 'error');
         return;
       }
-      setBalances(data || []);
+      
+      // Transformamos los datos para que encajen perfecto en tus tarjetas y filtramos los que están en 0
+      const formattedData = (data || [])
+        .map((c: any) => ({
+          customer_id: c.id,
+          customer_name: c.name,
+          current_balance: Number(c.balance) || 0
+        }))
+        // Opcional: Solo mostrar los que tienen saldo distinto a 0 (como en la otra pantalla)
+        .filter(c => c.current_balance !== 0)
+        // Ordenamos por los que más deben primero
+        .sort((a, b) => Math.abs(b.current_balance) - Math.abs(a.current_balance));
+
+      setBalances(formattedData);
     } catch (err: any) {
       console.error("Fallo total:", err);
       Swal.fire('Error', 'Fallo al conectar con el servidor', 'error');
@@ -63,7 +76,6 @@ export const CurrentAccounts = () => {
     }
   };
 
-  // ✅ FIX: try/catch agregado para evitar que se cuelgue si falla la conexión
   const fetchMovements = async (id: string) => {
     try {
       const { data, error } = await supabase
@@ -84,12 +96,10 @@ export const CurrentAccounts = () => {
     balances.reduce((acc, curr) => curr.current_balance > 0 ? acc + curr.current_balance : acc, 0)
   , [balances]);
 
-  // ✅ FIX: useMemo para que la barra de búsqueda no alente el sistema
   const filteredBalances = useMemo(() => 
     balances.filter(b => b.customer_name.toLowerCase().includes(searchTerm.toLowerCase()))
   , [balances, searchTerm]);
 
-  // ✅ FIX: Validación militar de montos y variables
   const handleSaveMovement = async () => {
     if (!selectedCustomerId) {
       Swal.fire('Error', 'No hay cliente seleccionado.', 'error');
@@ -133,10 +143,10 @@ export const CurrentAccounts = () => {
         <div className="flex justify-between items-end">
           <div>
             <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">{customer?.customer_name}</h2>
-            <p className="text-sm font-bold text-slate-500 uppercase">Historial de movimientos</p>
+            <p className="text-sm font-bold text-slate-500 uppercase">Historial de pagos manuales</p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] font-black uppercase text-slate-400">Saldo Actual</p>
+            <p className="text-[10px] font-black uppercase text-slate-400">Saldo Total</p>
             <p className={`text-4xl font-black ${customer && customer.current_balance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
               {formatMoney(customer?.current_balance || 0)}
             </p>
@@ -150,7 +160,6 @@ export const CurrentAccounts = () => {
               + Nuevo Movimiento
             </button>
           </div>
-          {/* ✅ FIX: overflow-x-auto agregado para pantallas chicas */}
           <div className="overflow-x-auto">
             <table className="w-full text-left min-w-[600px]">
               <thead>
@@ -176,6 +185,13 @@ export const CurrentAccounts = () => {
                     </td>
                   </tr>
                 ))}
+                {movements.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="p-10 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">
+                      No hay pagos ni cargos manuales (El saldo actual puede provenir de pedidos)
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -192,7 +208,6 @@ export const CurrentAccounts = () => {
                   </button>
                 ))}
               </div>
-              {/* ✅ FIX: Input con validación min="0" y step para decimales */}
               <input 
                 type="number" 
                 min="0" 
@@ -258,6 +273,8 @@ export const CurrentAccounts = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {isLoading ? (
           <div className="col-span-full py-20 text-center animate-pulse font-black text-slate-400 uppercase tracking-widest">Escaneando saldos...</div>
+        ) : filteredBalances.length === 0 ? (
+          <div className="col-span-full py-20 text-center font-black text-slate-400 uppercase tracking-widest">No hay deudas registradas</div>
         ) : filteredBalances.map(b => (
           <div 
             key={b.customer_id} 
@@ -272,7 +289,7 @@ export const CurrentAccounts = () => {
             </div>
             <div className="flex justify-between items-end">
               <div>
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Saldo</p>
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Saldo Total</p>
                 <p className={`text-2xl font-black ${b.current_balance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                   {formatMoney(b.current_balance)}
                 </p>

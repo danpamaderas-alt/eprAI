@@ -36,12 +36,14 @@ export const useDebtStore = create<DebtState>((set, get) => ({
   fetchDebtors: async () => {
     set({ isLoading: true });
     
+    // 1. 🔍 MAGIA: Ahora traemos la columna "balance" que es la que usa Tesorería
     const { data, error } = await supabase
       .from('customers')
       .select(`
         id, 
         name, 
         phone,
+        balance, 
         client_movements (id, amount, type, concept, created_at)
       `);
 
@@ -53,10 +55,8 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 
     const processed: CustomerDebt[] = (data || []).map((c: any) => {
       const movements = c.client_movements || [];
-      const total = movements.reduce((acc: number, m: any) => {
-        return m.type === 'CARGO' ? acc + m.amount : acc - m.amount;
-      }, 0);
 
+      // Buscamos la fecha del último pago para la tabla
       const lastPayment = movements
         .filter((m: any) => m.type === 'PAGO')
         .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
@@ -64,7 +64,8 @@ export const useDebtStore = create<DebtState>((set, get) => ({
       return {
         id: c.id,
         name: c.name,
-        total_debt: total,
+        // 2. 🧠 UNIFICACIÓN: Usamos el balance real de la base de datos en vez de recalcular
+        total_debt: Number(c.balance) || 0, 
         last_payment_date: lastPayment ? lastPayment.created_at : null,
         phone: c.phone,
         movements: movements.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -89,7 +90,6 @@ export const useDebtStore = create<DebtState>((set, get) => ({
   },
 
   addDebt: async (customerId, amount, concept) => {
-    // 🔍 ARMAMOS EL PAQUETE Y LO MOSTRAMOS EN CONSOLA
     const payload = { 
       customer_id: customerId, 
       amount: amount, 
