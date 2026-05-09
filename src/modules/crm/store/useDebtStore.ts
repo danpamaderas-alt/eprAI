@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../../../lib/supabase';
 
+// 🛡️ INTERFACES ESTRICTAS
 export interface DebtMovement {
   id: string;
   customer_id: string;
@@ -13,7 +14,7 @@ export interface DebtMovement {
 export interface CustomerDebt {
   id: string;
   name: string;
-  total_debt: number;
+  balance: number; // Unificamos con el término 'balance' de la DB
   last_payment_date: string | null;
   phone?: string;
   movements: DebtMovement[]; 
@@ -36,90 +37,115 @@ export const useDebtStore = create<DebtState>((set, get) => ({
   fetchDebtors: async () => {
     set({ isLoading: true });
     
-    // 1. 🔍 MAGIA: Ahora traemos la columna "balance" que es la que usa Tesorería
-    const { data, error } = await supabase
-      .from('customers')
-      .select(`
-        id, 
-        name, 
-        phone,
-        balance, 
-        client_movements (id, amount, type, concept, created_at)
-      `);
+    try {
+      // 🚀 OPTIMIZACIÓN: Columnas explícitas
+      const { data: customersData, error: custError } = await supabase
+        .from('customers')
+        .select('id, name, phone, balance')
+        .order('name');
 
-    if (error) {
-      console.error("❌ Error cargando deudas:", error.message);
+      if (custError) throw custError;
+
+      const { data: movementsData, error: movError } = await supabase
+        .from('client_movements')
+        .select('id, customer_id, amount, type, concept, created_at')
+        .order('created_at', { ascending: false });
+
+      if (movError) throw movError;
+
+      // 🧠 PROCESAMIENTO: Mapeo de deudores con sus movimientos
+      const processed: CustomerDebt[] = (customersData || []).map(customer => {
+        const customerMovements = (movementsData || []).filter(
+          (m: DebtMovement) => m.customer_id === customer.id
+        );
+        
+        const lastPayment = customerMovements
+          .filter(m => m.type === 'PAGO')
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+
+        return {
+          id: customer.id,
+          name: customer.name,
+          balance: Number(customer.balance) || 0,
+          phone: customer.phone,
+          last_payment_date: lastPayment ? lastPayment.created_at : null,
+          movements: customerMovements
+        };
+      });
+
+      set({ debtors: processed });
+    } catch (error: unknown) {
+      console.error("❌ [DebtStore] Error en fetchDebtors:", error);
+    } finally {
       set({ isLoading: false });
-      return;
     }
-
-    const processed: CustomerDebt[] = (data || []).map((c: any) => {
-      const movements = c.client_movements || [];
-
-      // Buscamos la fecha del último pago para la tabla
-      const lastPayment = movements
-        .filter((m: any) => m.type === 'PAGO')
-        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
-
-      return {
-        id: c.id,
-        name: c.name,
-        // 2. 🧠 UNIFICACIÓN: Usamos el balance real de la base de datos en vez de recalcular
-        total_debt: Number(c.balance) || 0, 
-        last_payment_date: lastPayment ? lastPayment.created_at : null,
-        phone: c.phone,
-        movements: movements.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      };
-    });
-
-    set({ debtors: processed, isLoading: false });
   },
 
   registerPayment: async (customerId, amount) => {
-    const { error: moveError } = await supabase
-      .from('client_movements')
-      .insert([{ 
-        customer_id: customerId, 
-        amount: amount, 
-        type: 'PAGO', 
-        concept: 'Entrega de efectivo / Pago Cta Cte' 
-      }]);
+    try {
+      const { error } = await supabase
+        .from('client_movements')
+        .insert([{ 
+          customer_id: customerId, 
+          amount: Math.abs(amount), // Aseguramos positivo
+          type: 'PAGO', 
+          concept: 'Entrega de efectivo / Pago Cta Cte' 
+        }]);
 
-    if (moveError) throw moveError;
-    await get().fetchDebtors();
+      if (error) throw error;
+      await get().fetchDebtors();
+    } catch (error: unknown) {
+      console.error("❌ [DebtStore] Error en registerPayment:", error);
+      throw error;
+    }
   },
 
   addDebt: async (customerId, amount, concept) => {
-    const payload = { 
-      customer_id: customerId, 
-      amount: amount, 
-      type: 'CARGO', 
-      concept: concept || 'Cargo a Cuenta Corriente' 
-    };
-    
-    console.log("📤 Intentando guardar Cargo. Datos enviados:", payload);
+    try {
+      const { error } = await supabase
+        .from('client_movements')
+        .insert([{ 
+          customer_id: customerId, 
+          amount: Math.abs(amount), 
+          type: 'CARGO', 
+          concept: concept || 'Cargo a Cuenta Corriente' 
+        }]);
 
-    const { error: moveError } = await supabase
-      .from('client_movements')
-      .insert([payload]);
-
-    if (moveError) {
-      console.error("❌ Error CRUDO de Supabase:", moveError);
-      throw moveError;
+      if (error) throw error;
+      await get().fetchDebtors();
+    } catch (error: unknown) {
+      console.error("❌ [DebtStore] Error en addDebt:", error);
+      throw error;
     }
-    
-    await get().fetchDebtors();
   },
 
   deleteMovement: async (movementId) => {
-    const { error } = await supabase.from('client_movements').delete().eq('id', movementId);
-    if (error) throw error;
-    await get().fetchDebtors(); 
+    try {
+      const { error } = await supabase
+        .from('client_movements')
+        .delete()
+        .eq('id', movementId);
+        
+      if (error) throw error;
+      await get().fetchDebtors();
+    } catch (error: unknown) {
+      console.error("❌ [DebtStore] Error en deleteMovement:", error);
+      throw error;
+    }
   },
 
   editMovement: async (movementId, amount, concept) => {
-    const { error } = await supabase.from('client_movements').update({ amount: amount, concept: concept }).eq('id', movementId);
-    if (error) throw error;
-    await get().fetchDebtors(); 
-  }
+    try {
+      const { error } = await supabase
+        .from('client_movements')
+        .update({ amount: Math.abs(amount), concept })
+        .eq('id', movementId);
+        
+      if (error) throw error;
+      await get().fetchDebtors();
+    } catch (error: unknown) {
+      console.error("❌ [DebtStore] Error en editMovement:", error);
+      throw error;
+    }
+  },
 }));

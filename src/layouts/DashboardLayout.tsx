@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import Swal from 'sweetalert2';
@@ -24,15 +24,28 @@ export const DashboardLayout = () => {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const navigate = useNavigate();
 
+  // 🚀 OPTIMIZACIÓN: Prevenir memory leaks al desmontar
   useEffect(() => {
+    let isMounted = true;
+
     const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUserEmail(user?.email || 'Usuario');
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error) console.error("Error verificando usuario:", error.message);
+      
+      if (isMounted) {
+        setUserEmail(user?.email || 'Usuario');
+      }
     };
+    
     getUser();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const handleLogout = async () => {
+  // 🚀 OPTIMIZACIÓN: Memorizar la función para no recrearla en cada render
+  const handleLogout = useCallback(async () => {
     const result = await Swal.fire({
       title: '¿Cerrar sesión?',
       icon: 'question',
@@ -46,23 +59,24 @@ export const DashboardLayout = () => {
 
     setIsLoggingOut(true);
     try {
-      await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
       navigate('/login', { replace: true }); 
     } catch (error) {
       console.error('[Auth Error]:', error);
       Swal.fire('Error', 'No se pudo cerrar la sesión.', 'error');
+    } finally {
       setIsLoggingOut(false);
     }
-  };
+  }, [navigate]);
 
-  // ✅ FIX: Solo cerramos el menú si estamos en un celular (pantalla menor a 1024px)
-  const handleMobileNavClick = () => {
+  // 🚀 OPTIMIZACIÓN: Memorizar comportamiento del sidebar
+  const handleMobileNavClick = useCallback(() => {
     if (window.innerWidth < 1024) {
       setIsSidebarOpen(false);
     }
-  };
+  }, []);
 
-  // ✅ FIX: Salvavidas para que el avatar no tire error mientras carga el usuario
   const userInitial = userEmail ? userEmail.charAt(0).toUpperCase() : 'U';
 
   return (
@@ -70,8 +84,10 @@ export const DashboardLayout = () => {
       
       {/* BOTÓN HAMBURGUESA (Solo visible en móviles) */}
       <button 
-        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className="lg:hidden absolute top-4 left-4 z-50 p-2 bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-lg active:scale-95 transition-all"
+        onClick={() => setIsSidebarOpen(prev => !prev)}
+        aria-label={isSidebarOpen ? "Cerrar menú" : "Abrir menú"}
+        aria-expanded={isSidebarOpen}
+        className="lg:hidden absolute top-4 left-4 z-50 p-2 bg-slate-900 dark:bg-slate-800 text-white rounded-lg shadow-lg active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
       >
         {isSidebarOpen ? '✕' : '☰'}
       </button>
@@ -99,7 +115,7 @@ export const DashboardLayout = () => {
               to={path}
               onClick={handleMobileNavClick} 
               className={({ isActive }) => `
-                flex items-center gap-3 px-4 py-3.5 rounded-xl font-semibold transition-all duration-200
+                flex items-center gap-3 px-4 py-3.5 rounded-xl font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500
                 ${isActive 
                   ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30 translate-x-1' 
                   : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
@@ -119,7 +135,7 @@ export const DashboardLayout = () => {
                 {userInitial}
               </div>
               <div className="overflow-hidden">
-                <p className="text-xs font-bold text-white truncate lowercase italic">
+                <p className="text-xs font-bold text-white truncate lowercase italic" title={userEmail || 'Cargando...'}>
                   {userEmail || 'Cargando...'}
                 </p>
                 <p className="text-[10px] text-emerald-500 uppercase font-black tracking-widest leading-none mt-1">● Online</p>
@@ -129,7 +145,7 @@ export const DashboardLayout = () => {
             <button 
               onClick={handleLogout}
               disabled={isLoggingOut}
-              className="w-full py-2.5 bg-slate-900 hover:bg-rose-600/90 text-slate-400 hover:text-white rounded-xl text-[11px] font-black transition-all duration-300 uppercase tracking-widest border border-slate-700 disabled:opacity-50 active:scale-95"
+              className="w-full py-2.5 bg-slate-900 hover:bg-rose-600/90 text-slate-400 hover:text-white rounded-xl text-[11px] font-black transition-all duration-300 uppercase tracking-widest border border-slate-700 disabled:opacity-50 active:scale-95 focus:outline-none focus:ring-2 focus:ring-rose-500"
             >
               {isLoggingOut ? 'Saliendo...' : 'Cerrar Sesión'}
             </button>
@@ -141,7 +157,8 @@ export const DashboardLayout = () => {
       {isSidebarOpen && (
         <div 
           onClick={() => setIsSidebarOpen(false)}
-          className="lg:hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-30 transition-opacity"
+          aria-hidden="true"
+          className="lg:hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-30 transition-opacity cursor-pointer"
         />
       )}
 

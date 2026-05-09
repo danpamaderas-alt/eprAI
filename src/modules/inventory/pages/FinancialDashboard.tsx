@@ -1,36 +1,39 @@
-import { useState, useEffect, useMemo } from 'react';
-import { supabase } from '../../../lib/supabase'; // 🚀 IMPORT DIRECTO PARA LAS VISTAS
+import { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import { supabase } from '../../../lib/supabase';
 import { useCatalogStore } from '../../../store/useCatalogStore';
 import Swal from 'sweetalert2';
 
-export const FinancialDashboard = () => {
+// 🚀 Formateador global para consistencia visual
+const ARS = new Intl.NumberFormat('es-AR', { 
+  style: 'currency', 
+  currency: 'ARS', 
+  maximumFractionDigits: 0 
+});
+
+export const FinancialDashboard = memo(() => {
   const { products, inventory, fetchAllCatalogs } = useCatalogStore();
   
-  // Estados para los datos reales de la DB
   const [treasuryMetrics, setTreasuryMetrics] = useState({ income: 0, expenses: 0, net: 0 });
   const [moneyInStreet, setMoneyInStreet] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    fetchAllCatalogs();
-    fetchRealTimeFinances();
-  }, [fetchAllCatalogs]);
-
-  // 🚀 FUNCIÓN CLAVE: Trae los números finales procesados por la DB
-  const fetchRealTimeFinances = async () => {
+  // 🚀 FUNCIÓN CLAVE: Sincronización con las vistas de Supabase
+  const fetchRealTimeFinances = useCallback(async () => {
     setIsLoading(true);
     try {
-      // 1. Traemos el resumen de la tabla 'treasury' (Caja Real)
-      const { data: tData } = await supabase.from('v_treasury_summary').select('*').single();
-      
-      // 2. Traemos el Dinero en Calle (Suma de saldos de Cuentas Corrientes)
-      const { data: cData } = await supabase.from('v_customer_balances').select('current_balance');
+      // 1. Resumen de Caja Real
+      const { data: tData, error: tError } = await supabase.from('v_treasury_summary').select('*').single();
+      if (tError) throw tError;
+
+      // 2. Dinero en Calle (Saldos Cta Cte)
+      const { data: cData, error: cError } = await supabase.from('v_customer_balances').select('current_balance');
+      if (cError) throw cError;
 
       if (tData) {
         setTreasuryMetrics({
-          income: tData.total_income,
-          expenses: tData.total_expense,
-          net: tData.net_balance
+          income: Number(tData.total_income) || 0,
+          expenses: Number(tData.total_expense) || 0,
+          net: Number(tData.net_balance) || 0
         });
       }
 
@@ -41,14 +44,19 @@ export const FinancialDashboard = () => {
         setMoneyInStreet(totalCalle);
       }
     } catch (error) {
-      console.error("Error sincronizando:", error);
+      console.error("❌ [Financial] Error de sincronización:", error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  // 🧠 VALUACIÓN DE STOCK (Se mantiene igual, es lógica de catálogo)
-  const { stockCost, stockValue, projectedProfit, avgMargin } = useMemo(() => {
+  useEffect(() => {
+    fetchAllCatalogs();
+    fetchRealTimeFinances();
+  }, [fetchAllCatalogs, fetchRealTimeFinances]);
+
+  // 🧠 VALUACIÓN DE STOCK MEMORIZADA
+  const stockMetrics = useMemo(() => {
     let cost = 0;
     let sale = 0;
     inventory.forEach(item => {
@@ -60,29 +68,29 @@ export const FinancialDashboard = () => {
     });
     const profit = sale - cost;
     const margin = cost > 0 ? (profit / cost) * 100 : 0;
-    return { stockCost: cost, stockValue: sale, projectedProfit: profit, avgMargin: margin.toFixed(2) };
+    return { stockCost: cost, stockValue: sale, projectedProfit: profit, avgMargin: margin.toFixed(1) };
   }, [inventory, products]);
 
-const handleAddExpense = async () => {
+  const handleAddExpense = useCallback(async () => {
     const { value: formValues } = await Swal.fire({
       title: 'REGISTRAR GASTO OPERATIVO',
       html: `
-        <div class="text-left space-y-4">
+        <div class="text-left space-y-4 p-2">
           <div>
-            <label class="text-[10px] font-black uppercase text-slate-400">Monto del Gasto ($)</label>
-            <input id="ex-amount" type="number" class="swal2-input !w-full !m-0 !mt-1 !bg-slate-950 !border-slate-800 !text-rose-400 !text-2xl !font-black" placeholder="0.00">
+            <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Monto del Egreso ($)</label>
+            <input id="ex-amount" type="number" class="swal2-input !w-full !m-0 !mt-1 !bg-slate-50 dark:!bg-slate-950 !border-slate-200 dark:!border-slate-800 !text-rose-500 !text-2xl !font-black !rounded-2xl" placeholder="0.00">
           </div>
           <div>
-            <label class="text-[10px] font-black uppercase text-slate-400">¿En qué se fue la plata?</label>
-            <input id="ex-desc" class="swal2-input !w-full !m-0 !mt-1 !bg-slate-950 !border-slate-800 !text-white !text-sm" placeholder="Ej: Hilos, botones, factura de luz...">
+            <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Concepto / Detalle</label>
+            <input id="ex-desc" class="swal2-input !w-full !m-0 !mt-1 !bg-slate-50 dark:!bg-slate-950 !border-slate-200 dark:!border-slate-800 !text-slate-900 dark:!text-white !text-sm !font-bold !rounded-2xl" placeholder="Ej: Pago hilos / Factura luz">
           </div>
           <div>
-            <label class="text-[10px] font-black uppercase text-slate-400">Categoría</label>
-            <select id="ex-cat" class="swal2-input !w-full !m-0 !mt-1 !bg-slate-950 !border-slate-800 !text-white !text-sm">
-              <option value="INSUMOS">Materia Prima / Insumos</option>
-              <option value="SERVICIOS">Servicios (Luz, Internet)</option>
-              <option value="MAQUINARIA">Mantenimiento</option>
-              <option value="OTROS">Varios / Otros</option>
+            <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Categoría de Gasto</label>
+            <select id="ex-cat" class="swal2-input !w-full !m-0 !mt-1 !bg-slate-50 dark:!bg-slate-950 !border-slate-200 dark:!border-slate-800 !text-slate-900 dark:!text-white !text-sm !font-black !rounded-2xl">
+              <option value="INSUMOS">📦 Materia Prima / Insumos</option>
+              <option value="SERVICIOS">⚡ Servicios (Luz, Internet)</option>
+              <option value="MAQUINARIA">🛠️ Mantenimiento / Maquinaria</option>
+              <option value="OTROS">⚙️ Varios / Otros</option>
             </select>
           </div>
         </div>
@@ -92,16 +100,17 @@ const handleAddExpense = async () => {
       cancelButtonText: 'CANCELAR',
       buttonsStyling: false,
       customClass: {
-        confirmButton: 'bg-rose-600 text-white font-black px-6 py-4 rounded-xl uppercase text-xs tracking-widest w-full mb-2',
-        cancelButton: 'bg-slate-800 text-slate-400 font-black px-6 py-4 rounded-xl uppercase text-xs tracking-widest w-full'
+        popup: 'dark:!bg-slate-900 !rounded-[2.5rem] border border-slate-200 dark:border-slate-800',
+        confirmButton: 'bg-rose-600 hover:bg-rose-500 text-white font-black px-6 py-4 rounded-2xl uppercase text-xs tracking-[0.2em] w-full mb-3 shadow-lg active:scale-95 transition-all',
+        cancelButton: 'bg-slate-100 dark:bg-slate-800 text-slate-500 font-black px-6 py-4 rounded-2xl uppercase text-xs tracking-widest w-full'
       },
       preConfirm: () => {
         const amount = Number((document.getElementById('ex-amount') as HTMLInputElement).value);
-        const description = (document.getElementById('ex-desc') as HTMLInputElement).value;
+        const description = (document.getElementById('ex-desc') as HTMLInputElement).value.trim();
         const category = (document.getElementById('ex-cat') as HTMLSelectElement).value;
 
-        if (!amount || !description) {
-          Swal.showValidationMessage('Por favor, completá monto y descripción');
+        if (!amount || amount <= 0 || !description) {
+          Swal.showValidationMessage('Completá monto válido y descripción');
           return false;
         }
         return { amount, description, category };
@@ -110,111 +119,124 @@ const handleAddExpense = async () => {
 
     if (formValues) {
       try {
-        // 🚀 INSERCIÓN DIRECTA EN LA TABLA TREASURY
         const { error } = await supabase.from('treasury').insert([{
           amount: formValues.amount,
-          description: formValues.description,
+          description: formValues.description.toUpperCase(),
           category: formValues.category,
-          type: 'EXPENSE', // 👈 Esto es lo que hace que reste en la vista
+          type: 'EXPENSE',
           date: new Date().toISOString()
         }]);
 
         if (error) throw error;
 
-        // ✅ REFRESCAMOS LOS NÚMEROS DEL DASHBOARD
-        fetchRealTimeFinances(); 
+        await fetchRealTimeFinances(); 
 
         Swal.fire({
+          toast: true,
+          position: 'top-end',
           icon: 'success',
-          title: 'Gasto Registrado',
-          text: `Se descontaron $${formValues.amount.toLocaleString()} de la caja real.`,
-          timer: 2000,
-          showConfirmButton: false
+          title: 'Gasto registrado correctamente',
+          showConfirmButton: false,
+          timer: 2000
         });
 
-      } catch (err: any) {
-        Swal.fire('Error', 'No se pudo registrar el gasto: ' + err.message, 'error');
+      } catch (err) {
+        Swal.fire('Error', 'No se pudo procesar el gasto.', 'error');
       }
     }
-  };
+  }, [fetchRealTimeFinances]);
 
-  if (isLoading) return <div className="p-8 text-slate-400 font-black animate-pulse uppercase">Sincronizando con Tesorería...</div>;
+  const totalPatrimonio = useMemo(() => 
+    treasuryMetrics.net + moneyInStreet + stockMetrics.stockCost
+  , [treasuryMetrics.net, moneyInStreet, stockMetrics.stockCost]);
+
+  if (isLoading) return <div className="p-8 h-screen flex items-center justify-center font-black text-slate-500 uppercase animate-pulse tracking-[0.5em] italic">Analizando Patrimonio Holding...</div>;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto animate-in fade-in duration-500 space-y-10">
+    <div className="p-8 max-w-7xl mx-auto space-y-10 animate-in fade-in duration-700">
       
-      <header className="flex justify-between items-center">
+      <header className="flex flex-col md:flex-row justify-between items-end gap-6">
         <div>
-          <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">📈 Centro <span className="text-blue-500">Financiero</span></h1>
-          <p className="text-xs font-bold text-slate-500 uppercase mt-2">Visión 360 basada en Tesorería Real y Cuentas Corrientes.</p>
+          <h1 className="text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tighter italic leading-none">
+            📈 Centro <span className="text-blue-600">Financiero</span>
+          </h1>
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em] mt-3 italic">Visión 360: Tesorería Real + Cuentas Corrientes + Activos Físicos.</p>
         </div>
-        <button onClick={handleAddExpense} className="bg-rose-600 text-white px-6 py-3 rounded-xl font-black uppercase text-xs tracking-widest shadow-xl active:scale-95 transition-all">
+        <button 
+          onClick={handleAddExpense} 
+          className="bg-rose-600 hover:bg-rose-500 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-rose-600/20 active:scale-95 transition-all"
+        >
           - Registrar Gasto
         </button>
       </header>
 
-      {/* SECCIÓN 1: CAJA Y CALLE (Sincronizados con la DB) */}
-      <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2rem]">
-          <p className="text-[10px] font-black text-emerald-500 uppercase mb-1">Efectivo Cobrado</p>
-          <p className="text-3xl font-black text-white">${treasuryMetrics.income.toLocaleString()}</p>
+      {/* SECCIÓN 1: CAJA Y CALLE */}
+      <section className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-8 rounded-[2.5rem] shadow-sm">
+          <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-2">Ingresos Operativos</p>
+          <p className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter tabular-nums">{ARS.format(treasuryMetrics.income)}</p>
         </div>
         
-        <div className="bg-slate-900 border border-slate-800 p-6 rounded-[2rem]">
-          <p className="text-[10px] font-black text-rose-500 uppercase mb-1">Gastos Operativos</p>
-          <p className="text-3xl font-black text-white">${treasuryMetrics.expenses.toLocaleString()}</p>
+        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-8 rounded-[2.5rem] shadow-sm">
+          <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-2">Egresos / Gastos</p>
+          <p className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter tabular-nums">{ARS.format(treasuryMetrics.expenses)}</p>
         </div>
 
-        <div className="bg-slate-900 border border-blue-500/50 p-6 rounded-[2rem] ring-2 ring-blue-500/20">
-          <p className="text-[10px] font-black text-blue-400 uppercase mb-1">💸 Dinero en Calle</p>
-          <p className="text-3xl font-black text-white">${moneyInStreet.toLocaleString()}</p>
-          <p className="text-[8px] font-bold text-slate-500 uppercase mt-1">Sincronizado con CRM</p>
+        <div className="bg-slate-900 border border-blue-600 p-8 rounded-[2.5rem] shadow-xl shadow-blue-600/10 relative overflow-hidden group">
+          <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-2">💸 Saldo en la Calle</p>
+          <p className="text-3xl font-black text-white tracking-tighter tabular-nums">{ARS.format(moneyInStreet)}</p>
+          <div className="absolute right-0 bottom-0 opacity-10 text-6xl p-4 group-hover:scale-110 transition-transform">🤝</div>
         </div>
 
-        <div className={`p-6 rounded-[2rem] border ${treasuryMetrics.net >= 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-rose-500/10 border-rose-500/30'}`}>
-          <p className="text-[10px] font-black uppercase mb-1 text-slate-400">Saldo Neto (Caja Real)</p>
-          <p className={`text-4xl font-black tracking-tighter ${treasuryMetrics.net >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-            ${treasuryMetrics.net.toLocaleString()}
+        <div className={`p-8 rounded-[2.5rem] border-2 shadow-xl ${treasuryMetrics.net >= 0 ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-rose-500/5 border-rose-500/20'}`}>
+          <p className="text-[10px] font-black uppercase mb-2 text-slate-500 tracking-widest italic">Saldo Neto (Caja Real)</p>
+          <p className={`text-4xl font-black tracking-tighter tabular-nums ${treasuryMetrics.net >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+            {ARS.format(treasuryMetrics.net)}
           </p>
         </div>
       </section>
 
-      {/* VALUACIÓN DE STOCK */}
-      <section>
-        <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">Valuación de Mercadería Física</h2>
-        <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 shadow-xl">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-center md:text-left">
-            <div>
-              <p className="text-[10px] font-black text-slate-500 uppercase mb-1">Inversión (Costo)</p>
-              <p className="text-2xl font-black text-white">${stockCost.toLocaleString()}</p>
-            </div>
-            <div>
-              <p className="text-[10px] font-black text-blue-500 uppercase mb-1">Venta Proyectada</p>
-              <p className="text-2xl font-black text-blue-400">${stockValue.toLocaleString()}</p>
-            </div>
-            <div className="md:border-l md:border-slate-800 md:pl-6">
-              <p className="text-[10px] font-black text-emerald-500 uppercase mb-1">Ganancia Bruta</p>
-              <p className="text-3xl font-black text-emerald-400">${projectedProfit.toLocaleString()}</p>
-            </div>
-            <div>
-              <p className="text-[10px] font-black text-indigo-400 uppercase mb-1">Margen Promedio</p>
-              <p className="text-3xl font-black text-indigo-400">{avgMargin}%</p>
-            </div>
+      {/* SECCIÓN 2: VALUACIÓN DE STOCK */}
+      <section className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[3rem] p-10 shadow-sm">
+        <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mb-10 italic">📦 Valuación de Mercadería Física</h2>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
+          <div>
+            <p className="text-[10px] font-black text-slate-500 uppercase mb-2">Inversión Activa (Costo)</p>
+            <p className="text-2xl font-black text-slate-900 dark:text-white tabular-nums">{ARS.format(stockMetrics.stockCost)}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-black text-blue-600 uppercase mb-2">Venta Proyectada</p>
+            <p className="text-2xl font-black text-blue-600 dark:text-blue-400 tabular-nums">{ARS.format(stockMetrics.stockValue)}</p>
+          </div>
+          <div className="md:border-l md:border-slate-100 dark:md:border-slate-800 md:pl-10">
+            <p className="text-[10px] font-black text-emerald-500 uppercase mb-2 tracking-widest">Ganancia Potencial</p>
+            <p className="text-4xl font-black text-emerald-600 dark:text-emerald-400 tracking-tighter tabular-nums">{ARS.format(stockMetrics.projectedProfit)}</p>
+          </div>
+          <div className="flex flex-col justify-center">
+            <p className="text-[10px] font-black text-indigo-500 uppercase mb-2 tracking-widest">Margen de Catálogo</p>
+            <p className="text-4xl font-black text-indigo-600 dark:text-indigo-400 tracking-tighter tabular-nums">{stockMetrics.avgMargin}%</p>
           </div>
         </div>
       </section>
 
-      {/* PATRIMONIO TOTAL */}
-      <section className="bg-indigo-600 rounded-[2.5rem] p-8 relative overflow-hidden">
+      {/* SECCIÓN 3: PATRIMONIO TOTAL */}
+      <section className="bg-slate-900 rounded-[3.5rem] p-12 relative overflow-hidden shadow-2xl border border-slate-800">
+        <div className="absolute top-0 right-0 p-12 text-9xl opacity-5 font-black uppercase italic">RAÍCES</div>
         <div className="relative z-10">
-          <h2 className="text-indigo-100 text-xs font-black uppercase mb-2">Patrimonio Total Estimado (Caja + Calle + Stock)</h2>
-          <p className="text-6xl font-black text-white tracking-tighter">
-            ${(treasuryMetrics.net + moneyInStreet + stockCost).toLocaleString()}
-          </p>
-          <p className="text-indigo-200 text-[10px] font-bold uppercase mt-2 italic">Representa el valor real de los activos de Raíces hoy.</p>
+          <p className="text-blue-500 text-[10px] font-black uppercase tracking-[0.5em] mb-4">Patrimonio Total Estimado (Caja + Calle + Inversión)</p>
+          <h2 className="text-7xl font-black text-white tracking-tighter tabular-nums italic">
+            {ARS.format(totalPatrimonio)}
+          </h2>
+          <div className="flex gap-4 mt-6">
+            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+              <span className="w-2 h-2 bg-blue-500 rounded-full"></span> Basado en Activos Circulantes
+            </span>
+          </div>
         </div>
       </section>
 
     </div>
   );
-};
+});
+
+FinancialDashboard.displayName = 'FinancialDashboard';

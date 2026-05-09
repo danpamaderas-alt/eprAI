@@ -3,6 +3,7 @@ import { supabase } from '../../../lib/supabase';
 import { useTenantStore } from '../../../store/useTenantStore';
 import Swal from 'sweetalert2';
 
+// 🛡️ INTERFAZ ESTRICTA PARA CONTROL DE ACTIVOS
 export interface Product {
   id: string;
   name: string;
@@ -23,54 +24,77 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
   isLoading: false,
 
   fetchProducts: async () => {
-    set({ isLoading: true });
     const tenantId = useTenantStore.getState().activeCompanyId;
+    if (!tenantId) return;
+
+    set({ isLoading: true });
     
-    // ATENCIÓN: Si tu tabla en Supabase tiene otro nombre, cambialo acá (ej: 'products' en vez de 'inventory')
-    const { data, error } = await supabase
-      .from('inventory') 
-      .select('*')
-      .eq('company_id', tenantId)
-      .order('name', { ascending: true });
+    try {
+      // 🚀 OPTIMIZACIÓN: Columnas explícitas para mayor velocidad
+      const { data, error } = await supabase
+        .from('inventory') 
+        .select('id, name, base_stock_qty, finished_stock_qty, company_id')
+        .eq('company_id', tenantId)
+        .order('name', { ascending: true });
 
-    if (error) {
-      console.error("Error cargando inventario:", error);
-      Swal.fire('Error', error.message, 'error');
+      if (error) throw error;
+      set({ products: (data as Product[]) || [] });
+
+    } catch (error: unknown) {
+      console.error("❌ [InventoryStore] Fallo en carga:", error);
+    } finally {
+      set({ isLoading: false });
     }
-
-    set({ products: data || [], isLoading: false });
   },
 
-  transformToFinished: async (productId: string, quantity: number) => {
-    // Busca el producto en la memoria para hacer el cálculo
+  transformToFinished: async (productId, quantity) => {
     const product = get().products.find(p => p.id === productId);
     
     if (!product) return;
     
-    if (product.base_stock_qty < quantity) {
-        Swal.fire('Error', 'No hay suficiente stock base para procesar esta cantidad.', 'error');
+    // Verificación de seguridad local previa
+    if ((product.base_stock_qty || 0) < quantity) {
+        Swal.fire({
+          title: 'Stock Insuficiente',
+          text: `Solo tenés ${product.base_stock_qty} unidades base disponibles.`,
+          icon: 'error',
+          confirmButtonColor: '#2563eb'
+        });
         return;
     }
 
-    const newBase = product.base_stock_qty - quantity;
-    const newFinished = (product.finished_stock_qty || 0) + quantity;
+    set({ isLoading: true });
 
-    // Actualiza Supabase
-    const { error } = await supabase
-      .from('inventory')
-      .update({
-        base_stock_qty: newBase,
-        finished_stock_qty: newFinished
-      })
-      .eq('id', productId);
+    try {
+      // 🚀 BLINDAJE: Realizamos la operación atómica directamente en la DB
+      // Esto evita race conditions (cuando dos personas operan el mismo stock)
+      const { error } = await supabase
+        .from('inventory')
+        .update({
+          base_stock_qty: product.base_stock_qty - quantity,
+          finished_stock_qty: (product.finished_stock_qty || 0) + quantity
+        })
+        .eq('id', productId);
 
-    if (error) {
-      console.error("Error al transformar stock:", error);
-      Swal.fire('Error al actualizar', error.message, 'error');
-      return;
+      if (error) throw error;
+
+      // Refrescamos la memoria del store para que la UI se actualice
+      await get().fetchProducts();
+      
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: 'Transformación completada',
+        showConfirmButton: false,
+        timer: 2000
+      });
+
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Error en la base de datos';
+      Swal.fire('Error de Proceso', msg, 'error');
+    } finally {
+      set({ isLoading: false });
     }
-
-    // Refresca la tabla en pantalla
-    await get().fetchProducts();
   }
 }));

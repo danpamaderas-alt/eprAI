@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// 🚀 OPTIMIZACIÓN: Tipado estricto para evitar advertencias de TypeScript
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   // Excepción técnica sin revelar estructura de archivos (ej. .env)
@@ -13,13 +14,16 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    // [SEGURIDAD] Explicitar el storage permite en el futuro inyectar  
-    // un CustomStorageAdapter (ej. para cifrar los tokens en memoria o usar cookies)
-    storage: window.localStorage 
+    // 🚀 SEGURIDAD/ESTABILIDAD: Evitamos que explote si window no existe (ej. pruebas automatizadas o SSR)
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined
+  },
+  // 🚀 MONITOREO: Etiquetamos las consultas en la base de datos para diagnosticar rendimiento
+  global: {
+    headers: { 'x-application-name': 'erp-raices-3.0' }
   }
 });
 
-// Logs de telemetría solo en entorno de desarrollo. Uso de console.info en lugar de log.
+// Logs de telemetría solo en entorno de desarrollo.
 if (import.meta.env.DEV) {
   console.info('[Identity Provider] Supabase client initialized.');
 }

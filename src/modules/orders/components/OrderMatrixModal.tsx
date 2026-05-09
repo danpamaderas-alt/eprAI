@@ -5,6 +5,8 @@ interface VariationPayload {
   id: string;
   size: string;
   color: string;
+  sizeId: string; // 👈 AGREGADO: Para que Supabase sepa qué descontar
+  colorId: string; // 👈 AGREGADO: Para que Supabase sepa qué descontar
   quantityOrdered: number;
   quantityDelivered: number;
 }
@@ -26,11 +28,8 @@ export const OrderMatrixModal: React.FC<OrderMatrixModalProps> = ({
 }) => {
   const { inventory } = useCatalogStore();
   
-  // 🔥 OPTIMIZACIÓN EXTREMA: useRef en lugar de useState. 
-  // Esto evita que la tabla se redibuje (lag) cada vez que tipeás un número.
   const valuesRef = useRef<Record<string, number>>({});
 
-  // Carga inicial directa a la referencia (sin render)
   useEffect(() => {
     const initial: Record<string, number> = {};
     currentVariations.forEach(cv => {
@@ -39,12 +38,10 @@ export const OrderMatrixModal: React.FC<OrderMatrixModalProps> = ({
     valuesRef.current = initial;
   }, [currentVariations]);
 
-  // Memoización estricta del inventario
   const productVariants = useMemo(() => 
     inventory.filter(v => v.product_id === product.id), 
   [inventory, product.id]);
 
-  // Memoización estricta de ordenamiento (Solo se calcula 1 vez al abrir)
   const { uniqueSizes, uniqueColors } = useMemo(() => {
     const getSortWeight = (val: string) => {
       const cleanVal = String(val).toUpperCase().trim();
@@ -66,7 +63,7 @@ export const OrderMatrixModal: React.FC<OrderMatrixModalProps> = ({
     return { uniqueSizes: sizes, uniqueColors: colors };
   }, [productVariants]);
 
-  // Guardado leyendo la referencia directamente en RAM
+  // 🧠 MAGIA INVISIBLE: Atrapamos los IDs correctos antes de guardar
   const handleSave = () => {
     const newVars: VariationPayload[] = [];
     uniqueColors.forEach(color => {
@@ -74,10 +71,16 @@ export const OrderMatrixModal: React.FC<OrderMatrixModalProps> = ({
         const qty = valuesRef.current[`${size}-${color}`] || 0;
         if (qty > 0) {
           const existing = currentVariations.find(cv => cv.size === size && cv.color === color);
+          // Buscamos la variante original en el inventario para sacarle los UUID
+          const variant = productVariants.find(v => v.sizes?.name === size && v.colors?.name === color);
+          
           newVars.push({
             id: existing ? existing.id : crypto.randomUUID(),
             size: size as string,
             color: color as string,
+            // 👇 Le pasamos los UUID reales. Si por algún error no existe, mandamos null para no explotar.
+            sizeId: variant ? variant.size_id : '', 
+            colorId: variant ? variant.color_id : '',
             quantityOrdered: qty,
             quantityDelivered: existing ? existing.quantityDelivered : 0
           });
@@ -87,7 +90,6 @@ export const OrderMatrixModal: React.FC<OrderMatrixModalProps> = ({
     onSave(newVars);
   };
 
-  // 🔥 Renderizado Puro: La tabla y las celdas se calculan una sola vez.
   const matrixTable = useMemo(() => (
     <table className="w-full text-left border-collapse">
       <thead>
@@ -125,17 +127,14 @@ export const OrderMatrixModal: React.FC<OrderMatrixModalProps> = ({
                   <span className={`absolute top-1 left-2 text-[9px] font-black ${stockActual > 0 ? 'text-emerald-500' : 'text-slate-400'} opacity-80`}>Disp: {stockActual}</span>
                   {delivered > 0 && <span className="absolute top-1 right-2 text-[9px] font-black text-blue-500 opacity-90" title="Entregado">Ent: {delivered}</span>}
                   
-                  {/* INPUT NO CONTROLADO: Cero lag */}
                   <input 
                     type="number" 
                     min={delivered}
                     defaultValue={defaultValue}
                     onChange={(e) => {
-                      // Se guarda en RAM silenciosamente
                       valuesRef.current[key] = parseInt(e.target.value, 10) || 0;
                     }}
                     onInput={(e) => {
-                      // Cambio visual condicional operando directo sobre el DOM (bypass a React)
                       e.currentTarget.classList.toggle('!text-rose-500', Number(e.currentTarget.value) > stockActual);
                       e.currentTarget.classList.toggle('text-slate-900', Number(e.currentTarget.value) <= stockActual);
                       e.currentTarget.classList.toggle('dark:text-white', Number(e.currentTarget.value) <= stockActual);
@@ -150,7 +149,7 @@ export const OrderMatrixModal: React.FC<OrderMatrixModalProps> = ({
         ))}
       </tbody>
     </table>
-  ), [uniqueSizes, uniqueColors, productVariants, currentVariations]); // Solo redibuja si agregás un color/talle nuevo
+  ), [uniqueSizes, uniqueColors, productVariants, currentVariations]);
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200">

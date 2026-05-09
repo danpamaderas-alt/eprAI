@@ -1,18 +1,19 @@
 import { create } from 'zustand';
 import { supabase } from '../../../lib/supabase';
 
+// 🛡️ INTERFAZ ESTRICTA: Reflejamos fielmente la base de datos
 export interface Customer {
   id: string;
   name: string;
-  email?: string;
-  phone?: string;
-  company?: string;
-  notes?: string;
-  type?: string;
-  // ✅ Agregamos los campos que te pide el formulario
-  cuit?: string; 
-  address?: string;
-  created_at?: string;
+  email: string | null;
+  phone: string | null;
+  company: string | null;
+  notes: string | null;
+  type: 'MINORISTA' | 'MAYORISTA' | 'INSTITUCION';
+  cuit: string | null; 
+  address: string | null;
+  balance: number;
+  created_at: string;
 }
 
 interface CrmStore {
@@ -31,55 +32,78 @@ export const useCrmStore = create<CrmStore>((set) => ({
   fetchCustomers: async () => {
     set({ isLoading: true });
     try {
+      // 🚀 OPTIMIZACIÓN: Listamos columnas explícitas en lugar de '*' para mejorar el rendimiento de red
       const { data, error } = await supabase
         .from('customers')
-        .select('*')
+        .select('id, name, email, phone, company, notes, type, cuit, address, balance, created_at')
         .order('created_at', { ascending: false });
+
       if (error) throw error;
-      set({ customers: data as Customer[] });
-    } catch (error) { 
-      console.error("Error al cargar clientes:", error); 
+      set({ customers: (data as Customer[]) || [] });
+      
+    } catch (error: unknown) { 
+      const msg = error instanceof Error ? error.message : 'Error desconocido al cargar clientes';
+      console.error("❌ [CRM Store] fetchCustomers falló:", msg); 
     } finally { 
       set({ isLoading: false }); 
     }
   },
 
   addCustomer: async (data) => {
-    // 🔍 Filtramos los datos por si acaso viene basura
-    const { data: newCustomer, error } = await supabase
-      .from('customers')
-      .insert([data])
-      .select()
-      .single();
+    try {
+      const { data: newCustomer, error } = await supabase
+        .from('customers')
+        .insert([data])
+        .select()
+        .single();
+        
+      if (error) {
+        console.error("❌ Supabase rechazó el alta. Detalle:", error.message);
+        throw error; 
+      }
       
-    if (error) {
-      // 🚨 ESTO ES CLAVE: Nos va a decir EXACTAMENTE qué columna falta
-      console.error("❌ Supabase rechazó el cliente. Detalle del error:", error.message);
+      set((state) => ({ 
+        customers: [newCustomer as Customer, ...state.customers] 
+      }));
+      
+    } catch (error: unknown) {
+      console.error("❌ [CRM Store] addCustomer falló");
       throw error; 
     }
-    
-    set((state) => ({ customers: [newCustomer as Customer, ...state.customers] }));
   },
 
   updateCustomer: async (id, updates) => {
-    const { error } = await supabase
-      .from('customers')
-      .update(updates)
-      .eq('id', id);
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .update(updates)
+        .eq('id', id);
+        
+      if (error) throw error;
       
-    if (error) {
-      console.error("❌ Error al actualizar:", error.message);
+      set((state) => ({
+        customers: state.customers.map((c) => (c.id === id ? { ...c, ...updates } : c)),
+      }));
+      
+    } catch (error: unknown) {
+      console.error("❌ [CRM Store] updateCustomer falló");
       throw error;
     }
-    
-    set((state) => ({
-      customers: state.customers.map((c) => (c.id === id ? { ...c, ...updates } : c)),
-    }));
   },
 
   deleteCustomer: async (id) => {
-    const { error } = await supabase.from('customers').delete().eq('id', id);
-    if (error) throw error;
-    set((state) => ({ customers: state.customers.filter((c) => c.id !== id) }));
+    try {
+      const { error } = await supabase.from('customers').delete().eq('id', id);
+      
+      if (error) throw error;
+      
+      set((state) => ({ 
+        customers: state.customers.filter((c) => c.id !== id) 
+      }));
+      
+    } catch (error: unknown) {
+      console.error("❌ [CRM Store] deleteCustomer falló");
+      throw error;
+    }
   },
 }));

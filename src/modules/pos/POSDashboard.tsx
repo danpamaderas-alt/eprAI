@@ -2,6 +2,8 @@ import { useState, useMemo, useEffect } from 'react';
 import { useCatalogStore } from '../../store/useCatalogStore';
 import { supabase } from '../../lib/supabase'; // 👈 CONEXIÓN DIRECTA A LA BASE DE DATOS NUEVA
 import Swal from 'sweetalert2';
+// FIX: Asegurate de importar useDebtStore si lo estás usando
+import { useDebtStore } from '../crm/store/useDebtStore'; 
 
 interface CartItem {
   variantId: string;
@@ -10,6 +12,8 @@ interface CartItem {
   sku: string;
   size: string;
   color: string;
+  sizeId: string; // 👈 NUEVO: Guardamos el ID real del talle
+  colorId: string; // 👈 NUEVO: Guardamos el ID real del color
   price: number;
   qty: number;
   maxQty: number; 
@@ -17,7 +21,7 @@ interface CartItem {
 
 export const POSDashboard = () => {
   const { products, inventory, customers, fetchAllCatalogs, processSale } = useCatalogStore();
-  const { addDebt } = useDebtStore(); // 👈 TRAEMOS LA FUNCIÓN PARA ANOTAR EN LA LIBRETA
+  const { addDebt } = useDebtStore(); 
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState('');
@@ -42,6 +46,8 @@ export const POSDashboard = () => {
         price: prod?.price || 0,
         size: v.sizes?.name || 'ÚNICO',
         color: v.colors?.name || 'ÚNICO',
+        sizeId: v.size_id, // 👈 FIX: Atrapamos el UUID del talle
+        colorId: v.color_id, // 👈 FIX: Atrapamos el UUID del color
         finished_qty: v.finished_quantity || 0
       };
     }).filter(v => v.name.toLowerCase().includes(searchTerm.toLowerCase()) || v.sku.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -66,6 +72,8 @@ export const POSDashboard = () => {
         sku: variant.sku,
         size: variant.size,
         color: variant.color,
+        sizeId: variant.sizeId, // 👈 FIX: Lo pasamos al carrito
+        colorId: variant.colorId, // 👈 FIX: Lo pasamos al carrito
         price: variant.price,
         qty: 1,
         maxQty: variant.finished_qty
@@ -100,6 +108,7 @@ export const POSDashboard = () => {
       setIsProcessing(true);
       try {
         console.log("1. Descontando stock del inventario...");
+        // Pasamos el carrito entero, que ahora sí tiene los IDs (sizeId, colorId)
         await processSale(selectedCustomer, cart, cartTotal);
         
         if (paymentMethod === 'CUENTA_CORRIENTE') {

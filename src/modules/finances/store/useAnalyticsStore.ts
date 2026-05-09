@@ -1,6 +1,14 @@
 import { create } from 'zustand';
 import { supabase } from '../../../lib/supabase';
 import { useTenantStore } from '../../../store/useTenantStore';
+import Swal from 'sweetalert2';
+
+// 🛡️ INTERFACES PARA TIPADO ESTRICTO
+interface OrderItem {
+  productName: string;
+  unitPrice?: number;
+  variations?: { quantityOrdered: number }[];
+}
 
 interface AnalyticsState {
   metrics: {
@@ -22,88 +30,107 @@ export const useAnalyticsStore = create<AnalyticsState>((set) => ({
   isLoading: false,
 
   fetchAnalytics: async (month, year) => {
-    set({ isLoading: true });
     const tenantId = useTenantStore.getState().activeCompanyId;
     
-    // Rango de fechas para el mes seleccionado
+    if (!tenantId) {
+      console.error("❌ [Analytics Store] No hay un ID de compañía activo.");
+      return;
+    }
+
+    set({ isLoading: true });
+    
+    // Rango de fechas optimizado para el mes seleccionado
     const startDate = new Date(year, month - 1, 1).toISOString();
-    const endDate = new Date(year, month, 0, 23, 59, 59).toISOString();
+    const endDate = new Date(year, month, 0, 23, 59, 59, 999).toISOString();
 
-    // 1. Ingresos (Pedidos Completados o Parciales)
-    const { data: orders } = await supabase
-      .from('orders')
-      .select('total_amount, items')
-      .eq('company_id', tenantId)
-      .gte('created_at', startDate)
-      .lte('created_at', endDate)
-      .neq('status', 'CANCELLED');
+    try {
+      // 🚀 OPTIMIZACIÓN: Ejecutamos todas las consultas en paralelo para máxima velocidad
+      const [ordersRes, expensesRes, tasksRes] = await Promise.all([
+        supabase
+          .from('orders')
+          .select('total_amount, items')
+          .eq('company_id', tenantId)
+          .gte('created_at', startDate)
+          .lte('created_at', endDate)
+          .neq('status', 'CANCELLED'),
+        supabase
+          .from('expenses')
+          .select('amount, category')
+          .eq('company_id', tenantId)
+          .gte('expense_date', startDate)
+          .lte('expense_date', endDate),
+        supabase
+          .from('worker_tasks')
+          .select('quantity, price_per_unit')
+          .eq('company_id', tenantId)
+          .gte('created_at', startDate)
+          .lte('created_at', endDate)
+          .in('status', ['COMPLETADO', 'PAGADO'])
+      ]);
 
-    // 2. Gastos Fijos e Insumos (Caja)
-    const { data: expenses } = await supabase
-      .from('expenses')
-      .select('amount, category')
-      .eq('company_id', tenantId)
-      .gte('expense_date', startDate)
-      .lte('expense_date', endDate);
+      // Verificación de errores de red
+      if (ordersRes.error) throw ordersRes.error;
+      if (expensesRes.error) throw expensesRes.error;
+      if (tasksRes.error) throw tasksRes.error;
 
-    // 3. Costos de Talleristas (Mano de Obra pagada o completada)
-    const { data: tasks } = await supabase
-      .from('worker_tasks')
-      .select('quantity, price_per_unit')
-      .eq('company_id', tenantId)
-      .gte('created_at', startDate)
-      .lte('created_at', endDate)
-      .in('status', ['COMPLETADO', 'PAGADO']);
+      // --- CÁLCULOS ---
+      let revenue = 0;
+      let laborCosts = 0;
+      let supplyCosts = 0;
+      let fixedCosts = 0;
+      const productMap: Record<string, { revenue: number; quantity: number }> = {};
 
-    // --- CÁLCULOS ---
-    let revenue = 0;
-    let laborCosts = 0;
-    let supplyCosts = 0;
-    let fixedCosts = 0;
-    const productMap: Record<string, { revenue: number; quantity: number }> = {};
+      // 1. Procesar Ingresos y Ranking de Productos
+      ordersRes.data?.forEach(order => {
+        revenue += Number(order.total_amount || 0);
+        
+        if (Array.isArray(order.items)) {
+          (order.items as unknown as OrderItem[]).forEach(item => {
+            const qty = item.variations?.reduce((acc, v) => acc + (v.quantityOrdered || 0), 0) || 0;
+            const lineTotal = qty * (item.unitPrice || 0); 
+            
+            if (!productMap[item.productName]) {
+              productMap[item.productName] = { revenue: 0, quantity: 0 };
+            }
+            productMap[item.productName].revenue += lineTotal;
+            productMap[item.productName].quantity += qty;
+          });
+        }
+      });
 
-    // Procesar Ingresos y Ranking de Productos
-    orders?.forEach(order => {
-      revenue += Number(order.total_amount || 0);
-      
-      // Analizar qué productos se vendieron (basado en tu estructura JSON de items)
-      if (order.items && Array.isArray(order.items)) {
-        order.items.forEach((item: any) => {
-          const qty = item.variations?.reduce((acc: number, v: any) => acc + (v.quantityOrdered || 0), 0) || 0;
-          const lineTotal = qty * (item.unitPrice || 0); // Aproximación de ingreso por producto
-          
-          if (!productMap[item.productName]) productMap[item.productName] = { revenue: 0, quantity: 0 };
-          productMap[item.productName].revenue += lineTotal;
-          productMap[item.productName].quantity += qty;
-        });
-      }
-    });
+      // 2. Procesar Gastos (Insumos vs Fijos)
+      expensesRes.data?.forEach(exp => {
+        const amt = Number(exp.amount || 0);
+        if (exp.category === 'INSUMOS') supplyCosts += amt;
+        else fixedCosts += amt;
+      });
 
-    // Procesar Gastos Fijos vs Insumos
-    expenses?.forEach(exp => {
-      if (exp.category === 'INSUMOS') supplyCosts += Number(exp.amount);
-      else fixedCosts += Number(exp.amount);
-    });
+      // 3. Procesar Mano de Obra (Talleristas)
+      tasksRes.data?.forEach(task => {
+        laborCosts += (Number(task.quantity || 0) * Number(task.price_per_unit || 0));
+      });
 
-    // Procesar Mano de Obra
-    tasks?.forEach(task => {
-      laborCosts += (Number(task.quantity) * Number(task.price_per_unit));
-    });
+      // 4. Métricas Finales
+      const totalCosts = laborCosts + supplyCosts + fixedCosts;
+      const netProfit = revenue - totalCosts;
+      const margin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
 
-    const totalCosts = laborCosts + supplyCosts + fixedCosts;
-    const netProfit = revenue - totalCosts;
-    const margin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
+      // Ranking Top 5
+      const topProducts = Object.entries(productMap)
+        .map(([name, data]) => ({ name, ...data }))
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 5);
 
-    // Ordenar productos estrella
-    const topProducts = Object.entries(productMap)
-      .map(([name, data]) => ({ name, ...data }))
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 5); // Top 5
+      set({
+        metrics: { revenue, laborCosts, supplyCosts, fixedCosts, netProfit, margin },
+        topProducts,
+      });
 
-    set({
-      metrics: { revenue, laborCosts, supplyCosts, fixedCosts, netProfit, margin },
-      topProducts,
-      isLoading: false
-    });
+    } catch (error: unknown) {
+      console.error("❌ [Analytics Store] Fallo crítico:", error);
+      Swal.fire('Error de Datos', 'No se pudieron calcular las métricas financieras del mes.', 'error');
+    } finally {
+      set({ isLoading: false });
+    }
   }
 }));

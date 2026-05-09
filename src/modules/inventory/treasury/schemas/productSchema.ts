@@ -17,10 +17,9 @@ export const productSchema = z.object({
   location: z.string().optional(),
   stock: z.number().min(0),
   minStock: z.number().min(0),
-  variations: z.array(variationSchema).optional()
-  niche_id: z.string().optional(), // <--- Agregá esto
-  supplier_id: z.string().optional() // <--- Agregá esto
-
+  variations: z.array(variationSchema).optional(),
+  niche_id: z.string().optional(),
+  supplier_id: z.string().optional()
 });
 
 export type ProductFormValues = z.infer<typeof productSchema>;

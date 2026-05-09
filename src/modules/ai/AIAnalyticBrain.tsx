@@ -1,18 +1,19 @@
-import { useState } from 'react';
+import { useState, useCallback, memo } from 'react';
 import { useCatalogStore } from '../../store/useCatalogStore';
 import { useTreasuryStore } from '../inventory/treasury/store/useTreasuryStore';
 
-export const AIAnalyticBrain = () => {
-  const { inventory, customers, products } = useCatalogStore();
+export const AIAnalyticBrain = memo(() => {
+  const { inventory, customers } = useCatalogStore();
   const { transactions } = useTreasuryStore();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [insight, setInsight] = useState<string | null>(null);
 
-  const runRealDiagnosis = async () => {
+  // 🚀 OPTIMIZACIÓN: useCallback para evitar recrear la función y fugas de memoria
+  const runRealDiagnosis = useCallback(async () => {
     setIsAnalyzing(true);
     setInsight(null);
 
-    // 1. Recolección de datos de Raíces
+    // 1. Recolección de datos
     const dataSnapshot = {
       ventasTotales: transactions?.filter(t => t.type === 'INCOME').reduce((acc, t) => acc + t.amount, 0) || 0,
       gastosTotales: transactions?.filter(t => t.type === 'EXPENSE').reduce((acc, t) => acc + t.amount, 0) || 0,
@@ -30,8 +31,13 @@ export const AIAnalyticBrain = () => {
     Dame un diagnóstico corto (máximo 3 párrafos) sobre mi rentabilidad actual y 2 acciones urgentes que debo tomar. Habla en tono profesional pero cercano, mencionando que estamos en Berisso.`;
 
     try {
-      const apiKey = "AIzaSyClerEHZ2dcfTw0mnwZXmmCJ46Z2DH1vrI";
+      // 🔒 SEGURIDAD CRÍTICA: Nunca quemar la API key en el código. Leer desde .env
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
       
+      if (!apiKey) {
+        throw new Error("Falta configurar VITE_GEMINI_API_KEY en el archivo .env");
+      }
+
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
       
       const response = await fetch(url, {
@@ -46,19 +52,22 @@ export const AIAnalyticBrain = () => {
 
       if (!response.ok) {
         const errorMsg = data.error?.message || "Error de conexión con Google.";
-        setInsight(`❌ RECHAZO: ${errorMsg}`);
-        return;
+        throw new Error(errorMsg);
       }
 
       const aiResponse = data.candidates[0].content.parts[0].text;
       setInsight(aiResponse);
       
-    } catch (error: any) {
-      setInsight(`❌ ERROR CRÍTICO: ${error.message}`);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setInsight(`❌ ERROR CRÍTICO: ${error.message}`);
+      } else {
+        setInsight(`❌ ERROR DESCONOCIDO`);
+      }
     } finally {
       setIsAnalyzing(false);
     }
-  };
+  }, [inventory, customers, transactions]);
 
   return (
     <div className="bg-slate-900 rounded-[2rem] border border-slate-800 p-8 shadow-2xl relative overflow-hidden">
@@ -73,8 +82,8 @@ export const AIAnalyticBrain = () => {
           <button 
             onClick={runRealDiagnosis}
             disabled={isAnalyzing}
-            className={`px-8 py-3 rounded-2xl font-black text-xs uppercase transition-all transform active:scale-95 ${
-              isAnalyzing ? 'bg-slate-800 text-slate-500' : 'bg-white text-slate-900 hover:bg-blue-500 hover:text-white shadow-xl shadow-blue-500/20'
+            className={`px-8 py-3 rounded-2xl font-black text-xs uppercase transition-all transform focus:outline-none focus:ring-2 focus:ring-blue-500 active:scale-95 ${
+              isAnalyzing ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-900 hover:bg-blue-500 hover:text-white shadow-xl shadow-blue-500/20'
             }`}
           >
             {isAnalyzing ? 'Procesando números...' : '⚡ Ejecutar Análisis Real'}
@@ -90,11 +99,13 @@ export const AIAnalyticBrain = () => {
         ) : (
           <div className="py-12 text-center">
             <p className="text-slate-600 text-xs font-bold uppercase tracking-widest italic opacity-50">
-              Listo para auditar las finanzas de Raíces
+              Listo para auditar las finanzas
             </p>
           </div>
         )}
       </div>
     </div>
   );
-};
+});
+
+AIAnalyticBrain.displayName = 'AIAnalyticBrain';

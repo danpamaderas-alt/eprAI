@@ -1,9 +1,17 @@
 export type MessageTone = 'Amigo' | 'Formal' | 'Breve';
 
-export const generateGiftMessage = async (clientName: string, giftName: string, tone: MessageTone): Promise<string> => {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+// 🚀 CONSTANTE: URL de la API para mantener el código limpio
+const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
-  // 1. Plantillas de respaldo con enfoque en COMUNIDAD y PERTENENCIA
+export const generateGiftMessage = async (
+  clientName: string, 
+  giftName: string, 
+  tone: MessageTone
+): Promise<string> => {
+  
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
+
+  // 1. 🛡️ PLANTILLAS DE RESPALDO (Por si falla la red o no hay API Key)
   const templates: Record<MessageTone, string> = {
     Amigo: `¡Hola ${clientName}! Fabricamos este ${giftName} en nuestro lab 3D especialmente para vos. Gracias por ser parte de la comunidad Raíces y bancar el diseño local. ¡A disfrutarlo, sigamos creciendo juntos!`,
     
@@ -12,26 +20,30 @@ export const generateGiftMessage = async (clientName: string, giftName: string, 
     Breve: `${clientName}, este ${giftName} 3D es para vos. ¡Gracias por ser parte de la familia Raíces! Sigamos construyendo juntos.`
   };
 
-  if (!apiKey || apiKey === "TU_LLAVE_AQUI") {
-    console.log("Usando plantillas estáticas de comunidad (Falta API Key de IA)");
+  // Verificación de seguridad de la llave
+  if (!apiKey || apiKey === "TU_LLAVE_AQUI" || apiKey.length < 10) {
+    console.warn("⚠️ [GiftHelper] Usando plantillas estáticas (API Key no configurada)");
     return templates[tone] || templates.Breve;
   }
 
-  // 2. 🧠 MAGIA IA: Instrucciones reescritas para enfocar en la INCLUSIÓN
+  // 2. 🧠 CONFIGURACIÓN DEL PROMPT
   const prompt = `
-    Sos el redactor creativo y community manager de "RAÍCES LAB", el laboratorio de fabricación digital e impresión 3D del holding Raíces (ubicado en Berisso, Argentina).
+    Actúa como el encargado de comunidad de "RAÍCES LAB", un laboratorio de impresión 3D en Berisso, Argentina.
     
-    Tu objetivo es escribir un mensaje de agradecimiento de máximo 40 palabras para nuestro cliente "${clientName}".
-    El regalo que le entregamos es: "${giftName}".
-    El tono del mensaje debe ser: ${tone}.
+    Escribe un mensaje de agradecimiento de máximo 35 palabras para el cliente "${clientName}".
+    El regalo es: "${giftName}".
+    El tono debe ser: ${tone}.
     
-    REGLA VITAL: El mensaje no debe sonar transaccional. Debe transmitir una fuerte sensación de COMUNIDAD, INCLUSIÓN y PERTENENCIA. Hacé que ${clientName} sienta que ahora es "parte de la familia Raíces" y que valoramos enormemente que apoye el diseño y la manufactura local.
+    REGLA DE ORO: El mensaje debe transmitir PERTENENCIA e INCLUSIÓN. 
+    Haz que ${clientName} se sienta parte de la familia Raíces. 
+    Valoramos que apoye el diseño local.
     
-    No uses comillas al principio ni al final. Firmá siempre como el equipo de Raíces.
+    No uses comillas. Firma como: El equipo de Raíces.
   `;
 
+  // 3. ⚡ EJECUCIÓN DE LA LLAMADA
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    const response = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -39,15 +51,22 @@ export const generateGiftMessage = async (clientName: string, giftName: string, 
       })
     });
 
+    if (!response.ok) throw new Error(`API_ERROR: ${response.status}`);
+
     const data = await response.json();
     
-    if (data.candidates && data.candidates[0].content.parts[0].text) {
-      return data.candidates[0].content.parts[0].text.trim();
+    // Validación profunda del objeto de respuesta
+    const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!aiText) {
+      throw new Error("EMPTY_AI_RESPONSE");
     }
-    
-    throw new Error("Respuesta inválida de la IA");
-  } catch (error) {
-    console.error("Error al conectar con la IA:", error);
+
+    return aiText.trim();
+
+  } catch (error: unknown) {
+    console.error("❌ [GiftHelper] Error llamando a la IA, usando respaldo:", error);
+    // Ante cualquier fallo, devolvemos la plantilla para que el usuario no vea un error
     return templates[tone] || templates.Breve;
   }
 };
