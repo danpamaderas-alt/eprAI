@@ -1,10 +1,41 @@
-import { Home, ShoppingCart, Package, Users, BarChart3 } from 'lucide-react';
-import type { NavItem } from './mobileNav.types';
+import { 
+  LayoutDashboard, 
+  ShoppingCart, 
+  Package, 
+  Users, 
+  BarChart3,
+  Truck
+} from "lucide-react";
 
-export const NAV_ITEMS: readonly NavItem[] = [
-  { path: '/', label: 'Inicio', Icon: Home },
-  { path: '/pos', label: 'Venta', Icon: ShoppingCart },
-  { path: '/inventario', label: 'Stock', Icon: Package },
-  { path: '/crm', label: 'Clientes', Icon: Users },
-  { path: '/analiticas', label: 'Radar', Icon: BarChart3 },
-] as const;
+export const NAV_ITEMS = [
+  {
+    label: "Inicio",
+    href: "/",
+    icon: LayoutDashboard,
+  },
+  {
+    label: "Ventas",
+    href: "/ventas",
+    icon: ShoppingCart,
+  },
+  {
+    label: "Stock",
+    href: "/inventario",
+    icon: Package,
+  },
+  {
+    label: "Clientes",
+    href: "/crm",
+    icon: Users,
+  },
+  {
+    label: "Logística",
+    href: "/logistica",
+    icon: Truck,
+  },
+  {
+    label: "Radar",
+    href: "/analitica",
+    icon: BarChart3,
+  },
+];

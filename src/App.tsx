@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 // Layout & UI (Inyección de componentes desacoplados)
 import { useThemeStore } from "./store/useThemeStore";
 import { Sidebar } from "./shared/components/layout/Sidebar/Sidebar";
-import { MobileNav } from "./shared/components/navigation/MobileNav";
+import { MobileNav } from "./shared/components/navigation/mobileNav";
 
 // Modules
 import { CustomerCRM } from "./modules/customers/CustomerCRM";
@@ -30,8 +30,9 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
   const { isDarkMode } = useThemeStore();
 
   return (
-    <div className={`min-h-screen flex ${isDarkMode ? "dark bg-slate-950" : "bg-slate-50"}`}>
-      
+    <div
+      className={`min-h-screen flex ${isDarkMode ? "dark bg-slate-950" : "bg-slate-50"}`}
+    >
       {/* 🖥️ --- SIDEBAR DE ESCRITORIO (Totalmente encapsulado) --- */}
       <Sidebar />
 
@@ -42,7 +43,6 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
 
       {/* 📱 --- NAVEGACIÓN MÓVIL (Totalmente encapsulada) --- */}
       <MobileNav />
-
     </div>
   );
 };
@@ -76,9 +76,15 @@ export default function App() {
             path="*"
             element={
               <div className="h-full flex flex-col items-center justify-center text-slate-400">
-                <span className="text-6xl mb-4" aria-hidden="true">🚧</span>
-                <h2 className="text-xl font-black uppercase tracking-widest">Directorio No Encontrado</h2>
-                <p className="text-sm mt-2">La ruta especificada no existe en el sistema.</p>
+                <span className="text-6xl mb-4" aria-hidden="true">
+                  🚧
+                </span>
+                <h2 className="text-xl font-black uppercase tracking-widest">
+                  Directorio No Encontrado
+                </h2>
+                <p className="text-sm mt-2">
+                  La ruta especificada no existe en el sistema.
+                </p>
               </div>
             }
           />

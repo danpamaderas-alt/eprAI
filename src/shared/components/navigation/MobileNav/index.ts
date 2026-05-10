@@ -1,2 +1,2 @@
-export { MobileNav } from './MobileNav';
+export { MobileNav } from './mobileNav';
 export type { NavItem } from './mobileNav.types';
