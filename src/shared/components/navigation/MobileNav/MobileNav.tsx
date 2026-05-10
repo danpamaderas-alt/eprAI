@@ -4,7 +4,7 @@ import { NAV_ITEMS } from "./mobileNav.config";
 const NAV_BASE_CLASS = "flex flex-col items-center gap-1 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md p-1";
 const ACTIVE_CLASS = "text-blue-600 dark:text-blue-400 scale-110";
 const INACTIVE_CLASS = "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300";
-
+ 
 export const MobileNav = memo(() => {
   return (
     <nav 

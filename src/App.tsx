@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 // Layout & UI (Inyección de componentes desacoplados)
 import { useThemeStore } from "./store/useThemeStore";
 import { Sidebar } from "./shared/components/layout/Sidebar/Sidebar";
-import { MobileNav } from "./shared/components/navigation/mobileNav";
+import { MobileNav } from "./shared/components/navigation/MobileNav";
 
 // Modules
 import { CustomerCRM } from "./modules/customers/CustomerCRM";
