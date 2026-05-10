@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo, useCallback, memo } from 'react';
 import { useRawMaterialStore, type RawMaterial } from '../store/useRawMaterialStore';
 import Swal from 'sweetalert2';
 
-// 🚀 OPTIMIZACIÓN: Componente memorizado para evitar re-renders por cada tecla pulsada en el buscador
+// 🚀 OPTIMIZACIÓN: Componente memorizado para evitar re-renders por cada tecla pulsada
 export const RawMaterialDashboard = memo(() => {
   const { materials, isLoading, fetchMaterials, addMaterial, updateStock, deleteMaterial } = useRawMaterialStore();
   const [searchTerm, setSearchTerm] = useState('');
@@ -12,14 +12,14 @@ export const RawMaterialDashboard = memo(() => {
     fetchMaterials();
   }, [fetchMaterials]);
 
-  // 🧠 MEMORIA INTELIGENTE: Derivamos listas únicas para sugerencias sin recalcular en cada render
+  // 🧠 MEMORIA: Derivamos listas únicas para sugerencias
   const uniqueCategories = useMemo(() => Array.from(new Set(materials.map(m => m.category).filter(Boolean))), [materials]);
   const uniqueColors = useMemo(() => Array.from(new Set(materials.map(m => m.color).filter(Boolean))), [materials]);
   const uniqueComps = useMemo(() => Array.from(new Set(materials.map(m => m.composition).filter(Boolean))), [materials]);
 
   const categories = useMemo(() => ['TODOS', ...uniqueCategories], [uniqueCategories]);
 
-  // 🚀 OPTIMIZACIÓN: Filtrado memorizado con lógica "Case Insensitive" avanzada
+  // 🚀 OPTIMIZACIÓN: Filtrado memorizado Case Insensitive
   const filteredMaterials = useMemo(() => {
     const search = searchTerm.toLowerCase().trim();
     return materials.filter(m => {
@@ -92,8 +92,8 @@ export const RawMaterialDashboard = memo(() => {
         color: (document.getElementById('rm-color') as HTMLInputElement).value.trim().toUpperCase(),
         composition: (document.getElementById('rm-comp') as HTMLInputElement).value.trim(),
         unit_measure: (document.getElementById('rm-unit') as HTMLSelectElement).value,
-        unit_cost: Number((document.getElementById('rm-cost') as HTMLInputElement).value) || 0,
-        min_stock_alert: Number((document.getElementById('rm-alert') as HTMLInputElement).value) || 0,
+        unit_cost: Number.parseFloat((document.getElementById('rm-cost') as HTMLInputElement).value) || 0,
+        min_stock_alert: Number.parseInt((document.getElementById('rm-alert') as HTMLInputElement).value, 10) || 0,
         current_stock: 0
       })
     });
@@ -118,7 +118,7 @@ export const RawMaterialDashboard = memo(() => {
     });
 
     if (newStock !== undefined && newStock !== '') {
-      await updateStock(mat.id, Number(newStock));
+      await updateStock(mat.id, Number.parseFloat(newStock));
     }
   }, [updateStock]);
 
@@ -133,6 +133,7 @@ export const RawMaterialDashboard = memo(() => {
           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em] mt-2">Catálogo Maestro de Materias Primas Raíces.</p>
         </div>
         <button 
+          type="button"
           onClick={handleNewMaterial} 
           className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-indigo-500/20 active:scale-95 transition-all"
         >
@@ -142,7 +143,10 @@ export const RawMaterialDashboard = memo(() => {
 
       <div className="flex flex-col md:flex-row gap-4 items-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-[2rem] shadow-sm">
         <div className="relative flex-1 w-full">
+          {/* ✅ FIX: Label para accesibilidad formal */}
+          <label htmlFor="search-insumo" className="sr-only">Buscar por nombre o color</label>
           <input 
+            id="search-insumo"
             type="text" 
             placeholder="Buscar por nombre o color..." 
             value={searchTerm}
@@ -154,6 +158,7 @@ export const RawMaterialDashboard = memo(() => {
           {categories.map((cat) => (
             <button 
               key={cat}
+              type="button"
               onClick={() => setFilterCategory(cat)}
               className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-[0.15em] whitespace-nowrap transition-all border ${filterCategory === cat ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-transparent hover:bg-slate-200'}`}
             >
@@ -177,7 +182,7 @@ export const RawMaterialDashboard = memo(() => {
             </thead>
             <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
               {filteredMaterials.map((mat) => {
-                const isLowStock = mat.current_stock <= (mat.min_stock_alert || 0);
+                const isLowStock = (mat.current_stock || 0) <= (mat.min_stock_alert || 0);
 
                 return (
                   <tr key={mat.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group">
@@ -196,7 +201,7 @@ export const RawMaterialDashboard = memo(() => {
                     </td>
                     
                     <td className="p-8 text-right">
-                      <p className="font-black text-slate-900 dark:text-slate-200 text-lg">${Number(mat.unit_cost).toLocaleString('es-AR')}</p>
+                      <p className="font-black text-slate-900 dark:text-slate-200 text-lg">${Number.parseFloat(String(mat.unit_cost || 0)).toLocaleString('es-AR')}</p>
                       <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">por {mat.unit_measure}</p>
                     </td>
                     
@@ -213,12 +218,14 @@ export const RawMaterialDashboard = memo(() => {
                     <td className="p-8 text-right">
                       <div className="flex items-center justify-end gap-3 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 
+                          type="button"
                           onClick={() => handleAdjustStock(mat)}
                           className="bg-slate-900 dark:bg-slate-700 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all"
                         >
                           ⚖️ AJUSTAR
                         </button>
                         <button 
+                          type="button"
                           onClick={async () => {
                             const result = await Swal.fire({
                               title: '¿ELIMINAR INSUMO?',

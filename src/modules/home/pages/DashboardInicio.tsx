@@ -8,7 +8,7 @@ import { useTreasuryStore } from '../../inventory/treasury/store/useTreasuryStor
 export const DashboardInicio = memo(() => {
   // 🧠 CONEXIÓN CON LOS MOTORES CENTRALES
   const { inventory, fetchAllCatalogs } = useCatalogStore();
-  const { customers, fetchCustomers } = useCrmStore();
+  const { balances, fetchBalances } = useCrmStore(); // ✅ FIX: Nombres corregidos según useCrmStore.ts
   const { transactions, fetchTransactions } = useTreasuryStore();
 
   const [pedidosPendientes, setPedidosPendientes] = useState(0);
@@ -18,16 +18,20 @@ export const DashboardInicio = memo(() => {
   useEffect(() => {
     const loadDashboardData = async () => {
       try {
-        await Promise.all([
-          fetchAllCatalogs(),
-          fetchCustomers(),
-          fetchTransactions(),
-          // Consulta ligera solo para obtener el total de pendientes
-          supabase
+        // ✅ FIX: Consulta de órdenes refactorizada a async/await
+        const fetchOrdersCount = async () => {
+          const { count } = await supabase
             .from('orders')
             .select('*', { count: 'exact', head: true })
-            .eq('status', 'PENDING')
-            .then(({ count }) => setPedidosPendientes(count || 0))
+            .eq('status', 'PENDING');
+          setPedidosPendientes(count || 0);
+        };
+
+        await Promise.all([
+          fetchAllCatalogs(),
+          fetchBalances(), // ✅ FIX: Nombre corregido
+          fetchTransactions(),
+          fetchOrdersCount()
         ]);
       } catch (error) {
         console.error("❌ [Dashboard] Error en sincronización:", error);
@@ -37,11 +41,11 @@ export const DashboardInicio = memo(() => {
     };
 
     loadDashboardData();
-  }, [fetchAllCatalogs, fetchCustomers, fetchTransactions]);
+  }, [fetchAllCatalogs, fetchBalances, fetchTransactions]);
 
   // 🧮 MÉTRICAS MEMORIZADAS (Solo se recalculan si cambian los datos base)
   const totalStock = useMemo(() => 
-    inventory?.reduce((sum, item) => sum + (item.stock_quantity > 0 ? item.stock_quantity : 0), 0) || 0
+    inventory?.reduce((sum, item) => sum + (item.stock_quantity || 0), 0) || 0
   , [inventory]);
 
   const ingresosMes = useMemo(() => {
@@ -59,7 +63,7 @@ export const DashboardInicio = memo(() => {
                txDate.getMonth() === currentMonth && 
                txDate.getFullYear() === currentYear;
       })
-      .reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+      .reduce((sum, tx) => sum + (Number.parseFloat(tx.amount.toString()) || 0), 0);
   }, [transactions]);
 
   const formatCurrency = (amount: number) => {
@@ -96,7 +100,7 @@ export const DashboardInicio = memo(() => {
         <div className="bg-white dark:bg-slate-800 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group hover:border-emerald-500/50 transition-all">
           <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] mb-1">Ingresos Mes Actual</p>
           <p className="text-3xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums">
-            {formatCurrency(ingresosMes)}
+            {isLoadingCounts ? '...' : formatCurrency(ingresosMes)}
           </p>
           <div className="absolute -right-2 -bottom-2 text-6xl opacity-5 grayscale group-hover:grayscale-0 transition-all">💰</div>
         </div>
@@ -112,7 +116,7 @@ export const DashboardInicio = memo(() => {
         <div className="bg-white dark:bg-slate-800 p-8 rounded-[2rem] border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group hover:border-indigo-500/50 transition-all">
           <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] mb-1">Cartera CRM</p>
           <p className="text-3xl font-black text-slate-900 dark:text-white tabular-nums">
-            {customers?.length || 0} <span className="text-xs text-slate-400 uppercase">Activos</span>
+            {balances?.length || 0} <span className="text-xs text-slate-400 uppercase">Activos</span>
           </p>
           <div className="absolute -right-2 -bottom-2 text-6xl opacity-5 grayscale group-hover:grayscale-0 transition-all">🤝</div>
         </div>
@@ -152,7 +156,8 @@ export const DashboardInicio = memo(() => {
           <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em] mb-8 italic">⚡ Accesos Críticos</h2>
           
           <div className="space-y-4 flex-1">
-            <Link to="/pos" className="flex items-center gap-5 p-5 rounded-3xl bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-800/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 transition-all group">
+            {/* ✅ FIX: Ruta corregida de /pos a /ventas para coincidir con Sidebar.tsx */}
+            <Link to="/ventas" className="flex items-center gap-5 p-5 rounded-3xl bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-800/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 transition-all group">
               <div className="w-14 h-14 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-2xl group-hover:scale-110 transition-transform shadow-lg shadow-emerald-500/20">💰</div>
               <div>
                 <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase">Venta Directa</h3>

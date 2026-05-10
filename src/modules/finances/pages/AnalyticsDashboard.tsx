@@ -11,20 +11,25 @@ export const AnalyticsDashboard = memo(() => {
     fetchAnalytics(month, year);
   }, [month, year, fetchAnalytics]);
 
-  // 🚀 OPTIMIZACIÓN: Memorizamos el cálculo de costos para no repetirlo innecesariamente
+  // 🚀 OPTIMIZACIÓN: Memorizamos el cálculo de costos
   const totalCosts = useMemo(() => 
-    metrics.laborCosts + metrics.supplyCosts + metrics.fixedCosts
+    (metrics?.laborCosts || 0) + (metrics?.supplyCosts || 0) + (metrics?.fixedCosts || 0)
   , [metrics]);
 
-  // 🚀 OPTIMIZACIÓN: Memorizamos los porcentajes de la radiografía de costos
+  // 🚀 OPTIMIZACIÓN: Memorizamos los porcentajes para el gráfico de barras
   const costPercentages = useMemo(() => {
-    if (totalCosts === 0) return { supply: 0, labor: 0, fixed: 0 };
+    if (!totalCosts || totalCosts === 0) return { supply: 0, labor: 0, fixed: 0 };
     return {
-      supply: (metrics.supplyCosts / totalCosts) * 100,
-      labor: (metrics.laborCosts / totalCosts) * 100,
-      fixed: (metrics.fixedCosts / totalCosts) * 100
+      supply: ((metrics?.supplyCosts || 0) / totalCosts) * 100,
+      labor: ((metrics?.laborCosts || 0) / totalCosts) * 100,
+      fixed: ((metrics?.fixedCosts || 0) / totalCosts) * 100
     };
   }, [totalCosts, metrics]);
+
+  // 🚀 OPTIMIZACIÓN: Calculamos el valor máximo del ranking una sola vez fuera del map
+  const maxRevenue = useMemo(() => 
+    topProducts.length > 0 ? (topProducts[0].revenue || 1) : 1
+  , [topProducts]);
 
   if (isLoading) {
     return (
@@ -53,17 +58,17 @@ export const AnalyticsDashboard = memo(() => {
           <select 
             aria-label="Seleccionar Mes"
             value={month} 
-            onChange={(e) => setMonth(Number(e.target.value))} 
+            onChange={(e) => setMonth(Number.parseInt(e.target.value, 10))} 
             className="bg-transparent text-white px-4 py-2 rounded-2xl font-black text-xs uppercase outline-none focus:text-blue-500 transition-colors"
           >
             {['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'].map((m, i) => (
-              <option key={i} value={i + 1} className="bg-slate-900">{m}</option>
+              <option key={m} value={i + 1} className="bg-slate-900">{m}</option>
             ))}
           </select>
           <select 
             aria-label="Seleccionar Año"
             value={year} 
-            onChange={(e) => setYear(Number(e.target.value))} 
+            onChange={(e) => setYear(Number.parseInt(e.target.value, 10))} 
             className="bg-transparent text-white px-4 py-2 rounded-2xl font-black text-xs uppercase outline-none focus:text-blue-500 transition-colors"
           >
             {[2024, 2025, 2026].map(y => <option key={y} value={y} className="bg-slate-900">{y}</option>)}
@@ -71,7 +76,7 @@ export const AnalyticsDashboard = memo(() => {
         </div>
       </header>
 
-      {/* 🧠 CEREBRO DE IA ENCHUFADO */}
+      {/* 🧠 CEREBRO DE IA */}
       <div className="w-full">
         <AIAnalyticBrain />
       </div>
@@ -80,7 +85,7 @@ export const AnalyticsDashboard = memo(() => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] shadow-xl">
           <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">Ventas Brutas</p>
-          <p className="text-3xl font-black text-white tracking-tighter tabular-nums">${metrics.revenue.toLocaleString('es-AR')}</p>
+          <p className="text-3xl font-black text-white tracking-tighter tabular-nums">${(metrics?.revenue || 0).toLocaleString('es-AR')}</p>
         </div>
         
         <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] shadow-xl">
@@ -88,14 +93,14 @@ export const AnalyticsDashboard = memo(() => {
           <p className="text-3xl font-black text-rose-400 tracking-tighter tabular-nums">-${totalCosts.toLocaleString('es-AR')}</p>
         </div>
         
-        <div className={`p-8 rounded-[3rem] shadow-xl border col-span-1 md:col-span-2 flex items-center justify-between transition-colors duration-500 ${metrics.netProfit >= 0 ? 'bg-blue-600 border-blue-500' : 'bg-rose-600 border-rose-500'}`}>
+        <div className={`p-8 rounded-[3rem] shadow-xl border col-span-1 md:col-span-2 flex items-center justify-between transition-colors duration-500 ${(metrics?.netProfit || 0) >= 0 ? 'bg-blue-600 border-blue-500' : 'bg-rose-600 border-rose-500'}`}>
           <div>
             <p className="text-[10px] font-black text-white/70 uppercase tracking-widest mb-1">Ganancia Neta</p>
-            <p className="text-5xl font-black text-white tracking-tighter italic tabular-nums">${metrics.netProfit.toLocaleString('es-AR')}</p>
+            <p className="text-5xl font-black text-white tracking-tighter italic tabular-nums">${(metrics?.netProfit || 0).toLocaleString('es-AR')}</p>
           </div>
           <div className="text-right">
             <p className="text-[10px] font-black text-white/70 uppercase tracking-widest mb-1">Margen Real</p>
-            <p className="text-4xl font-black text-white tracking-tighter tabular-nums">{metrics.margin.toFixed(1)}%</p>
+            <p className="text-4xl font-black text-white tracking-tighter tabular-nums">{(metrics?.margin || 0).toFixed(1)}%</p>
           </div>
         </div>
       </div>
@@ -109,7 +114,7 @@ export const AnalyticsDashboard = memo(() => {
             <div>
               <div className="flex justify-between text-[10px] font-black uppercase mb-3">
                 <span className="text-amber-500 tracking-widest">Materia Prima / Insumos</span>
-                <span className="text-white">${metrics.supplyCosts.toLocaleString('es-AR')}</span>
+                <span className="text-white">${(metrics?.supplyCosts || 0).toLocaleString('es-AR')}</span>
               </div>
               <div className="w-full bg-slate-950 rounded-full h-4 overflow-hidden border border-slate-800">
                 <div className="bg-amber-500 h-full rounded-full transition-all duration-1000 ease-out" style={{ width: `${costPercentages.supply}%` }}></div>
@@ -119,7 +124,7 @@ export const AnalyticsDashboard = memo(() => {
             <div>
               <div className="flex justify-between text-[10px] font-black uppercase mb-3">
                 <span className="text-blue-500 tracking-widest">Mano de Obra (Taller)</span>
-                <span className="text-white">${metrics.laborCosts.toLocaleString('es-AR')}</span>
+                <span className="text-white">${(metrics?.laborCosts || 0).toLocaleString('es-AR')}</span>
               </div>
               <div className="w-full bg-slate-950 rounded-full h-4 overflow-hidden border border-slate-800">
                 <div className="bg-blue-500 h-full rounded-full transition-all duration-1000 ease-out" style={{ width: `${costPercentages.labor}%` }}></div>
@@ -129,7 +134,7 @@ export const AnalyticsDashboard = memo(() => {
             <div>
               <div className="flex justify-between text-[10px] font-black uppercase mb-3">
                 <span className="text-rose-500 tracking-widest">Gastos Fijos / Estructura</span>
-                <span className="text-white">${metrics.fixedCosts.toLocaleString('es-AR')}</span>
+                <span className="text-white">${(metrics?.fixedCosts || 0).toLocaleString('es-AR')}</span>
               </div>
               <div className="w-full bg-slate-950 rounded-full h-4 overflow-hidden border border-slate-800">
                 <div className="bg-rose-500 h-full rounded-full transition-all duration-1000 ease-out" style={{ width: `${costPercentages.fixed}%` }}></div>
@@ -149,11 +154,10 @@ export const AnalyticsDashboard = memo(() => {
           ) : (
             <div className="space-y-4">
               {topProducts.map((prod, index) => {
-                const maxRevenue = topProducts[0].revenue || 1; 
                 const percent = (prod.revenue / maxRevenue) * 100;
 
                 return (
-                  <div key={index} className="relative bg-slate-950 border border-slate-800 rounded-[2rem] p-5 overflow-hidden group transition-all hover:border-blue-500/50">
+                  <div key={prod.name} className="relative bg-slate-950 border border-slate-800 rounded-[2rem] p-5 overflow-hidden group transition-all hover:border-blue-500/50">
                     <div 
                       className="absolute top-0 left-0 h-full bg-blue-600/10 transition-all duration-1000 ease-out border-r border-blue-500/20" 
                       style={{ width: `${percent}%` }}

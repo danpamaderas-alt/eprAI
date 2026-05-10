@@ -1,6 +1,7 @@
 import { useEffect, useMemo, memo } from 'react';
 import { useOrderStore } from '../../orders/store/useOrderStore';
 import { useCatalogStore } from '../../../store/useCatalogStore';
+import { useCrmStore } from '../../crm/store/useCrmStore'; // ✅ FIX: Usamos el store de CRM para balances
 import { useNavigate } from 'react-router-dom';
 
 const ARS = new Intl.NumberFormat('es-AR', { 
@@ -11,29 +12,42 @@ const ARS = new Intl.NumberFormat('es-AR', {
 
 export const HomeDashboard = memo(() => {
   const navigate = useNavigate();
+  
+  // 🧠 CONEXIÓN MULTI-MOTOR
   const { orders, fetchOrders, isLoading: loadingOrders } = useOrderStore();
-  const { customers, fetchAllCatalogs, isLoading: loadingCatalog } = useCatalogStore();
+  const { fetchAllCatalogs, isLoading: loadingCatalog } = useCatalogStore();
+  const { balances, fetchBalances, isLoading: loadingCrm } = useCrmStore();
 
   useEffect(() => {
-    // 🚀 Sincronización inicial paralela
-    fetchOrders();
-    fetchAllCatalogs();
-  }, [fetchOrders, fetchAllCatalogs]);
+    // 🚀 Sincronización masiva al arranque
+    const sync = async () => {
+      await Promise.all([
+        fetchOrders(),
+        fetchAllCatalogs(),
+        fetchBalances()
+      ]);
+    };
+    sync();
+  }, [fetchOrders, fetchAllCatalogs, fetchBalances]);
 
-  // 🧠 LÓGICA MAESTRA: Diagnóstico en tiempo real del Holding
+  // 🧠 LÓGICA FINANCIERA Y OPERATIVA
   const stats = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
     
     // 1. Ingresos: Suma de señas de pedidos actuales
-    const totalIncome = orders.reduce((acc, o) => acc + (Number(o.advancePayment) || 0), 0);
+    const totalIncome = orders.reduce((acc, o) => 
+      acc + (Number.parseFloat(String(o.advancePayment || 0))), 0
+    );
     
-    // 2. SALDO EN LA CALLE: Suma total de los balances de las cuentas corrientes
-    const totalInStreet = customers.reduce((acc, c) => acc + (Number(c.balance) || 0), 0);
+    // 2. SALDO EN LA CALLE: Ahora desde useCrmStore.balances
+    const totalInStreet = balances.reduce((acc, c) => 
+      acc + (Number.parseFloat(String(c.balance || 0))), 0
+    );
     
     const urgentCount = orders.filter(o => 
       o.status !== 'DELIVERED' && 
       o.status !== 'CANCELLED' && 
-      o.dueDate <= today
+      (o.dueDate && o.dueDate <= today)
     ).length;
 
     const partialCount = orders.filter(o => o.status === 'PARTIAL').length;
@@ -44,9 +58,9 @@ export const HomeDashboard = memo(() => {
       urgentCount,
       partialCount
     };
-  }, [orders, customers]);
+  }, [orders, balances]);
 
-  const isLoading = loadingOrders || loadingCatalog;
+  const isLoading = loadingOrders || loadingCatalog || loadingCrm;
 
   return (
     <div className="space-y-10 animate-in fade-in duration-700">
@@ -62,7 +76,7 @@ export const HomeDashboard = memo(() => {
         <div className="text-right">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Estado del Sistema</p>
           <p className="text-[10px] font-black text-emerald-500 uppercase flex items-center justify-end gap-2">
-            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> Sincronizado con Supabase
+            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span> Sincronizado
           </p>
         </div>
       </header>
@@ -107,6 +121,7 @@ export const HomeDashboard = memo(() => {
         <div className="flex justify-between items-center mb-10">
           <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">Actividad de Hoja de Ruta</h3>
           <button 
+            type="button"
             onClick={() => navigate('/pedidos')}
             className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline"
           >
@@ -115,21 +130,21 @@ export const HomeDashboard = memo(() => {
         </div>
 
         {isLoading ? (
-          <div className="py-20 text-center font-black text-slate-300 uppercase tracking-[0.5em] animate-pulse">Escaneando transacciones...</div>
+          <div className="py-20 text-center font-black text-slate-300 uppercase tracking-[0.5em] animate-pulse">Sincronizando operaciones...</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {orders.slice(0, 4).map(o => (
               <div key={o.id} className="flex justify-between items-center p-6 rounded-[2rem] bg-slate-50 dark:bg-slate-900/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all group">
                 <div className="flex items-center gap-5">
                   <div className="w-12 h-12 bg-white dark:bg-slate-800 rounded-2xl flex items-center justify-center text-xl shadow-sm group-hover:scale-110 transition-transform">📦</div>
-                  <div>
-                    <p className="text-sm font-black text-slate-900 dark:text-white uppercase leading-none">{o.customerName}</p>
+                  <div className="overflow-hidden">
+                    <p className="text-sm font-black text-slate-900 dark:text-white uppercase leading-none truncate">{o.customerName || 'Cliente sin nombre'}</p>
                     <p className="text-[9px] text-slate-400 font-bold uppercase mt-2 tracking-widest">Pedido #{o.id?.substring(0,8).toUpperCase()}</p>
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="text-right shrink-0">
                   <p className="text-lg font-black text-emerald-500 tabular-nums">
-                    {o.advancePayment > 0 ? `+ ${ARS.format(o.advancePayment)}` : ARS.format(0)}
+                    {ARS.format(Number.parseFloat(String(o.advancePayment || 0)))}
                   </p>
                   <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Seña Recibida</p>
                 </div>

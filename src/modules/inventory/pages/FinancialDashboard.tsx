@@ -21,9 +21,8 @@ export const FinancialDashboard = memo(() => {
   const fetchRealTimeFinances = useCallback(async () => {
     setIsLoading(true);
     try {
-      // 1. Resumen de Caja Real
-      const { data: tData, error: tError } = await supabase.from('v_treasury_summary').select('*').single();
-      if (tError) throw tError;
+      // 1. Resumen de Caja Real (Manejo de single() seguro)
+      const { data: tData } = await supabase.from('v_treasury_summary').select('*').maybeSingle();
 
       // 2. Dinero en Calle (Saldos Cta Cte)
       const { data: cData, error: cError } = await supabase.from('v_customer_balances').select('current_balance');
@@ -31,16 +30,17 @@ export const FinancialDashboard = memo(() => {
 
       if (tData) {
         setTreasuryMetrics({
-          income: Number(tData.total_income) || 0,
-          expenses: Number(tData.total_expense) || 0,
-          net: Number(tData.net_balance) || 0
+          income: Number.parseFloat(String(tData.total_income || 0)),
+          expenses: Number.parseFloat(String(tData.total_expense || 0)),
+          net: Number.parseFloat(String(tData.net_balance || 0))
         });
       }
 
       if (cData) {
-        const totalCalle = cData.reduce((acc, curr) => 
-          curr.current_balance > 0 ? acc + Number(curr.current_balance) : acc, 0
-        );
+        const totalCalle = cData.reduce((acc, curr) => {
+          const balance = Number.parseFloat(String(curr.current_balance || 0));
+          return balance > 0 ? acc + balance : acc;
+        }, 0);
         setMoneyInStreet(totalCalle);
       }
     } catch (error) {
@@ -61,9 +61,10 @@ export const FinancialDashboard = memo(() => {
     let sale = 0;
     inventory.forEach(item => {
       const product = products.find(p => p.id === item.product_id);
-      if (product && item.stock_quantity > 0) {
-        cost += (Number(product.cost_price) || 0) * item.stock_quantity;
-        sale += (Number(product.price) || 0) * item.stock_quantity;
+      const qty = item.stock_quantity || 0;
+      if (product && qty > 0) {
+        cost += (Number.parseFloat(String(product.cost_price || 0))) * qty;
+        sale += (Number.parseFloat(String(product.price || 0))) * qty;
       }
     });
     const profit = sale - cost;
@@ -105,7 +106,7 @@ export const FinancialDashboard = memo(() => {
         cancelButton: 'bg-slate-100 dark:bg-slate-800 text-slate-500 font-black px-6 py-4 rounded-2xl uppercase text-xs tracking-widest w-full'
       },
       preConfirm: () => {
-        const amount = Number((document.getElementById('ex-amount') as HTMLInputElement).value);
+        const amount = Number.parseFloat((document.getElementById('ex-amount') as HTMLInputElement).value);
         const description = (document.getElementById('ex-desc') as HTMLInputElement).value.trim();
         const category = (document.getElementById('ex-cat') as HTMLSelectElement).value;
 
@@ -128,18 +129,12 @@ export const FinancialDashboard = memo(() => {
         }]);
 
         if (error) throw error;
-
         await fetchRealTimeFinances(); 
 
         Swal.fire({
-          toast: true,
-          position: 'top-end',
-          icon: 'success',
-          title: 'Gasto registrado correctamente',
-          showConfirmButton: false,
-          timer: 2000
+          toast: true, position: 'top-end', icon: 'success',
+          title: 'Gasto registrado', showConfirmButton: false, timer: 2000
         });
-
       } catch (err) {
         Swal.fire('Error', 'No se pudo procesar el gasto.', 'error');
       }
@@ -163,6 +158,7 @@ export const FinancialDashboard = memo(() => {
           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em] mt-3 italic">Visión 360: Tesorería Real + Cuentas Corrientes + Activos Físicos.</p>
         </div>
         <button 
+          type="button"
           onClick={handleAddExpense} 
           className="bg-rose-600 hover:bg-rose-500 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-rose-600/20 active:scale-95 transition-all"
         >

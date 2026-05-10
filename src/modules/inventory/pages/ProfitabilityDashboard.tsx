@@ -1,5 +1,6 @@
 import { useMemo, useEffect, memo, useCallback } from 'react';
 import { useCatalogStore } from '../../../store/useCatalogStore';
+import { useCrmStore } from '../../crm/store/useCrmStore'; // ✅ FIX: Usamos el store de CRM para deudas
 import { useTreasuryStore } from '../treasury/store/useTreasuryStore';
 import { AIAnalyticBrain } from '../../ai/AIAnalyticBrain';
 
@@ -11,16 +12,23 @@ const ARS = new Intl.NumberFormat('es-AR', {
 });
 
 export const ProfitabilityDashboard = memo(() => {
-  const { products, inventory, fetchAllCatalogs, customers, isLoading: loadingCatalog } = useCatalogStore();
+  // 🧠 CONEXIÓN MULTI-MOTOR (Arquitectura Descentralizada)
+  const { products, inventory, fetchAllCatalogs, isLoading: loadingCatalog } = useCatalogStore();
+  const { balances, fetchBalances, isLoading: loadingCrm } = useCrmStore(); // ✅ FIX: Fuente CRM
   const { transactions, fetchTransactions, isLoading: loadingTreasury } = useTreasuryStore();
 
   // 🚀 OPTIMIZACIÓN: Carga en paralelo para eliminar tiempos de espera secuenciales
   const initRadar = useCallback(async () => {
-    await Promise.all([
-      fetchAllCatalogs(),
-      fetchTransactions()
-    ]);
-  }, [fetchAllCatalogs, fetchTransactions]);
+    try {
+      await Promise.all([
+        fetchAllCatalogs(),
+        fetchBalances(),
+        fetchTransactions()
+      ]);
+    } catch (error) {
+      console.error("❌ [Radar] Error de sincronización:", error);
+    }
+  }, [fetchAllCatalogs, fetchBalances, fetchTransactions]);
 
   useEffect(() => {
     initRadar();
@@ -28,27 +36,34 @@ export const ProfitabilityDashboard = memo(() => {
 
   // 🧠 CÁLCULOS MAESTROS MEMORIZADOS
   const metrics = useMemo(() => {
-    // 1. Caja Real: Consideramos solo transacciones completadas para mayor precisión
+    // 1. Caja Real: Consideramos solo transacciones completadas
     const cashBalance = transactions
       .filter(t => t.status === 'COMPLETED' || !t.status)
-      .reduce((acc, t) => acc + (t.type === 'INCOME' ? Number(t.amount) : -Number(t.amount)), 0);
+      .reduce((acc, t) => {
+        const amt = Number.parseFloat(String(t.amount || 0));
+        return acc + (t.type === 'INCOME' ? amt : -amt);
+      }, 0);
     
     // 2. Dinero en Calle: Basado en saldos de Cuentas Corrientes del CRM
-    const totalDebt = customers.reduce((acc, c) => acc + (Number(c.balance) || 0), 0);
+    const totalDebt = balances.reduce((acc, c) => 
+      acc + (Number.parseFloat(String(c.balance || 0))), 0
+    );
     
     // 3. Potencial de Venta: Valuación del stock terminado listo para entrega
     let facturacionPotencial = 0;
-    products.forEach(p => {
-      const variants = inventory.filter(v => v.product_id === p.id);
-      variants.forEach(v => {
-        facturacionPotencial += ((Number(v.finished_quantity) || 0) * (Number(p.price) || 0));
-      });
+    inventory.forEach(v => {
+      const product = products.find(p => p.id === v.product_id);
+      if (product) {
+        const qty = Number.parseFloat(String(v.finished_quantity || 0));
+        const price = Number.parseFloat(String(product.price || 0));
+        facturacionPotencial += (qty * price);
+      }
     });
 
     return { cashBalance, totalDebt, facturacionPotencial };
-  }, [products, inventory, transactions, customers]);
+  }, [products, inventory, transactions, balances]);
 
-  const isLoading = loadingCatalog || loadingTreasury;
+  const isLoading = loadingCatalog || loadingTreasury || loadingCrm;
 
   if (isLoading) {
     return (
@@ -71,7 +86,7 @@ export const ProfitabilityDashboard = memo(() => {
         </p>
       </header>
       
-      {/* 🧠 CEREBRO DE IA */}
+      {/* 🧠 CEREBRO DE IA INTEGRADO */}
       <div className="mb-6">
         <AIAnalyticBrain />
       </div>
@@ -81,7 +96,7 @@ export const ProfitabilityDashboard = memo(() => {
         
         {/* Caja Real (Tesorería) */}
         <div className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-sm transition-all hover:shadow-md group">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 group-hover:text-blue-500 transition-colors">Caja Real (Tesorería)</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 group-hover:text-blue-500 transition-colors italic">Caja Real (Tesorería)</p>
           <p className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter tabular-nums">
             {ARS.format(metrics.cashBalance)}
           </p>
@@ -89,21 +104,21 @@ export const ProfitabilityDashboard = memo(() => {
 
         {/* Deuda B2B (CRM) */}
         <div className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-sm transition-all hover:shadow-md group">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 group-hover:text-rose-500 transition-colors">Deuda a Cobrar (Cta. Cte.)</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 group-hover:text-rose-500 transition-colors italic">Deuda a Cobrar (Cta. Cte.)</p>
           <p className="text-4xl font-black text-rose-500 tracking-tighter tabular-nums">
             {ARS.format(metrics.totalDebt)}
           </p>
         </div>
 
         {/* Potencial de Venta (Stock) */}
-        <div className="bg-slate-900 dark:bg-blue-600 p-8 rounded-[2.5rem] text-white shadow-2xl shadow-blue-500/20 transition-all hover:scale-[1.01] relative overflow-hidden">
+        <div className="bg-slate-900 dark:bg-blue-600 p-8 rounded-[2.5rem] text-white shadow-2xl shadow-blue-500/20 transition-all hover:scale-[1.01] relative overflow-hidden group">
           <div className="relative z-10">
-            <p className="text-[10px] font-black text-blue-200 dark:text-blue-100 uppercase tracking-widest mb-3">Valor de Stock Terminado</p>
+            <p className="text-[10px] font-black text-blue-200 dark:text-blue-100 uppercase tracking-widest mb-3 italic">Valor de Stock Terminado</p>
             <p className="text-4xl font-black tracking-tighter tabular-nums">
               {ARS.format(metrics.facturacionPotencial)}
             </p>
           </div>
-          <div className="absolute right-0 bottom-0 p-4 opacity-10 text-6xl italic font-black">📦</div>
+          <div className="absolute right-0 bottom-0 p-4 opacity-10 text-6xl italic font-black group-hover:scale-110 transition-transform">📦</div>
         </div>
 
       </div>

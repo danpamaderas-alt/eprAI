@@ -16,12 +16,21 @@ export const SupplierDashboard = memo(() => {
     fetchSupplierData(); 
   }, [fetchSupplierData]);
 
-  // 🧠 CÁLCULOS MEMORIZADOS
+  // 🧠 CÁLCULOS MEMORIZADOS (Optimización de Rendimiento)
   const totals = useMemo(() => {
     const pending = debts
       .filter(d => d.status === 'PENDIENTE')
-      .reduce((acc, d) => acc + (Number(d.amount) - Number(d.paid_amount || 0)), 0);
-    const overdue = debts.filter(d => d.status === 'PENDIENTE' && new Date(d.due_date) < new Date()).length;
+      .reduce((acc, d) => {
+        const amount = Number.parseFloat(String(d.amount || 0));
+        const paid = Number.parseFloat(String(d.paid_amount || 0));
+        return acc + (amount - paid);
+      }, 0);
+      
+    const overdue = debts.filter(d => {
+      if (d.status !== 'PENDIENTE' || !d.due_date) return false;
+      return new Date(d.due_date) < new Date();
+    }).length;
+
     return { pending, overdue };
   }, [debts]);
 
@@ -51,7 +60,10 @@ export const SupplierDashboard = memo(() => {
       preConfirm: () => {
         const name = (document.getElementById('s-name') as HTMLInputElement).value.trim();
         const category = (document.getElementById('s-cat') as HTMLInputElement).value.trim();
-        if (!name) return Swal.showValidationMessage('El nombre es obligatorio');
+        if (!name) {
+          Swal.showValidationMessage('El nombre es obligatorio');
+          return false;
+        }
         return { name: name.toUpperCase(), category: category.toUpperCase() };
       }
     });
@@ -60,14 +72,17 @@ export const SupplierDashboard = memo(() => {
       try {
         await addSupplier(form);
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Proveedor guardado', showConfirmButton: false, timer: 1500 });
-      } catch (err) {
-        Swal.fire('Error', 'No se pudo registrar el proveedor.', 'error');
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Error desconocido';
+        Swal.fire('Error', `No se pudo registrar: ${msg}`, 'error');
       }
     }
   }, [addSupplier]);
 
   const handleNewDebt = useCallback(async () => {
-    if (suppliers.length === 0) return Swal.fire('Atención', 'Primero registrá un proveedor', 'warning');
+    if (suppliers.length === 0) {
+      return Swal.fire('Atención', 'Primero registrá un proveedor para asignar la deuda.', 'warning');
+    }
     
     const options = suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
     
@@ -105,11 +120,11 @@ export const SupplierDashboard = memo(() => {
       preConfirm: () => {
         const supplier_id = (document.getElementById('d-sup') as HTMLSelectElement).value;
         const description = (document.getElementById('d-desc') as HTMLInputElement).value.trim();
-        const amount = Number((document.getElementById('d-amt') as HTMLInputElement).value);
+        const amount = Number.parseFloat((document.getElementById('d-amt') as HTMLInputElement).value);
         const due_date = (document.getElementById('d-date') as HTMLInputElement).value;
 
         if (!amount || amount <= 0 || !description) {
-          Swal.showValidationMessage('Completá monto y descripción');
+          Swal.showValidationMessage('Completá monto y descripción válidos');
           return false;
         }
         return { supplier_id, description: description.toUpperCase(), amount, due_date };
@@ -120,8 +135,9 @@ export const SupplierDashboard = memo(() => {
       try {
         await addDebt(form);
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Deuda registrada', showConfirmButton: false, timer: 1500 });
-      } catch (err) {
-        Swal.fire('Error', 'No se pudo cargar la factura.', 'error');
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Error de conexión';
+        Swal.fire('Error', `No se pudo cargar la factura: ${msg}`, 'error');
       }
     }
   }, [suppliers, addDebt]);
@@ -134,15 +150,14 @@ export const SupplierDashboard = memo(() => {
       <header className="flex flex-col md:flex-row justify-between items-center bg-slate-900 border border-slate-800 p-10 rounded-[3rem] shadow-2xl gap-6">
         <div>
           <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">🚚 Cuentas <span className="text-rose-500">por Pagar</span></h1>
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em] mt-3">Gestión de Egresos y Compromisos con Proveedores.</p>
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em] mt-3 italic">Gestión de Egresos y Compromisos con Proveedores.</p>
         </div>
         <div className="flex gap-4">
-          <button onClick={handleNewSupplier} className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95">Nuevo Proveedor</button>
-          <button onClick={handleNewDebt} className="bg-rose-600 hover:bg-rose-500 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-rose-600/20 active:scale-95 transition-all">+ Cargar Factura</button>
+          <button type="button" onClick={handleNewSupplier} className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95">Nuevo Proveedor</button>
+          <button type="button" onClick={handleNewDebt} className="bg-rose-600 hover:bg-rose-500 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-rose-600/20 active:scale-95 transition-all">+ Cargar Factura</button>
         </div>
       </header>
 
-      {/* MÉTRICAS DE DEUDA */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-10 rounded-[3rem] shadow-sm">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 italic">Saldo Real Adeudado</p>
@@ -154,11 +169,10 @@ export const SupplierDashboard = memo(() => {
             <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-3 italic">Facturas Vencidas</p>
             <p className="text-6xl font-black text-rose-600 dark:text-rose-500 tracking-tighter tabular-nums">{totals.overdue}</p>
           </div>
-          {totals.overdue > 0 && <span className="text-7xl animate-bounce grayscale-0 opacity-80">⚠️</span>}
+          {totals.overdue > 0 && <span className="text-7xl animate-bounce grayscale-0 opacity-80" aria-hidden="true">⚠️</span>}
         </div>
       </div>
 
-      {/* TABLA DE DEUDAS */}
       <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[3rem] overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
@@ -173,13 +187,15 @@ export const SupplierDashboard = memo(() => {
             </thead>
             <tbody className="divide-y dark:divide-slate-800/50">
               {debts.filter(d => d.status === 'PENDIENTE').map(debt => {
-                const remaining = Number(debt.amount) - Number(debt.paid_amount || 0);
-                const isOverdue = new Date(debt.due_date) < new Date();
+                const totalAmt = Number.parseFloat(String(debt.amount || 0));
+                const paidAmt = Number.parseFloat(String(debt.paid_amount || 0));
+                const remaining = totalAmt - paidAmt;
+                const isOverdue = debt.due_date ? new Date(debt.due_date) < new Date() : false;
 
                 return (
                   <tr key={debt.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group">
                     <td className="p-8">
-                      <p className="font-black text-slate-900 dark:text-white uppercase text-sm">{debt.suppliers?.name}</p>
+                      <p className="font-black text-slate-900 dark:text-white uppercase text-sm">{debt.suppliers?.name || 'S/N'}</p>
                       <p className="text-[9px] font-bold text-indigo-500 uppercase tracking-tighter">{debt.suppliers?.category || 'S/C'}</p>
                     </td>
                     <td className="p-8">
@@ -187,31 +203,34 @@ export const SupplierDashboard = memo(() => {
                     </td>
                     <td className="p-8 text-center">
                       <span className={`text-[10px] font-black px-4 py-2 rounded-xl border uppercase tracking-widest ${isOverdue ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-transparent'}`}>
-                        {new Date(debt.due_date).toLocaleDateString('es-AR')}
+                        {debt.due_date ? new Date(debt.due_date).toLocaleDateString('es-AR') : 'S/F'}
                       </span>
                     </td>
                     <td className="p-8 text-right">
-                      <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Total: {ARS.format(Number(debt.amount))}</p>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Total: {ARS.format(totalAmt)}</p>
                       <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter tabular-nums">{ARS.format(remaining)}</p>
                     </td>
                     <td className="p-8 text-center">
                       <button 
+                        type="button"
                         onClick={async () => {
                           const { value: amount } = await Swal.fire({
                             title: 'REGISTRAR PAGO',
-                            text: `Restan ${ARS.format(remaining)} con ${debt.suppliers?.name}`,
+                            text: `Saldar deuda de ${ARS.format(remaining)} con ${debt.suppliers?.name}`,
                             input: 'number',
                             inputAttributes: { min: '1', max: remaining.toString() },
                             showCancelButton: true,
-                            confirmButtonText: 'CONFIRMAR ENTREGA',
+                            confirmButtonText: 'CONFIRMAR PAGO 💸',
                             confirmButtonColor: '#10b981',
                             customClass: { popup: 'dark:!bg-slate-900 !rounded-[2.5rem] border border-slate-200 dark:border-slate-800' }
                           });
-                          if (amount) await registerPartialPayment(debt.id, Number(amount), `${debt.suppliers?.name} - ${debt.description}`);
+                          if (amount) {
+                            await registerPartialPayment(debt.id, Number.parseFloat(amount), `${debt.suppliers?.name} - ${debt.description}`);
+                          }
                         }}
                         className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all"
                       >
-                        Entregar
+                        Pagar
                       </button>
                     </td>
                   </tr>
@@ -221,7 +240,7 @@ export const SupplierDashboard = memo(() => {
           </table>
           {debts.filter(d => d.status === 'PENDIENTE').length === 0 && (
             <div className="p-32 text-center">
-               <span className="text-6xl opacity-10 block mb-4 italic">🚚</span>
+               <span className="text-6xl opacity-10 block mb-4 italic" aria-hidden="true">🚚</span>
                <p className="text-slate-400 font-black uppercase text-xs tracking-[0.5em] italic">No hay compromisos de pago pendientes.</p>
             </div>
           )}

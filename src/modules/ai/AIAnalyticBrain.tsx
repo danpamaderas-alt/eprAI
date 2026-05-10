@@ -1,24 +1,27 @@
 import { useState, useCallback, memo } from 'react';
+import { useCrmStore } from '../crm/store/useCrmStore'; // 🔄 Sincronizado con el Store real
 import { useCatalogStore } from '../../store/useCatalogStore';
 import { useTreasuryStore } from '../inventory/treasury/store/useTreasuryStore';
 
 export const AIAnalyticBrain = memo(() => {
-  const { inventory, customers } = useCatalogStore();
+  // 🛡️ Extraemos datos de las fuentes de verdad consolidadas
+  const { balances: customerBalances } = useCrmStore(); //
+  const { inventory } = useCatalogStore();
   const { transactions } = useTreasuryStore();
+  
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [insight, setInsight] = useState<string | null>(null);
 
-  // 🚀 OPTIMIZACIÓN: useCallback para evitar recrear la función y fugas de memoria
   const runRealDiagnosis = useCallback(async () => {
     setIsAnalyzing(true);
     setInsight(null);
 
-    // 1. Recolección de datos
+    // 1. Recolección de datos financieros (Snapshot)
     const dataSnapshot = {
       ventasTotales: transactions?.filter(t => t.type === 'INCOME').reduce((acc, t) => acc + t.amount, 0) || 0,
       gastosTotales: transactions?.filter(t => t.type === 'EXPENSE').reduce((acc, t) => acc + t.amount, 0) || 0,
-      deudaClientes: customers?.reduce((acc, c) => acc + (Number(c.balance) || 0), 0) || 0,
-      prendasTerminadas: inventory?.reduce((acc, v) => acc + (v.finished_quantity || 0), 0) || 0,
+      deudaClientes: customerBalances?.reduce((acc, c) => acc + (Number(c.balance) || 0), 0) || 0, //
+      prendasTerminadas: inventory?.reduce((acc, v) => acc + (v.stock_quantity || 0), 0) || 0,
     };
 
     const prompt = `Actúa como un Director Financiero experto en la industria textil de Argentina. 
@@ -28,46 +31,32 @@ export const AIAnalyticBrain = memo(() => {
     - Deuda de clientes por cobrar: $${dataSnapshot.deudaClientes}
     - Stock listo para vender: ${dataSnapshot.prendasTerminadas} unidades.
     
-    Dame un diagnóstico corto (máximo 3 párrafos) sobre mi rentabilidad actual y 2 acciones urgentes que debo tomar. Habla en tono profesional pero cercano, mencionando que estamos en Berisso.`;
+    Dame un diagnóstico corto (máximo 3 párrafos) sobre mi rentabilidad actual y 2 acciones urgentes que debo tomar. Habla en tono profesional pero cercano, mencionando que estamos en Berisso.`; //
 
     try {
-      // 🔒 SEGURIDAD CRÍTICA: Nunca quemar la API key en el código. Leer desde .env
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined; //
       
-      if (!apiKey) {
-        throw new Error("Falta configurar VITE_GEMINI_API_KEY en el archivo .env");
-      }
+      if (!apiKey) throw new Error("Falta configurar VITE_GEMINI_API_KEY en .env");
 
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
       
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
-        })
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
       });
 
       const data = await response.json();
+      if (!response.ok) throw new Error(data.error?.message || "Error de conexión con IA");
 
-      if (!response.ok) {
-        const errorMsg = data.error?.message || "Error de conexión con Google.";
-        throw new Error(errorMsg);
-      }
-
-      const aiResponse = data.candidates[0].content.parts[0].text;
-      setInsight(aiResponse);
+      setInsight(data.candidates[0].content.parts[0].text);
       
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        setInsight(`❌ ERROR CRÍTICO: ${error.message}`);
-      } else {
-        setInsight(`❌ ERROR DESCONOCIDO`);
-      }
+      setInsight(`❌ ERROR: ${error instanceof Error ? error.message : 'Fallo desconocido'}`);
     } finally {
       setIsAnalyzing(false);
     }
-  }, [inventory, customers, transactions]);
+  }, [inventory, customerBalances, transactions]); // Dependencias corregidas
 
   return (
     <div className="bg-slate-900 rounded-[2rem] border border-slate-800 p-8 shadow-2xl relative overflow-hidden">
@@ -82,11 +71,11 @@ export const AIAnalyticBrain = memo(() => {
           <button 
             onClick={runRealDiagnosis}
             disabled={isAnalyzing}
-            className={`px-8 py-3 rounded-2xl font-black text-xs uppercase transition-all transform focus:outline-none focus:ring-2 focus:ring-blue-500 active:scale-95 ${
+            className={`px-8 py-3 rounded-2xl font-black text-xs uppercase transition-all transform active:scale-95 ${
               isAnalyzing ? 'bg-slate-800 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-900 hover:bg-blue-500 hover:text-white shadow-xl shadow-blue-500/20'
             }`}
           >
-            {isAnalyzing ? 'Procesando números...' : '⚡ Ejecutar Análisis Real'}
+            {isAnalyzing ? 'Escaneando finanzas...' : '⚡ Ejecutar Análisis Real'}
           </button>
         </div>
 
@@ -97,9 +86,9 @@ export const AIAnalyticBrain = memo(() => {
             </p>
           </div>
         ) : (
-          <div className="py-12 text-center">
-            <p className="text-slate-600 text-xs font-bold uppercase tracking-widest italic opacity-50">
-              Listo para auditar las finanzas
+          <div className="py-12 text-center opacity-50">
+            <p className="text-slate-600 text-xs font-bold uppercase tracking-widest italic">
+              Listo para auditar Raíces - Berisso
             </p>
           </div>
         )}

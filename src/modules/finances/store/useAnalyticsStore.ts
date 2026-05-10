@@ -44,7 +44,7 @@ export const useAnalyticsStore = create<AnalyticsState>((set) => ({
     const endDate = new Date(year, month, 0, 23, 59, 59, 999).toISOString();
 
     try {
-      // 🚀 OPTIMIZACIÓN: Ejecutamos todas las consultas en paralelo para máxima velocidad
+      // 🚀 EJECUCIÓN PARALELA: Máximo rendimiento de red
       const [ordersRes, expensesRes, tasksRes] = await Promise.all([
         supabase
           .from('orders')
@@ -68,24 +68,26 @@ export const useAnalyticsStore = create<AnalyticsState>((set) => ({
           .in('status', ['COMPLETADO', 'PAGADO'])
       ]);
 
-      // Verificación de errores de red
       if (ordersRes.error) throw ordersRes.error;
       if (expensesRes.error) throw expensesRes.error;
       if (tasksRes.error) throw tasksRes.error;
 
-      // --- CÁLCULOS ---
+      // --- PROCESAMIENTO DE DATOS ---
       let revenue = 0;
       let laborCosts = 0;
       let supplyCosts = 0;
       let fixedCosts = 0;
       const productMap: Record<string, { revenue: number; quantity: number }> = {};
 
-      // 1. Procesar Ingresos y Ranking de Productos
+      // 1. Ingresos y Ranking
       ordersRes.data?.forEach(order => {
-        revenue += Number(order.total_amount || 0);
+        revenue += Number.parseFloat(String(order.total_amount || 0));
         
-        if (Array.isArray(order.items)) {
-          (order.items as unknown as OrderItem[]).forEach(item => {
+        const items = order.items as unknown as OrderItem[];
+        if (Array.isArray(items)) {
+          items.forEach(item => {
+            if (!item.productName) return;
+
             const qty = item.variations?.reduce((acc, v) => acc + (v.quantityOrdered || 0), 0) || 0;
             const lineTotal = qty * (item.unitPrice || 0); 
             
@@ -98,24 +100,28 @@ export const useAnalyticsStore = create<AnalyticsState>((set) => ({
         }
       });
 
-      // 2. Procesar Gastos (Insumos vs Fijos)
+      // 2. Gastos (Insumos vs Estructura)
       expensesRes.data?.forEach(exp => {
-        const amt = Number(exp.amount || 0);
-        if (exp.category === 'INSUMOS') supplyCosts += amt;
-        else fixedCosts += amt;
+        const amt = Number.parseFloat(String(exp.amount || 0));
+        if (exp.category === 'INSUMOS') {
+          supplyCosts += amt;
+        } else {
+          fixedCosts += amt;
+        }
       });
 
-      // 3. Procesar Mano de Obra (Talleristas)
+      // 3. Mano de Obra (Talleristas)
       tasksRes.data?.forEach(task => {
-        laborCosts += (Number(task.quantity || 0) * Number(task.price_per_unit || 0));
+        const qty = Number.parseFloat(String(task.quantity || 0));
+        const price = Number.parseFloat(String(task.price_per_unit || 0));
+        laborCosts += (qty * price);
       });
 
-      // 4. Métricas Finales
+      // 4. Consolidación de Métricas
       const totalCosts = laborCosts + supplyCosts + fixedCosts;
       const netProfit = revenue - totalCosts;
       const margin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
 
-      // Ranking Top 5
       const topProducts = Object.entries(productMap)
         .map(([name, data]) => ({ name, ...data }))
         .sort((a, b) => b.revenue - a.revenue)
@@ -127,8 +133,9 @@ export const useAnalyticsStore = create<AnalyticsState>((set) => ({
       });
 
     } catch (error: unknown) {
-      console.error("❌ [Analytics Store] Fallo crítico:", error);
-      Swal.fire('Error de Datos', 'No se pudieron calcular las métricas financieras del mes.', 'error');
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      console.error("❌ [Analytics Store] Fallo crítico:", errorMessage);
+      Swal.fire('Error de Datos', 'No se pudieron calcular las métricas financieras.', 'error');
     } finally {
       set({ isLoading: false });
     }

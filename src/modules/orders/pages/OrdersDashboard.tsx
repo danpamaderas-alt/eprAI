@@ -6,7 +6,7 @@ import { useReactToPrint } from 'react-to-print';
 // 👇 ESTOS 3 AHORA BUSCAN EN LA MISMA CARPETA
 import { OrderForm } from '../components/OrderForm';
 import { RemitoModal } from '../components/RemitoModal';
-import { OrderLabel } from '../../../components/OrderLabel';
+import { OrderLabel } from '../../orders/components/OrderLabel/OrderLabel';
 
 const STATUS_COLORS: Record<string, string> = { 
   PENDING: 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-800', 
