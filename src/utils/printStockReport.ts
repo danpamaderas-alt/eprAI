@@ -15,7 +15,7 @@ export interface ReportOptions {
 export const generateStockPDF = (products: Product[], inventory: ProductVariant[], options: ReportOptions) => {
   const printWindow = window.open('', '_blank');
   if (!printWindow) {
-    alert("El navegador bloqueó la ventana emergente.");
+    console.error("El navegador bloqueó la ventana emergente para el PDF.");
     return;
   }
 

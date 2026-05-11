@@ -2,50 +2,66 @@ import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { useTenantStore } from './useTenantStore';
 
-// --- INTERFACES ---
-export interface CatalogItem { id: string; name: string; hex_code?: string; base_price?: number; }
-export interface BusinessUnit { id: string; code: string; name: string; }
+// --- INTERFACES BLINDADAS CONTRA NULL DE SUPABASE ---
+export interface CatalogItem { 
+  id: string; 
+  name: string; 
+  hex_code?: string | null; 
+  base_price?: number | null; 
+}
+
+export interface BusinessUnit { 
+  id: string; 
+  code: string; 
+  name: string; 
+}
 
 export interface Product { 
   id: string; 
-  company_id?: string;
-  sku?: string;        
+  company_id?: string | null;
+  sku?: string | null;        
   name: string; 
-  category?: string; 
-  cost_price?: number; 
-  price?: number;      
-  location?: string;   
-  notes?: string;      
+  category?: string | null; 
+  cost_price?: number | null; 
+  price?: number | null;      
+  location?: string | null;   
+  notes?: string | null;      
 }
 
 export interface Service {
   id: string;
-  company_id?: string;
+  company_id?: string | null;
   name: string;
-  price: number;
-  description?: string;
+  price: number | null;
+  description?: string | null;
 }
 
 export interface Customer { 
   id: string; 
-  company_id?: string;
+  company_id?: string | null;
   name: string; 
-  company?: string; 
-  phone?: string; 
-  balance: number; 
+  company?: string | null; 
+  phone?: string | null; 
+  balance: number | null; 
 }
 
 export interface ProductVariant {
   id: string;
-  product_id: string;
-  size_id: string;
-  color_id: string;
-  stock_quantity: number;
-  base_quantity: number;     
-  finished_quantity: number; 
-  products?: Product;
-  sizes?: { name: string };
-  colors?: { name: string };
+  product_id: string | null;
+  size_id: string | null;
+  color_id: string | null;
+  stock_quantity: number | null;
+  base_quantity: number | null;     
+  finished_quantity: number | null; 
+  products?: Product | null;
+  sizes?: { name: string } | null;
+  colors?: { name: string } | null;
+}
+
+export interface CartItem {
+  variantId: string;
+  qty: number;
+  [key: string]: unknown; 
 }
 
 interface CatalogState {
@@ -64,9 +80,7 @@ interface CatalogState {
   updateProductComplete: (productId: string, updates: Partial<Product>) => Promise<void>;
   updateStock: (productId: string, sizeId: string, colorId: string, quantity: number) => Promise<void>;
   transformToFinished: (variantId: string, quantityToTransform: number) => Promise<void>; 
-  
-  // ✅ AGREGAMOS PROCESS SALE A LA INTERFAZ
-  processSale: (customerId: string, cart: any[], total: number) => Promise<void>;
+  processSale: (_customerId: string, cart: CartItem[], _total: number) => Promise<void>;
   
   addService: (data: Omit<Service, 'id' | 'company_id'>) => Promise<Service>;
   addCustomer: (data: Omit<Customer, 'id' | 'balance' | 'company_id'>) => Promise<Customer>;
@@ -74,7 +88,6 @@ interface CatalogState {
   addSize: (name: string) => Promise<CatalogItem>;
   addColor: (name: string, hex?: string) => Promise<CatalogItem>;
   addPersonalizationType: (name: string, price: number) => Promise<CatalogItem>;
-  registerPayment: (customerId: string, amount: number, notes: string) => Promise<void>;
 }
 
 export const useCatalogStore = create<CatalogState>((set, get) => ({
@@ -91,7 +104,6 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
 
   fetchAllCatalogs: async () => {
     set({ isLoading: true });
-    
     const companyId = useTenantStore.getState().activeCompanyId;
 
     try {
@@ -108,15 +120,15 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
       ]);
 
       set({ 
-        sizes: resSizes.data || [], 
-        colors: resColors.data || [], 
-        paymentMethods: resPayments.data || [],
-        businessUnits: resUnits.data || [], 
-        products: resProducts.data || [], 
-        customers: resCustomers.data || [],
-        personalizationTypes: resPerso.data || [], 
-        inventory: resInventory.data || [], 
-        services: resServices.data || [], 
+        sizes: (resSizes.data as CatalogItem[]) || [], 
+        colors: (resColors.data as CatalogItem[]) || [], 
+        paymentMethods: (resPayments.data as CatalogItem[]) || [],
+        businessUnits: (resUnits.data as BusinessUnit[]) || [], 
+        products: (resProducts.data as Product[]) || [], 
+        customers: (resCustomers.data as Customer[]) || [],
+        personalizationTypes: (resPerso.data as CatalogItem[]) || [], 
+        inventory: (resInventory.data as ProductVariant[]) || [], 
+        services: (resServices.data as Service[]) || [], 
         isLoading: false 
       });
     } catch (error) { 
@@ -138,7 +150,6 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
 
  updateStock: async (productId, sizeId, colorId, quantity) => {
     try {
-      // 1. Buscamos si existe. Supabase tira error PGRST116 si no encuentra nada (lo cual es normal si es nuevo)
       const { data: existing, error: searchError } = await supabase
         .from('product_variants')
         .select('*')
@@ -148,11 +159,11 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
         .single();
 
       if (searchError && searchError.code !== 'PGRST116') {
-        throw searchError; // Si es un error grave, lo frenamos acá
+        throw searchError; 
       }
       
       if (existing) {
-        const newTotal = existing.stock_quantity + quantity;
+        const newTotal = (existing.stock_quantity || 0) + quantity;
         const newBase = (existing.base_quantity || 0) + quantity;
         
         const { error: updateError } = await supabase.from('product_variants').update({ 
@@ -160,10 +171,9 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
           base_quantity: newBase 
         }).eq('id', existing.id);
 
-        if (updateError) throw updateError; // ALARMA DE ERROR AL ACTUALIZAR
+        if (updateError) throw updateError; 
 
       } else {
-        // CREAR NUEVO (Acá estaba fallando en silencio)
         const { error: insertError } = await supabase.from('product_variants').insert([{ 
           product_id: productId, 
           size_id: sizeId, 
@@ -172,12 +182,12 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
           base_quantity: quantity 
         }]);
 
-        if (insertError) throw insertError; // ALARMA DE ERROR AL INSERTAR
+        if (insertError) throw insertError; 
       }
       await get().fetchAllCatalogs();
-    } catch (error: any) { 
+    } catch (error) { 
       console.error('🔥 Error Real en updateStock:', error); 
-      throw error; // Esto lanza el error para que tu modal rojo lo atrape y te lo muestre
+      throw error; 
     }
   },
 
@@ -209,18 +219,16 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
     }
   },
 
-  // ✨ FUNCIÓN NUEVA Y LIMPIA: PROCESA LA VENTA DESCONTANDO SOLO EL STOCK FÍSICO
-  processSale: async (customerId, cart, total) => {
+  processSale: async (_customerId, cart, _total) => {
     try {
       for (const item of cart) {
         const { data: variant } = await supabase.from('product_variants').select('finished_quantity').eq('id', item.variantId).single();
         if (variant) {
           await supabase.from('product_variants').update({ 
-            finished_quantity: variant.finished_quantity - item.qty 
+            finished_quantity: (variant.finished_quantity || 0) - item.qty 
           }).eq('id', item.variantId);
         }
       }
-      // Refrescamos el catálogo para ver el stock real
       await get().fetchAllCatalogs();
     } catch (error) {
       console.error('Error descontando stock en la venta:', error);
@@ -232,7 +240,7 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
     const companyId = useTenantStore.getState().activeCompanyId;
     const { data, error } = await supabase.from('services').insert([{ ...serviceData, company_id: companyId }]).select().single();
     if (error) throw error;
-    set((state) => ({ services: [...state.services, data].sort((a, b) => a.name.localeCompare(b.name)) }));
+    set((state) => ({ services: [...state.services, data as Service].sort((a, b) => a.name.localeCompare(b.name)) }));
     return data as Service;
   },
 
@@ -240,7 +248,7 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
     const companyId = useTenantStore.getState().activeCompanyId;
     const { data, error } = await supabase.from('customers').insert([{ ...customerData, company_id: companyId }]).select().single();
     if (error) throw error;
-    set((state) => ({ customers: [...state.customers, data].sort((a, b) => a.name.localeCompare(b.name)) }));
+    set((state) => ({ customers: [...state.customers, data as Customer].sort((a, b) => a.name.localeCompare(b.name)) }));
     return data as Customer;
   },
 
@@ -248,49 +256,28 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
     const companyId = useTenantStore.getState().activeCompanyId;
     const { data, error } = await supabase.from('products').insert([{ ...productData, company_id: companyId }]).select().single();
     if (error) throw error;
-    set((state) => ({ products: [...state.products, data].sort((a, b) => a.name.localeCompare(b.name)) }));
+    set((state) => ({ products: [...state.products, data as Product].sort((a, b) => a.name.localeCompare(b.name)) }));
     return data as Product;
   },
 
   addSize: async (name) => {
     const { data, error } = await supabase.from('sizes').insert([{ name }]).select().single();
     if (error) throw error;
-    set((state) => ({ sizes: [...state.sizes, data].sort((a, b) => a.name.localeCompare(b.name)) }));
+    set((state) => ({ sizes: [...state.sizes, data as CatalogItem].sort((a, b) => a.name.localeCompare(b.name)) }));
     return data as CatalogItem;
   },
 
   addColor: async (name, hex_code = '#000000') => {
     const { data, error } = await supabase.from('colors').insert([{ name, hex_code }]).select().single();
     if (error) throw error;
-    set((state) => ({ colors: [...state.colors, data].sort((a, b) => a.name.localeCompare(b.name)) }));
+    set((state) => ({ colors: [...state.colors, data as CatalogItem].sort((a, b) => a.name.localeCompare(b.name)) }));
     return data as CatalogItem;
   },
 
   addPersonalizationType: async (name, base_price) => {
     const { data, error } = await supabase.from('personalization_types').insert([{ name, base_price }]).select().single();
     if (error) throw error;
-    set((state) => ({ personalizationTypes: [...state.personalizationTypes, data].sort((a, b) => a.name.localeCompare(b.name)) }));
+    set((state) => ({ personalizationTypes: [...state.personalizationTypes, data as CatalogItem].sort((a, b) => a.name.localeCompare(b.name)) }));
     return data as CatalogItem;
-  },
-
-  // ✨ CORREGIDO: AHORA GUARDA EN LA CUENTA CORRIENTE NUEVA
-  registerPayment: async (customerId, amount, notes) => {
-    try {
-      const type = amount < 0 ? 'CARGO' : 'PAGO';
-      const absAmount = Math.abs(amount);
-      
-      const { error: txError } = await supabase.from('account_movements').insert([{ 
-        customer_id: customerId, 
-        movement_type: type, 
-        amount: absAmount, 
-        description: notes 
-      }]);
-      
-      if (txError) throw txError;
-      await get().fetchAllCatalogs();
-    } catch (error: any) { 
-      console.error('Error registrando pago:', error.message); 
-      throw error; 
-    }
   }
 }));

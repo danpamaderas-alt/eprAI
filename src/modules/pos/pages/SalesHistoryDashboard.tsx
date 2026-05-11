@@ -123,7 +123,7 @@ export const SalesHistoryDashboard = () => {
                     Cargando registro de ventas...
                   </td>
                 </tr>
-              ) : filteredSales.length === 0 ? 
+              ) : filteredSales.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="p-12 text-center font-black text-slate-400 uppercase tracking-widest text-xs">
                     No se encontraron ventas registradas

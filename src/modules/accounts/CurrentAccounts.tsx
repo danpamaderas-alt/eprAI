@@ -1,306 +1,107 @@
-import { useState, useEffect, useMemo } from 'react';
-import { supabase } from '../../lib/supabase';
+import { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import { useCrmStore } from '../crm/store/useCrmStore';
 import Swal from 'sweetalert2';
-import { Search, CreditCard, TrendingUp, ArrowLeft } from 'lucide-react';
+import { Search, CreditCard, X } from 'lucide-react';
 
-// 1. 🛡️ INTERFACES ESTRICTAS (Chau "any")
-interface CustomerBalance {
-  customer_id: string;
-  customer_name: string;
-  current_balance: number;
-}
-
-interface AccountMovement {
-  id: string;
-  customer_id: string;
-  date: string;
-  description: string;
-  movement_type: 'PAGO' | 'CARGO';
-  amount: number;
-}
-
-// 2. 🧹 HELPER PARA LIMPIAR CÓDIGO DE MONEDA
 const formatMoney = (amount: number) => `$${Math.abs(amount).toLocaleString('es-AR')}`;
 
-export const CurrentAccounts = () => {
-  const [balances, setBalances] = useState<CustomerBalance[]>([]);
+export const CurrentAccounts = memo(() => {
+  const { balances, isLoading, fetchBalances, addMovement } = useCrmStore();
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
-  const [movements, setMovements] = useState<AccountMovement[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-
-  // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formParams, setFormParams] = useState({ movement_type: 'PAGO', amount: 0, description: '' });
+  const [formParams, setFormParams] = useState({ movement_type: 'PAGO' as 'PAGO' | 'CARGO', amount: '' as number | '', description: '' });
 
   useEffect(() => {
-    fetchGlobalBalances();
-  }, []);
+    const delayDebounceFn = setTimeout(() => { fetchBalances(searchTerm); }, 400);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm, fetchBalances]);
 
-  useEffect(() => {
-    if (selectedCustomerId) fetchMovements(selectedCustomerId);
-  }, [selectedCustomerId]);
+  const globalTotal = useMemo(() => balances.reduce((acc, curr) => (curr.balance && curr.balance > 0) ? acc + curr.balance : acc, 0), [balances]);
 
-  const fetchGlobalBalances = async () => {
-    setIsLoading(true);
-    try {
-      // 🧠 MAGIA UNIFICADA: Leemos el "balance" real de la tabla general de clientes
-      const { data, error } = await supabase
-        .from('customers')
-        .select('id, name, balance');
-
-      if (error) {
-        console.error("Error de Supabase:", error);
-        Swal.fire('Error en la Vista', error.message, 'error');
-        return;
-      }
-      
-      // Transformamos los datos para que encajen perfecto en tus tarjetas y filtramos los que están en 0
-      const formattedData = (data || [])
-        .map((c: any) => ({
-          customer_id: c.id,
-          customer_name: c.name,
-          current_balance: Number(c.balance) || 0
-        }))
-        // Opcional: Solo mostrar los que tienen saldo distinto a 0 (como en la otra pantalla)
-        .filter(c => c.current_balance !== 0)
-        // Ordenamos por los que más deben primero
-        .sort((a, b) => Math.abs(b.current_balance) - Math.abs(a.current_balance));
-
-      setBalances(formattedData);
-    } catch (err: any) {
-      console.error("Fallo total:", err);
-      Swal.fire('Error', 'Fallo al conectar con el servidor', 'error');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchMovements = async (id: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('account_movements')
-        .select('*')
-        .eq('customer_id', id)
-        .order('date', { ascending: false });
-        
-      if (error) throw error;
-      setMovements(data || []);
-    } catch (error) {
-      console.error('Error al cargar movimientos:', error);
-      Swal.fire('Error', 'No se pudieron cargar los movimientos.', 'error');
-    }
-  };
-
-  const globalTotal = useMemo(() => 
-    balances.reduce((acc, curr) => curr.current_balance > 0 ? acc + curr.current_balance : acc, 0)
-  , [balances]);
-
-  const filteredBalances = useMemo(() => 
-    balances.filter(b => b.customer_name.toLowerCase().includes(searchTerm.toLowerCase()))
-  , [balances, searchTerm]);
-
-  const handleSaveMovement = async () => {
-    if (!selectedCustomerId) {
-      Swal.fire('Error', 'No hay cliente seleccionado.', 'error');
-      return;
-    }
-    if (isNaN(formParams.amount) || formParams.amount <= 0 || !formParams.description.trim()) {
-      Swal.fire('Atención', 'El monto debe ser mayor a 0 y tener una descripción.', 'warning');
-      return;
-    }
-
-    try {
-      const { error } = await supabase.from('account_movements').insert([{
-        customer_id: selectedCustomerId,
-        ...formParams
-      }]);
-      if (error) throw error;
-
+  const handleSaveMovement = useCallback(async () => {
+    if (!selectedCustomerId || !formParams.amount || !formParams.description.trim()) return;
+    const success = await addMovement({
+      customer_id: selectedCustomerId,
+      movement_type: formParams.movement_type,
+      amount: Number(formParams.amount),
+      description: formParams.description.trim(),
+      date: new Date().toISOString()
+    });
+    if (success) {
       Swal.fire({ toast: true, icon: 'success', title: 'Registrado', position: 'top-end', showConfirmButton: false, timer: 1500 });
       setIsModalOpen(false);
-      setFormParams({ movement_type: 'PAGO', amount: 0, description: '' });
-      
-      // Refrescamos datos
-      fetchMovements(selectedCustomerId);
-      fetchGlobalBalances();
-    } catch (e) { 
-      Swal.fire('Error', 'No se pudo guardar el movimiento', 'error'); 
+      setFormParams({ movement_type: 'PAGO', amount: '', description: '' });
     }
-  };
+  }, [selectedCustomerId, formParams, addMovement]);
 
-  // ==========================================
-  // VISTA DE DETALLE (Cuando seleccionas un cliente)
-  // ==========================================
-  if (selectedCustomerId) {
-    const customer = balances.find(b => b.customer_id === selectedCustomerId);
-    return (
-      <div className="space-y-6 animate-in slide-in-from-right duration-300">
-        <button onClick={() => setSelectedCustomerId(null)} className="flex items-center gap-2 text-slate-500 font-bold hover:text-slate-900 transition-colors uppercase text-xs">
-          <ArrowLeft className="w-4 h-4" /> Volver al Radar
-        </button>
-        
-        <div className="flex justify-between items-end">
-          <div>
-            <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">{customer?.customer_name}</h2>
-            <p className="text-sm font-bold text-slate-500 uppercase">Historial de pagos manuales</p>
-          </div>
-          <div className="text-right">
-            <p className="text-[10px] font-black uppercase text-slate-400">Saldo Total</p>
-            <p className={`text-4xl font-black ${customer && customer.current_balance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-              {formatMoney(customer?.current_balance || 0)}
-            </p>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-xl overflow-hidden">
-          <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
-            <h3 className="font-black text-slate-700 dark:text-white uppercase text-sm">Libro de Cuenta</h3>
-            <button onClick={() => setIsModalOpen(true)} className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg active:scale-95 transition-all">
-              + Nuevo Movimiento
-            </button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left min-w-[600px]">
-              <thead>
-                <tr className="bg-slate-50 dark:bg-slate-900/80 text-[10px] font-black uppercase text-slate-400 border-b border-slate-200">
-                  <th className="p-5">Fecha</th>
-                  <th className="p-5">Detalle</th>
-                  <th className="p-5 text-center">Tipo</th>
-                  <th className="p-5 text-right">Monto</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50 text-sm font-bold">
-                {movements.map(mov => (
-                  <tr key={mov.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/20">
-                    <td className="p-5 text-slate-500">{new Date(mov.date).toLocaleDateString('es-AR')}</td>
-                    <td className="p-5 text-slate-800 dark:text-slate-200">{mov.description}</td>
-                    <td className="p-5 text-center">
-                      <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase ${mov.movement_type === 'PAGO' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                        {mov.movement_type === 'PAGO' ? 'Pago' : 'Cargo'}
-                      </span>
-                    </td>
-                    <td className={`p-5 text-right font-black ${mov.movement_type === 'PAGO' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                      {mov.movement_type === 'PAGO' ? '-' : '+'}{formatMoney(mov.amount)}
-                    </td>
-                  </tr>
-                ))}
-                {movements.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="p-10 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">
-                      No hay pagos ni cargos manuales (El saldo actual puede provenir de pedidos)
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
-            <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-md p-8 space-y-5 border border-slate-200">
-              <h2 className="font-black text-slate-900 dark:text-white uppercase tracking-tighter text-xl">Registrar en Cuenta</h2>
-              <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-900 rounded-xl">
-                {['PAGO', 'CARGO'].map(t => (
-                  <button key={t} onClick={() => setFormParams({...formParams, movement_type: t as any})} className={`flex-1 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${formParams.movement_type === t ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500'}`}>
-                    {t === 'PAGO' ? 'Recibí Dinero' : 'Sumar Deuda'}
-                  </button>
-                ))}
-              </div>
-              <input 
-                type="number" 
-                min="0" 
-                step="0.01" 
-                placeholder="Monto $" 
-                className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-xl font-black outline-none focus:border-blue-500" 
-                value={formParams.amount || ''} 
-                onChange={e => setFormParams({...formParams, amount: parseFloat(e.target.value)})} 
-              />
-              <input 
-                type="text" 
-                placeholder="¿Por qué concepto?" 
-                className="w-full p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:border-blue-500" 
-                value={formParams.description} 
-                onChange={e => setFormParams({...formParams, description: e.target.value})} 
-              />
-              <div className="flex justify-end gap-3 pt-4">
-                <button onClick={() => setIsModalOpen(false)} className="uppercase text-[10px] font-black text-slate-400 px-4 hover:text-slate-700 transition-colors">Cancelar</button>
-                <button onClick={handleSaveMovement} className="bg-blue-600 text-white px-8 py-3 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg active:scale-95 transition-all">Guardar</button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // ==========================================
-  // VISTA DE RADAR (General)
-  // ==========================================
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <header>
-        <h1 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Radar de Cobranzas</h1>
-        <p className="text-sm font-bold text-slate-500 uppercase">Quién tiene que pagar y cuánto</p>
+      <header className="flex justify-between items-end bg-white dark:bg-slate-800 p-6 rounded-3xl border dark:border-slate-700 shadow-sm">
+        <div>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter italic">Cuentas Corrientes</h1>
+          <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Radar de Cobranzas</p>
+        </div>
+        <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 p-4 rounded-2xl flex flex-col items-end">
+          <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest">Total en la calle</span>
+          <span className="text-2xl font-black text-rose-700">{formatMoney(globalTotal)}</span>
+        </div>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 p-6 rounded-3xl shadow-sm">
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-[10px] font-black uppercase text-rose-600 dark:text-rose-400 tracking-widest mb-1">Total en la calle</p>
-              <h3 className="text-4xl font-black text-rose-700 dark:text-rose-500">{formatMoney(globalTotal)}</h3>
-            </div>
-            <TrendingUp className="text-rose-400 w-8 h-8" />
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-6 rounded-3xl shadow-sm flex items-center">
-          <div className="relative w-full">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-            <input 
-              type="text" 
-              placeholder="Buscar deudor por nombre..." 
-              className="w-full pl-12 pr-4 py-3 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-bold outline-none focus:border-blue-500"
-              value={searchTerm} 
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </div>
+      <div className="relative">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+        <input type="text" placeholder="Buscar deudor..." className="w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 dark:text-white shadow-sm" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {isLoading ? (
-          <div className="col-span-full py-20 text-center animate-pulse font-black text-slate-400 uppercase tracking-widest">Escaneando saldos...</div>
-        ) : filteredBalances.length === 0 ? (
-          <div className="col-span-full py-20 text-center font-black text-slate-400 uppercase tracking-widest">No hay deudas registradas</div>
-        ) : filteredBalances.map(b => (
-          <div 
-            key={b.customer_id} 
-            onClick={() => setSelectedCustomerId(b.customer_id)}
-            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-5 rounded-3xl hover:shadow-xl hover:border-blue-400 transition-all group cursor-pointer"
-          >
-            <div className="flex justify-between items-start mb-4">
-              <h4 className="font-black text-slate-900 dark:text-white uppercase text-sm leading-tight truncate w-2/3">{b.customer_name}</h4>
-              <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase ${b.current_balance > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                {b.current_balance > 0 ? 'Debe' : 'A favor'}
-              </span>
+          <div className="col-span-full py-20 text-center animate-pulse font-black text-slate-400 uppercase tracking-widest italic">Sincronizando deudas...</div>
+        ) : balances.map(b => {
+          const isDebtor = (b.balance || 0) > 0;
+          const badgeClass = isDebtor ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700';
+          const badgeText = isDebtor ? 'Debe' : 'A favor';
+          const textClass = isDebtor ? 'text-rose-600' : 'text-emerald-600';
+
+          return (
+            <button key={b.id} type="button" onClick={() => { setSelectedCustomerId(b.id); setIsModalOpen(true); }} className="bg-white dark:bg-slate-800 border dark:border-slate-700 p-5 rounded-3xl hover:shadow-xl hover:border-blue-400 transition-all group text-left focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <div className="flex justify-between items-start mb-4">
+                <h4 className="font-black text-slate-900 dark:text-white uppercase text-sm truncate w-2/3">{b.name}</h4>
+                <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase ${badgeClass}`}>{badgeText}</span>
+              </div>
+              <div className="flex justify-between items-end">
+                <div>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Saldo Actual</p>
+                  <p className={`text-2xl font-black ${textClass}`}>{formatMoney(b.balance || 0)}</p>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-2xl group-hover:bg-blue-600 group-hover:text-white transition-colors"><CreditCard className="w-4 h-4" /></div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] shadow-2xl w-full max-w-md p-8 border dark:border-slate-700">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="font-black text-slate-900 dark:text-white uppercase italic text-xl">Registrar Pago</h2>
+              <button type="button" onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-rose-500"><X /></button>
             </div>
-            <div className="flex justify-between items-end">
-              <div>
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Saldo Total</p>
-                <p className={`text-2xl font-black ${b.current_balance > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                  {formatMoney(b.current_balance)}
-                </p>
+            <div className="space-y-4">
+              <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-900 rounded-xl">
+                {(['PAGO', 'CARGO'] as const).map(t => (
+                  <button key={t} type="button" onClick={() => setFormParams(prev => ({...prev, movement_type: t}))} className={`flex-1 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${formParams.movement_type === t ? 'bg-slate-900 dark:bg-slate-700 text-white shadow-md' : 'text-slate-500'}`}>{t === 'PAGO' ? 'Recibí Dinero' : 'Sumar Deuda'}</button>
+                ))}
               </div>
-              <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-2xl group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                <CreditCard className="w-4 h-4" />
-              </div>
+              <input type="number" placeholder="Monto $" className="w-full p-4 bg-slate-50 dark:bg-slate-950 border dark:border-slate-700 rounded-xl text-xl font-black outline-none focus:ring-2 focus:ring-blue-500 dark:text-white" value={formParams.amount} onChange={e => setFormParams(prev => ({...prev, amount: e.target.value === '' ? '' : Number.parseFloat(e.target.value)}))} />
+              <input type="text" placeholder="Concepto..." className="w-full p-4 bg-slate-50 dark:bg-slate-950 border dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 dark:text-white" value={formParams.description} onChange={e => setFormParams(prev => ({...prev, description: e.target.value}))} />
+              <button type="button" onClick={handleSaveMovement} className="w-full bg-blue-600 text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg active:scale-95 transition-all">Confirmar Operación 💾</button>
             </div>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   );
-};
+});
+
+CurrentAccounts.displayName = 'CurrentAccounts';

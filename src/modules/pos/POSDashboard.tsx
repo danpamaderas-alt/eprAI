@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useCatalogStore } from '../../store/useCatalogStore';
-import { supabase } from '../../lib/supabase'; // 👈 CONEXIÓN DIRECTA A LA BASE DE DATOS NUEVA
 import Swal from 'sweetalert2';
+import { useCrmStore } from '../crm/store/useCrmStore'; // ✅ FIX: Conectado al nuevo cerebro unificado
 
 interface CartItem {
   variantId: string;
@@ -10,6 +10,8 @@ interface CartItem {
   sku: string;
   size: string;
   color: string;
+  sizeId: string;
+  colorId: string;
   price: number;
   qty: number;
   maxQty: number; 
@@ -17,7 +19,7 @@ interface CartItem {
 
 export const POSDashboard = () => {
   const { products, inventory, customers, fetchAllCatalogs, processSale } = useCatalogStore();
-  const { addDebt } = useDebtStore(); // 👈 TRAEMOS LA FUNCIÓN PARA ANOTAR EN LA LIBRETA
+  const { addMovement } = useCrmStore(); // ✅ FIX: Extraemos la función correcta
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState('');
@@ -42,6 +44,8 @@ export const POSDashboard = () => {
         price: prod?.price || 0,
         size: v.sizes?.name || 'ÚNICO',
         color: v.colors?.name || 'ÚNICO',
+        sizeId: v.size_id,
+        colorId: v.color_id,
         finished_qty: v.finished_quantity || 0
       };
     }).filter(v => v.name.toLowerCase().includes(searchTerm.toLowerCase()) || v.sku.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -66,6 +70,8 @@ export const POSDashboard = () => {
         sku: variant.sku,
         size: variant.size,
         color: variant.color,
+        sizeId: variant.sizeId,
+        colorId: variant.colorId,
         price: variant.price,
         qty: 1,
         maxQty: variant.finished_qty
@@ -77,7 +83,7 @@ export const POSDashboard = () => {
     setCart(prev => prev.filter(item => item.variantId !== variantId));
   };
 
- const handleCheckout = async () => {
+  const handleCheckout = async () => {
     if (!selectedCustomer) {
       Swal.fire('Atención', 'Seleccioná un cliente o institución para asignarle la venta.', 'warning');
       return;
@@ -103,22 +109,20 @@ export const POSDashboard = () => {
         await processSale(selectedCustomer, cart, cartTotal);
         
         if (paymentMethod === 'CUENTA_CORRIENTE') {
-          console.log("2. Enviando deuda a Supabase...", { selectedCustomer, cartTotal });
+          console.log("2. Guardando deuda en la cuenta consolidada...");
           
-          const payload = {
+          // ✅ FIX: Usamos el Store centralizado para garantizar sincronización atómica
+          const success = await addMovement({
             customer_id: selectedCustomer,
             movement_type: 'CARGO',
             amount: cartTotal,
-            description: `Venta POS - ${cart.length} artículos`
-          };
-
-          const { error: debtError } = await supabase.from('account_movements').insert([payload]);
+            description: `Venta POS - ${cart.length} artículos`,
+            date: new Date().toISOString()
+          });
           
-          if (debtError) {
-            console.error("❌ Error oculto de Supabase:", debtError);
-            throw new Error(`Supabase rechazó la deuda: ${debtError.message}`);
+          if (!success) {
+            throw new Error(`El sistema rechazó el movimiento en la Cuenta Corriente.`);
           }
-          console.log("✅ Deuda guardada exitosamente en la base de datos.");
         }
 
         Swal.fire(
