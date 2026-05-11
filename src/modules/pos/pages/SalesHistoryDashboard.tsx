@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { supabase } from '../../lib/supabase'; // Asegurate de que la ruta a supabase sea la correcta
+import { supabase } from '../../../lib/supabase'; // Asegurate de que la ruta a supabase sea la correcta
 import { Calendar, Search, FileText, X } from 'lucide-react';
 
 export const SalesHistoryDashboard = () => {
