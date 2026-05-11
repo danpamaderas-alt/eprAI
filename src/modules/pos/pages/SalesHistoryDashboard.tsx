@@ -174,7 +174,7 @@ export const SalesHistoryDashboard = () => {
                     </tr>
                   );
                 })
-              )}
+              )
             </tbody>
           </table>
         </div>
