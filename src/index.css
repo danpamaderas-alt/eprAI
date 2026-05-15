@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+/* =========================================
+   REGLAS MAESTRAS DE IMPRESIÓN PARA ERP
+   ========================================= */
+@media print {
+  /* 1. Rompemos la "jaula" del layout: Hacemos la altura infinita */
+  html, body, #root, [class*="h-screen"], [class*="overflow-"] {
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    position: static !important;
+  }
+
+  /* 2. Ocultamos el menú lateral (Sidebar) y barras superiores */
+  aside, nav, header {
+    display: none !important;
+  }
+
+  /* 3. Forzamos que el fondo general sea blanco papel */
+  body {
+    background-color: white !important;
+  }
+
+  /* 4. Magia para que los renglones no se corten a la mitad entre la Hoja 1 y la Hoja 2 */
+  table {
+    page-break-inside: auto;
+  }
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+}
