@@ -96,10 +96,6 @@ interface CatalogState {
   addService: (data: Omit<Service, 'id' | 'company_id'>) => Promise<Service>;
   addCustomer: (data: Omit<Customer, 'id' | 'balance' | 'company_id'>) => Promise<Customer>;
   addProduct: (data: Omit<Product, 'id' | 'company_id'>) => Promise<Product>;
-<<<<<<< HEAD
-  addProductVariant: (variantData: any) => Promise<void>; 
-=======
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
   addSize: (name: string) => Promise<CatalogItem>;
   addColor: (name: string, hex?: string) => Promise<CatalogItem>;
   addPersonalizationType: (name: string, price: number) => Promise<CatalogItem>;
@@ -122,21 +118,6 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
     const companyId = useTenantStore.getState().activeCompanyId;
 
     try {
-<<<<<<< HEAD
-      const resSizes = await supabase.from('sizes').select('*').order('name');
-      if (resSizes.error) console.error('🚨 ERROR LEYENDO TALLES:', resSizes.error);
-
-      const resColors = await supabase.from('colors').select('*').order('name');
-      if (resColors.error) console.error('🚨 ERROR LEYENDO COLORES:', resColors.error);
-
-      const [ resPayments, resUnits, resProducts, resCustomers, resPerso, resInventory, resServices ] = await Promise.all([
-        supabase.from('payment_methods').select('*').order('name'),
-        supabase.from('business_units').select('*').order('name'),
-        supabase.from('products').select('*').eq('company_id', companyId).order('name'),
-        supabase.from('customers').select('*').eq('company_id', companyId).order('name'),
-        supabase.from('personalization_types').select('*').order('name'),
-        supabase.from('product_variants').select('*'), // Sin join para evitar errores de cache
-=======
       const [ resSizes, resColors, resPayments, resUnits, resProducts, resCustomers, resPerso, resInventory, resServices ] = await Promise.all([
         supabase.from('sizes').select('*').order('name'),
         supabase.from('colors').select('*').order('name'),
@@ -146,7 +127,6 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
         supabase.from('customers').select('*').eq('company_id', companyId).order('name'),
         supabase.from('personalization_types').select('*').order('name'),
         supabase.from('product_variants').select(`*, sizes(name), colors(name)`),
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
         supabase.from('services').select('*').eq('company_id', companyId).order('name'),
       ]);
 
@@ -163,11 +143,7 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
         isLoading: false 
       });
     } catch (error) { 
-<<<<<<< HEAD
-      console.error('🔥 Error crítico en fetchAllCatalogs:', error); 
-=======
       console.error('Error general en fetchAllCatalogs:', error); 
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
       set({ isLoading: false }); 
     }
   },
@@ -289,72 +265,22 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
 
   addProduct: async (productData) => {
     const companyId = useTenantStore.getState().activeCompanyId;
-<<<<<<< HEAD
-    const { data, error } = await supabase
-      .from('products')
-      .insert([{ ...productData, company_id: companyId }])
-      .select()
-      .single();
-    
-=======
     const { data, error } = await supabase.from('products').insert([{ ...productData, company_id: companyId }]).select().single();
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
     if (error) throw error;
     set((state) => ({ products: [...state.products, data as Product].sort((a, b) => a.name.localeCompare(b.name)) }));
     return data as Product;
   },
 
-<<<<<<< HEAD
-  addProductVariant: async (variantData) => {
-    const { error } = await supabase
-      .from('product_variants')
-      .insert([{ 
-        ...variantData,
-        base_quantity: variantData.stock_quantity || 0 
-      }]);
-      
-    if (error) throw error;
-  },
-
-  addSize: async (name) => {
-    const companyId = useTenantStore.getState().activeCompanyId;
-    const { data, error } = await supabase
-      .from('sizes')
-      .insert([{ name, company_id: companyId }]) 
-      .select()
-      .single();
-      
-    if (error) {
-      console.error("🔥 Error real de Supabase (Talles):", error);
-      throw error;
-    }
-    
-=======
   addSize: async (name) => {
     const { data, error } = await supabase.from('sizes').insert([{ name }]).select().single();
     if (error) throw error;
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
     set((state) => ({ sizes: [...state.sizes, data as CatalogItem].sort((a, b) => a.name.localeCompare(b.name)) }));
     return data as CatalogItem;
   },
 
   addColor: async (name, hex_code = '#000000') => {
-<<<<<<< HEAD
-    const companyId = useTenantStore.getState().activeCompanyId;
-    const { data, error } = await supabase
-      .from('colors')
-      .insert([{ name, hex_code, company_id: companyId }])
-      .select()
-      .single();
-    if (error) {
-      console.error("🔥 Error real de Supabase (Colores):", error);
-      throw error;
-    }
-    
-=======
     const { data, error } = await supabase.from('colors').insert([{ name, hex_code }]).select().single();
     if (error) throw error;
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
     set((state) => ({ colors: [...state.colors, data as CatalogItem].sort((a, b) => a.name.localeCompare(b.name)) }));
     return data as CatalogItem;
   },

@@ -29,38 +29,22 @@ export const OrderForm = memo(
     const { balances, fetchBalances } = useCrmStore();
 
     const [isSubmitting, setIsSubmitting] = useState(false);
-<<<<<<< HEAD
-    
-    // 👇 FIX: Ahora arranca oficialmente en CONSUMIDOR_FINAL
-    const [selectedClientId, setSelectedClientId] = useState(
-      orderToEdit?.customer_id || "CONSUMIDOR_FINAL",
-=======
     const [selectedClientId, setSelectedClientId] = useState(
       orderToEdit?.customer_id || "",
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
     );
     const [activeMatrixIndex, setActiveMatrixIndex] = useState<number | null>(
       null,
     );
 
-<<<<<<< HEAD
-    useEffect(() => {
-      const sync = async () => {
-=======
     // 🛡️ FIX: Sincronización blindada contra 'undefined'
     useEffect(() => {
       const sync = async () => {
         // Usamos el operador || [] para que .length nunca lea de algo indefinido
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
         if ((products || []).length === 0) await fetchAllCatalogs();
         if ((balances || []).length === 0) await fetchBalances();
       };
       sync();
-<<<<<<< HEAD
-    }, [fetchAllCatalogs, fetchBalances]);
-=======
     }, [fetchAllCatalogs, fetchBalances]); // Eliminamos .length de las dependencias para evitar loops
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
 
     const { register, control, handleSubmit, watch, setValue } =
       useForm<OrderFormValues>({
@@ -71,11 +55,7 @@ export const OrderForm = memo(
                 ? orderToEdit.due_date.substring(0, 10)
                 : new Date().toISOString().split("T")[0],
               customerName: orderToEdit.customer_name || "Consumidor Final",
-<<<<<<< HEAD
-              status: orderToEdit.status || "PENDING",
-=======
               status: orderToEdit.status || "PENDIENTE",
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
               businessUnit: orderToEdit.business_unit || "ROJO_SHOWROOM",
               items: orderToEdit.items || [],
               totalAmount: Number(orderToEdit.total_amount || 0),
@@ -84,11 +64,7 @@ export const OrderForm = memo(
           : {
               dueDate: new Date().toISOString().split("T")[0],
               customerName: "Consumidor Final",
-<<<<<<< HEAD
-              status: "PENDING",
-=======
               status: "PENDIENTE",
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
               businessUnit: "ROJO_SHOWROOM",
               items: [],
               totalAmount: 0,
@@ -102,10 +78,7 @@ export const OrderForm = memo(
     });
     const watchItems = watch("items") || [];
 
-<<<<<<< HEAD
-=======
     // Sincronizar nombre de cliente
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
     useEffect(() => {
       if (selectedClientId && selectedClientId !== "CONSUMIDOR_FINAL") {
         const c = (balances || []).find((x: any) => x.id === selectedClientId);
@@ -132,20 +105,6 @@ export const OrderForm = memo(
 
         let newStatus = data.status;
         if (
-<<<<<<< HEAD
-          newStatus !== "CANCELLED" &&
-          newStatus !== "DELIVERED" &&
-          totalOrdered > 0
-        ) {
-          if (totalDelivered >= totalOrdered) newStatus = "COMPLETED";
-          else if (totalDelivered > 0) newStatus = "PARTIAL";
-          else newStatus = "PENDING";
-        }
-
-        const payload = {
-          // 👇 FIX: Blindaje contra textos vacíos
-          company_id: useTenantStore.getState().activeCompanyId || null,
-=======
           newStatus !== "CANCELADO" &&
           newStatus !== "ENTREGADO" &&
           totalOrdered > 0
@@ -157,7 +116,6 @@ export const OrderForm = memo(
 
         const payload = {
           company_id: useTenantStore.getState().activeCompanyId,
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
           due_date: data.dueDate,
           customer_name: data.customerName,
           status: newStatus,
@@ -379,11 +337,7 @@ export const OrderForm = memo(
             product={
               products.find(
                 (p) => p.name === watchItems[activeMatrixIndex]?.productName,
-<<<<<<< HEAD
-              )
-=======
               )!
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
             }
             currentVariations={watchItems[activeMatrixIndex]?.variations || []}
             onSave={(newVariations) => {
@@ -391,19 +345,7 @@ export const OrderForm = memo(
               setActiveMatrixIndex(null);
             }}
             onClose={() => setActiveMatrixIndex(null)}
-<<<<<<< HEAD
-            onRequestNewVariant={() => {
-              setActiveMatrixIndex(null);
-              Swal.fire({
-                title: '¿Falta un Talle o Color?',
-                text: 'Para agregar nuevas variantes a la grilla, debés darlas de alta desde la sección de INVENTARIO -> STOCK DUAL.',
-                icon: 'info',
-                confirmButtonColor: '#2563eb'
-              });
-            }}
-=======
             onRequestNewVariant={() => {}}
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
           />
         )}
       </>
