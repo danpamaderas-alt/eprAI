@@ -17,7 +17,7 @@ export interface WorkerTask {
   price_per_unit: number;
   status: 'PENDIENTE' | 'COMPLETADO' | 'PAGADO';
   created_at: string;
-  workers?: Worker; // Relación con la tabla workers
+  workers?: Worker; 
 }
 
 interface WorkerStore {
@@ -25,8 +25,8 @@ interface WorkerStore {
   tasks: WorkerTask[];
   isLoading: boolean;
   fetchWorkersData: () => Promise<void>;
-  addWorker: (worker: Partial<Worker>) => Promise<void>;
-  addTask: (task: Partial<WorkerTask>) => Promise<void>;
+  addWorker: (worker: Partial<Worker>) => Promise<boolean>;
+  addTask: (task: Partial<WorkerTask>) => Promise<boolean>;
   updateTaskStatus: (taskId: string, newStatus: string) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
 }
@@ -54,14 +54,29 @@ export const useWorkerStore = create<WorkerStore>((set, get) => ({
 
   addWorker: async (worker) => {
     const tenantId = useTenantStore.getState().activeCompanyId;
-    await supabase.from('workers').insert([{ ...worker, company_id: tenantId }]);
+    // 👇 AHORA ATRAPAMOS EL ERROR SI SUPABASE LO RECHAZA 👇
+    const { error } = await supabase.from('workers').insert([{ ...worker, company_id: tenantId }]);
+    
+    if (error) {
+      console.error("🚨 ERROR AL GUARDAR TALLERISTA:", error);
+      return false; // Retorna falso si falló
+    }
+    
     await get().fetchWorkersData();
+    return true; // Retorna verdadero si guardó
   },
 
   addTask: async (task) => {
     const tenantId = useTenantStore.getState().activeCompanyId;
-    await supabase.from('worker_tasks').insert([{ ...task, company_id: tenantId }]);
+    const { error } = await supabase.from('worker_tasks').insert([{ ...task, company_id: tenantId }]);
+    
+    if (error) {
+      console.error("🚨 ERROR AL GUARDAR TAREA:", error);
+      return false;
+    }
+    
     await get().fetchWorkersData();
+    return true;
   },
 
   updateTaskStatus: async (taskId, newStatus) => {
