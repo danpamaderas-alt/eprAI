@@ -1,33 +1,19 @@
 import React, { useMemo, useRef, useEffect } from 'react';
 import { useCatalogStore, type Product } from '../../../store/useCatalogStore';
-<<<<<<< HEAD
-import Swal from 'sweetalert2';
-=======
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
 
 interface VariationPayload {
   id: string;
   size: string;
   color: string;
-<<<<<<< HEAD
-  sizeId: string; 
-  colorId: string; 
-=======
   sizeId: string; // 👈 AGREGADO: Para que Supabase sepa qué descontar
   colorId: string; // 👈 AGREGADO: Para que Supabase sepa qué descontar
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
   quantityOrdered: number;
   quantityDelivered: number;
 }
 
 interface OrderMatrixModalProps {
-<<<<<<< HEAD
-  product?: Product; 
-  currentVariations?: VariationPayload[]; 
-=======
   product: Product;
   currentVariations: VariationPayload[];
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
   onSave: (variations: VariationPayload[]) => void;
   onClose: () => void;
   onRequestNewVariant: () => void;
@@ -35,46 +21,26 @@ interface OrderMatrixModalProps {
 
 export const OrderMatrixModal: React.FC<OrderMatrixModalProps> = ({ 
   product, 
-<<<<<<< HEAD
-  currentVariations = [], 
-=======
   currentVariations, 
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
   onSave, 
   onClose,
   onRequestNewVariant
 }) => {
-<<<<<<< HEAD
-  // 👇 ACÁ ESTÁ LA CLAVE: Ahora traemos la lupa de sizes y colors
-  const { inventory, sizes, colors } = useCatalogStore();
-=======
   const { inventory } = useCatalogStore();
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
   
   const valuesRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     const initial: Record<string, number> = {};
-<<<<<<< HEAD
-    (currentVariations || []).forEach(cv => {
-=======
     currentVariations.forEach(cv => {
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
       if (cv.quantityOrdered > 0) initial[`${cv.size}-${cv.color}`] = cv.quantityOrdered;
     });
     valuesRef.current = initial;
   }, [currentVariations]);
 
-<<<<<<< HEAD
-  const productVariants = useMemo(() => {
-    if (!product || !inventory) return [];
-    return inventory.filter(v => v.product_id === product.id);
-  }, [inventory, product]);
-=======
   const productVariants = useMemo(() => 
     inventory.filter(v => v.product_id === product.id), 
   [inventory, product.id]);
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
 
   const { uniqueSizes, uniqueColors } = useMemo(() => {
     const getSortWeight = (val: string) => {
@@ -86,57 +52,6 @@ export const OrderMatrixModal: React.FC<OrderMatrixModalProps> = ({
       return 1000;
     };
 
-<<<<<<< HEAD
-    // 👇 Usamos la lupa para traducir el ID de Supabase al nombre real del talle
-    const sizeNames = productVariants.map(v => {
-      const found = sizes?.find(s => s.id === v.size_id);
-      return found ? found.name : null;
-    });
-    const sizesList = Array.from(new Set(sizeNames))
-      .filter(Boolean)
-      .sort((a: any, b: any) => getSortWeight(a) - getSortWeight(b));
-
-    // 👇 Usamos la lupa para traducir el ID al nombre real del color
-    const colorNames = productVariants.map(v => {
-      const found = colors?.find(c => c.id === v.color_id);
-      return found ? found.name : null;
-    });
-    const colorsList = Array.from(new Set(colorNames))
-      .filter(Boolean)
-      .sort((a: any, b: any) => String(a).localeCompare(String(b)));
-
-    return { uniqueSizes: sizesList, uniqueColors: colorsList };
-  }, [productVariants, sizes, colors]);
-
-  const handleSave = async () => {
-    const newVars: VariationPayload[] = [];
-    let hasMissingStock = false;
-    let missingDetails: string[] = [];
-
-    uniqueColors.forEach(colorName => {
-      uniqueSizes.forEach(sizeName => {
-        const qty = valuesRef.current[`${sizeName}-${colorName}`] || 0;
-        if (qty > 0) {
-          const existing = (currentVariations || []).find(cv => cv.size === sizeName && cv.color === colorName);
-          
-          // Buscamos la variante original cruzando IDs
-          const variant = productVariants.find(v => {
-            const s = sizes?.find(x => x.id === v.size_id);
-            const c = colors?.find(x => x.id === v.color_id);
-            return s?.name === sizeName && c?.name === colorName;
-          });
-          
-          const stockActual = variant ? (variant.stock_quantity || 0) : 0;
-          if (qty > stockActual) {
-            hasMissingStock = true;
-            missingDetails.push(`- ${sizeName} ${colorName}: Faltan ${qty - stockActual} u.`);
-          }
-
-          newVars.push({
-            id: existing ? existing.id : crypto.randomUUID(),
-            size: sizeName as string,
-            color: colorName as string,
-=======
     const sizes = Array.from(new Set(productVariants.map(v => v.sizes?.name)))
       .filter(Boolean)
       .sort((a: any, b: any) => getSortWeight(a) - getSortWeight(b));
@@ -164,7 +79,6 @@ export const OrderMatrixModal: React.FC<OrderMatrixModalProps> = ({
             size: size as string,
             color: color as string,
             // 👇 Le pasamos los UUID reales. Si por algún error no existe, mandamos null para no explotar.
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
             sizeId: variant ? variant.size_id : '', 
             colorId: variant ? variant.color_id : '',
             quantityOrdered: qty,
@@ -173,30 +87,6 @@ export const OrderMatrixModal: React.FC<OrderMatrixModalProps> = ({
         }
       });
     });
-<<<<<<< HEAD
-
-    if (hasMissingStock) {
-      const { isConfirmed } = await Swal.fire({
-        title: '⚠️ Faltante de Stock',
-        html: `
-          <p class="text-sm text-slate-500 mb-4">Estás anotando más prendas de las que tenés disponibles. La diferencia se guardará como <b>"A Fabricar / Comprar"</b>.</p>
-          <div class="bg-rose-50 p-4 rounded-xl text-rose-600 text-left text-xs font-bold font-mono overflow-y-auto max-h-32 border border-rose-100">
-            ${missingDetails.join('<br/>')}
-          </div>
-        `,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#2563eb',
-        cancelButtonColor: '#ef4444',
-        confirmButtonText: 'Sí, anotar igual 🚀',
-        cancelButtonText: 'Cancelar'
-      });
-
-      if (!isConfirmed) return;
-    }
-
-=======
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
     onSave(newVars);
   };
 
@@ -213,21 +103,6 @@ export const OrderMatrixModal: React.FC<OrderMatrixModalProps> = ({
         </tr>
       </thead>
       <tbody>
-<<<<<<< HEAD
-        {uniqueColors.map(colorName => (
-          <tr key={colorName as string}>
-            <td className="p-4 border-r border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-[11px] font-bold uppercase tracking-widest whitespace-nowrap">
-              {colorName as string}
-            </td>
-            {uniqueSizes.map(sizeName => {
-              const variant = productVariants.find(v => {
-                const s = sizes?.find(x => x.id === v.size_id);
-                const c = colors?.find(x => x.id === v.color_id);
-                return s?.name === sizeName && c?.name === colorName;
-              });
-              
-              const key = `${sizeName}-${colorName}`;
-=======
         {uniqueColors.map(color => (
           <tr key={color as string}>
             <td className="p-4 border-r border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 text-[11px] font-bold uppercase tracking-widest whitespace-nowrap">
@@ -236,19 +111,13 @@ export const OrderMatrixModal: React.FC<OrderMatrixModalProps> = ({
             {uniqueSizes.map(size => {
               const variant = productVariants.find(v => v.sizes?.name === size && v.colors?.name === color);
               const key = `${size}-${color}`;
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
               
               if (!variant) {
                 return <td key={key} className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 opacity-40 pointer-events-none" style={{ background: 'repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(0,0,0,0.03) 5px, rgba(0,0,0,0.03) 10px)' }}></td>;
               }
 
-<<<<<<< HEAD
-              const stockActual = variant.stock_quantity || 0;
-              const existing = (currentVariations || []).find(cv => cv.size === sizeName && cv.color === colorName);
-=======
               const stockActual = variant.stock_quantity;
               const existing = currentVariations.find(cv => cv.size === size && cv.color === color);
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
               const delivered = existing ? existing.quantityDelivered : 0;
               const defaultValue = existing ? existing.quantityOrdered : '';
               const isOverStockInit = typeof defaultValue === 'number' && defaultValue > stockActual;
@@ -280,11 +149,7 @@ export const OrderMatrixModal: React.FC<OrderMatrixModalProps> = ({
         ))}
       </tbody>
     </table>
-<<<<<<< HEAD
-  ), [uniqueSizes, uniqueColors, productVariants, currentVariations, sizes, colors]);
-=======
   ), [uniqueSizes, uniqueColors, productVariants, currentVariations]);
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -293,11 +158,7 @@ export const OrderMatrixModal: React.FC<OrderMatrixModalProps> = ({
         <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900 sticky top-0 z-10">
           <div>
             <h2 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">MATRIZ DE PRODUCCIÓN / VENTA</h2>
-<<<<<<< HEAD
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{product?.name || 'Cargando producto...'}</p>
-=======
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{product.name}</p>
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
           </div>
           <button onClick={onClose} className="p-2 text-slate-400 hover:text-rose-500 bg-white dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-full shadow-sm transition-all">✕</button>
         </div>
@@ -306,11 +167,7 @@ export const OrderMatrixModal: React.FC<OrderMatrixModalProps> = ({
           <div className="flex justify-between items-end mb-4">
             <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest leading-relaxed">
               Ingresá las cantidades.<br/>
-<<<<<<< HEAD
-              <span className="text-rose-500">Rojo = Venta sobre pedido (Genera faltante).</span>
-=======
               <span className="text-rose-500">Rojo = Venta sobre pedido.</span>
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
             </p>
             <button onClick={onRequestNewVariant} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors shadow-lg shadow-indigo-500/30 flex items-center gap-1">
               ✨ + AGREGAR COLOR/TALLE
