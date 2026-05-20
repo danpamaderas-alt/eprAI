@@ -6,6 +6,9 @@ import { supabase } from '../../../lib/supabase';
 import { Search, Trash2, User, X, ShoppingCart, CheckCircle2 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
+// Modal del Remito
+import { RemitoModal } from '../../orders/components/RemitoModal';
+
 const ARS = new Intl.NumberFormat('es-AR', { 
   style: 'currency', 
   currency: 'ARS', 
@@ -15,10 +18,10 @@ const ARS = new Intl.NumberFormat('es-AR', {
 interface CartItem {
   id: string;
   product_id: string;
-  variantId: string; // ✅ Cambiado para coincidir con la lógica del store
+  variantId: string;
   name: string;
   price: number;
-  qty: number;       // ✅ Cambiado de quantity a qty para consistencia
+  qty: number;
   color_id: string;
   color_name: string;
   size_id: string;
@@ -40,7 +43,7 @@ const ProductCard = memo(({ product, onAdd }: { product: Product, onAdd: (p: Pro
 
 export const SalesDashboard = () => {
   const { products, inventory, fetchAllCatalogs, processSale } = useCatalogStore();
-  const { balances, fetchBalances, addMovement } = useCrmStore(); // ✅ FIX: Nombres correctos del useCrmStore.ts
+  const { balances, fetchBalances, addMovement } = useCrmStore();
   const { addTransaction } = useTreasuryStore();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -49,10 +52,12 @@ export const SalesDashboard = () => {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'EFECTIVO' | 'MERCADO_PAGO' | 'BANCO' | 'CTA_CTE' | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  const [isRemitoOpen, setIsRemitoOpen] = useState(false);
 
   useEffect(() => {
     fetchAllCatalogs();
-    fetchBalances(); // ✅ FIX: Nombre correcto de la función
+    fetchBalances();
   }, [fetchAllCatalogs, fetchBalances]);
 
   const totals = useMemo(() => {
@@ -157,12 +162,9 @@ export const SalesDashboard = () => {
     if (confirm.isConfirmed) {
       setIsProcessing(true);
       try {
-        // 1. DESCUENTO DE STOCK FÍSICO (Vía Store)
         await processSale(selectedCustomerId || '', cart, totals.total);
-
         const cliente = balances.find(c => c.id === selectedCustomerId);
 
-        // 2. REGISTRO DE VENTA
         await supabase.from('sales').insert([{
           customer_id: selectedCustomerId, 
           total_amount: totals.total, 
@@ -171,7 +173,6 @@ export const SalesDashboard = () => {
           status: paymentMethod === 'CTA_CTE' ? 'DEUDA' : 'COBRADO' 
         }]);
 
-        // 3. FLUJO FINANCIERO CENTRALIZADO
         if (paymentMethod === 'CTA_CTE' && selectedCustomerId) {
           await addMovement({
             customer_id: selectedCustomerId, 
@@ -203,8 +204,7 @@ export const SalesDashboard = () => {
   };
 
   return (
-    <div className="flex h-screen gap-0 overflow-hidden bg-slate-50 dark:bg-slate-950 p-0">
-      
+    <div className="flex h-screen gap-0 overflow-hidden bg-slate-50 dark:bg-slate-950 p-0 relative">
       <div className="flex flex-1 flex-col space-y-4 overflow-hidden p-6">
         <header className="flex justify-between items-center mb-2">
            <h1 className="text-3xl font-black italic tracking-tighter dark:text-white uppercase">Terminal <span className="text-blue-600">POS</span></h1>
@@ -226,7 +226,6 @@ export const SalesDashboard = () => {
       </div>
 
       <div className="w-[450px] flex flex-col bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl rounded-l-[50px] overflow-hidden">
-        
         <div className="p-8 border-b dark:border-slate-800">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
             <User className="w-3 h-3" /> Identificación de Cliente
@@ -325,8 +324,38 @@ export const SalesDashboard = () => {
           >
             {isProcessing ? 'PROCESANDO...' : 'FINALIZAR VENTA 💰'}
           </button>
+
+          <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+            <button 
+              type="button"
+              onClick={() => setIsRemitoOpen(true)}
+              disabled={cart.length === 0}
+              className="w-full py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-2xl font-black text-xs uppercase transition-all disabled:opacity-30 flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700"
+            >
+              📑 Opción: Crear Remito de Envío
+            </button>
+          </div>
         </div>
       </div>
+
+      <RemitoModal 
+        isOpen={isRemitoOpen} 
+        onClose={() => setIsRemitoOpen(false)} 
+        order={{
+          id: 'POS-' + Math.floor(Math.random() * 100000),
+          customerName: balances.find(c => c.id === selectedCustomerId)?.name || 'Consumidor Final',
+          status: 'DELIVERED',
+          items: cart.map(item => ({
+            productName: item.name,
+            variations: [{
+              size: item.size_name,
+              color: item.color_name,
+              quantityOrdered: item.qty,
+              quantityDelivered: item.qty
+            }]
+          }))
+        }} 
+      />
     </div>
   );
 };

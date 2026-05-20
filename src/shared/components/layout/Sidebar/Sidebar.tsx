@@ -20,6 +20,7 @@ const DESKTOP_ROUTES: readonly NavRoute[] = [
   { path: '/inicio', label: '📊 Inicio' },
   { path: '/ventas', label: '💰 Punto de Venta' },
   { path: '/pedidos', label: '📋 Pedidos' },
+  { path: '/remitos', label: '📑 Remitos / Envíos' }, // <-- AQUÍ ESTÁ EL NUEVO MÓDULO
   { path: '/inventario', label: '📦 Inventario' },
   { path: '/proveedores', label: '🚚 Proveedores' },
   { path: '/tesoreria', label: '💵 Tesorería' },
@@ -94,7 +95,6 @@ export const Sidebar = memo(() => {
 
       {/* SELECTOR DE ENTORNO */}
       <div className="p-4 border-b border-slate-800 bg-slate-800/50 shrink-0">
-        {/* 🚀 FIX: Uso de label explícito para accesibilidad */}
         <label htmlFor="tenant-select" className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">
           Entorno de Trabajo
         </label>

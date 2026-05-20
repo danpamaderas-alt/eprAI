@@ -1,232 +1,118 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import { useReactToPrint } from 'react-to-print';
+import { X, Printer } from 'lucide-react';
 
-export const RemitoModal = ({ isOpen, onClose, order }: any) => {
-  const [deliveryItems, setDeliveryItems] = useState<any[]>([]);
-  
-  // 🎯 1. Creamos la Referencia para la impresora
-  const componentRef = useRef<HTMLDivElement>(null);
+interface RemitoModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  order: any;
+}
 
-  useEffect(() => {
-    if (order && order.items) {
-      const flattened = order.items.flatMap((item: any) => 
-        item.variations.map((v: any) => ({
-          id: v.id,
-          name: item.productName,
-          size: v.size,
-          color: v.color,
-          total: v.quantityOrdered,
-          delivered: v.quantityDelivered || 0,
-          current: 0 
-        }))
-      );
-      setDeliveryItems(flattened);
-    }
-  }, [order, isOpen]);
+export const RemitoModal: React.FC<RemitoModalProps> = ({ isOpen, onClose, order }) => {
+  const componentRef = useRef(null);
 
-  // 🖨️ 2. Lógica de impresión profesional (BLINDADA para todas las versiones)
   const handlePrint = useReactToPrint({
-    content: () => componentRef.current, // Para react-to-print v2
-    contentRef: componentRef,            // Para react-to-print v3
-    documentTitle: `Remito_${order?.customerName || 'Raices'}`,
-  } as any);
+    content: () => componentRef.current,
+    documentTitle: `Remito_${order?.customerName || order?.customer_name || 'Generico'}_${new Date().toLocaleDateString('es-AR')}`,
+  });
 
   if (!isOpen || !order) return null;
 
-  const handleQtyChange = (id: string, val: number) => {
-    setDeliveryItems(prev => prev.map(item => 
-      item.id === id ? { ...item, current: val } : item
-    ));
-  };
-
-  // 🧠 LÓGICA INTELIGENTE: 
-  const hasSelections = deliveryItems.some(i => i.current > 0);
-  const itemsToPrint = hasSelections 
-    ? deliveryItems.filter(i => i.current > 0) 
-    : deliveryItems.filter(i => (i.total - i.delivered) > 0);
-
-  const totalAgordado = Number(order.total_amount || order.totalAmount || 0);
-  const senaRecibida = Number(order.advance_payment || order.advancePayment || 0);
-  const saldoRestante = totalAgordado - senaRecibida;
-
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md">
-      
-      {/* ==========================================
-          🖥️ VISTA PARA LA PANTALLA (INTERACTIVA)
-          ========================================== */}
-      <div className="bg-white text-slate-900 w-full max-w-5xl rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-        <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="bg-slate-900 rounded-3xl w-full max-w-4xl border border-slate-700 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        
+        {/* Cabecera del Modal */}
+        <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900 sticky top-0 z-10">
           <div>
-            <h2 className="text-3xl font-black uppercase italic tracking-tighter text-slate-800">Preparar Despacho</h2>
-            <p className="text-[10px] font-black text-blue-600 mt-1 uppercase tracking-[0.2em]">
-              Cliente: {order.customer_name || order.customerName} | Pedido: #{order.id.split('-')[0]}
-            </p>
+            <h2 className="text-xl font-black text-white uppercase tracking-wider">Generador de Remitos</h2>
+            <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Pedido de: {order.customerName || order.customer_name}</p>
           </div>
-          <button onClick={onClose} className="w-12 h-12 flex items-center justify-center bg-slate-100 hover:bg-rose-100 hover:text-rose-500 rounded-full transition-all text-xl">✕</button>
+          <div className="flex gap-3">
+            <button 
+              onClick={handlePrint}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-black text-xs uppercase transition-all shadow-lg shadow-blue-900/20"
+            >
+              <Printer className="w-4 h-4" /> Imprimir / PDF
+            </button>
+            <button 
+              onClick={onClose}
+              className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2.5 rounded-xl transition-all"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
-        <div className="p-8 overflow-y-auto flex-1">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="text-[10px] font-black uppercase tracking-widest text-slate-400 border-b-2 border-slate-100">
-                <th className="pb-6">Artículo / Detalle</th>
-                <th className="pb-6 text-center">Pedido</th>
-                <th className="pb-6 text-center">Ya Entregado</th>
-                <th className="pb-6 text-center bg-indigo-50 text-indigo-600 rounded-t-3xl">Cargar Ahora</th>
-                <th className="pb-6 text-center">Pendiente</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {deliveryItems.map((item) => {
-                const pending = item.total - item.delivered;
-                return (
-                  <tr key={item.id} className="hover:bg-slate-50/50 transition-all">
-                    <td className="py-6">
-                      <p className="font-black text-sm uppercase tracking-tight">{item.name}</p>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase">Talle {item.size} — {item.color}</p>
-                    </td>
-                    <td className="py-6 text-center font-bold text-slate-400">{item.total}</td>
-                    <td className="py-6 text-center font-bold text-slate-400">{item.delivered}</td>
-                    <td className="py-6 bg-indigo-50/30 text-center">
-                      <input 
-                        type="number"
-                        value={item.current}
-                        min="0"
-                        max={pending}
-                        onChange={(e) => handleQtyChange(item.id, parseInt(e.target.value) || 0)}
-                        className="w-20 p-3 border-2 border-indigo-200 rounded-2xl font-black text-center focus:border-indigo-500 outline-none transition-all"
-                      />
-                    </td>
-                    <td className={`py-6 text-center font-black ${pending - item.current > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
-                      {pending - item.current <= 0 ? 'LISTO ✅' : pending - item.current}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="p-8 bg-slate-900 flex justify-between items-center gap-4 shrink-0">
-          <div className="flex gap-10">
-            <div>
-              <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-1">Total Acordado</p>
-              <p className="text-2xl font-black text-white">${totalAgordado.toLocaleString()}</p>
-            </div>
-            <div>
-              <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest mb-1">Saldo de Obra</p>
-              <p className={`text-2xl font-black ${saldoRestante > 0 ? 'text-rose-500' : 'text-emerald-400'}`}>
-                ${saldoRestante.toLocaleString()}
-              </p>
-            </div>
-          </div>
+        {/* Contenedor escroleable para la previsualización */}
+        <div className="p-8 bg-slate-950 overflow-y-auto flex-1 flex justify-center">
           
-          <button 
-            onClick={handlePrint} 
-            disabled={deliveryItems.length === 0}
-            className="px-10 py-5 bg-blue-600 disabled:bg-slate-700 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-900/20 hover:scale-105 active:scale-95 transition-all"
+          {/* AQUÍ EMPIEZA LA HOJA A4 DEL REMITO PARA IMPRIMIR */}
+          <div 
+            ref={componentRef} 
+            className="bg-white text-black p-10 shadow-lg mx-auto"
+            style={{ width: '210mm', minHeight: '297mm', printColorAdjust: 'exact', WebkitPrintColorAdjust: 'exact' }} 
           >
-            🖨️ Imprimir Remito / Orden
-          </button>
-        </div>
-      </div>
-
-      {/* ==========================================
-          📄 DOCUMENTO PARA IMPRIMIR (ESCONDIDO FUERA DE PANTALLA)
-          ========================================== */}
-      <div className="absolute top-[-9999px] left-[-9999px] opacity-0 pointer-events-none z-[-1]">
-        <div 
-          ref={componentRef} 
-          className="bg-white text-black font-sans p-12"
-          style={{ width: '210mm', minHeight: '297mm', boxSizing: 'border-box' }}
-        >
-          <div className="flex justify-between items-end border-b-2 border-black pb-4 mb-8">
-            <div>
-              <h1 className="text-6xl font-black italic tracking-tighter leading-none">RAÍCES</h1>
-              <p className="text-[11px] font-black uppercase tracking-[0.2em] mt-2 text-gray-600">Confección & Diseño Textil</p>
-            </div>
-            <div className="text-right">
-              <h2 className="text-2xl font-black uppercase tracking-tight">
-                {hasSelections ? 'Remito de Entrega' : 'Orden de Armado'}
-              </h2>
-              <div className="mt-2 text-sm">
-                <p><span className="font-bold text-gray-500 uppercase text-[10px]">Fecha:</span> <span className="font-black">{new Date().toLocaleDateString('es-AR')}</span></p>
-                <p><span className="font-bold text-gray-500 uppercase text-[10px]">Pedido:</span> <span className="font-black">#{order.id.split('-')[0].toUpperCase()}</span></p>
+            {/* Encabezado */}
+            <header className="flex justify-between items-start border-b-2 border-slate-800 pb-6 mb-6">
+              <div>
+                <h1 className="text-4xl font-extrabold tracking-wider uppercase text-slate-900">RAÍCES</h1>
+                <p className="text-sm mt-1 text-slate-700 font-medium">Soluciones Textiles Integrales</p>
+                <p className="text-sm text-slate-600">Berisso, Buenos Aires</p>
               </div>
-            </div>
-          </div>
-
-          <div className="mb-10 bg-gray-100 p-8 rounded-2xl border border-gray-300">
-            <p className="text-[10px] font-black uppercase text-gray-500 mb-1 tracking-widest">Receptor / Cliente</p>
-            <p className="text-3xl font-black uppercase">{order.customer_name || order.customerName}</p>
-          </div>
-
-          <table className="w-full text-left mb-16 border-collapse">
-            <thead>
-              <tr className="border-b-2 border-black bg-gray-50">
-                <th className="py-3 px-2 text-[10px] font-black uppercase tracking-widest">Artículo</th>
-                <th className="py-3 px-2 text-[10px] font-black uppercase tracking-widest text-center">Variante</th>
-                <th className="py-3 px-2 text-[10px] font-black uppercase tracking-widest text-center">
-                  {hasSelections ? 'Cant. Entregada' : 'A Preparar'}
-                </th>
-                <th className="py-3 px-2 text-[10px] font-black uppercase tracking-widest text-right">Saldo</th>
-              </tr>
-            </thead>
-            <tbody>
-              {itemsToPrint.map((item, idx) => {
-                const pending = item.total - (item.delivered + item.current);
-                return (
-                  <tr key={idx} className="border-b border-gray-200">
-                    <td className="py-6 px-2 font-bold uppercase text-sm">{item.name}</td>
-                    <td className="py-6 px-2 text-center text-xs uppercase font-bold text-gray-600">T{item.size} - {item.color}</td>
-                    <td className="py-6 px-2 text-center font-black text-3xl">
-                      {item.current > 0 ? (
-                        `x ${item.current}`
-                      ) : (
-                        <span className="inline-block w-16 border-b-2 border-gray-400"></span>
-                      )}
-                    </td>
-                    <td className="py-6 px-2 text-right text-[10px] font-black uppercase text-gray-500 italic">
-                      {pending > 0 ? `Quedan ${pending}` : 'ENTREGA FINAL'}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-
-          <div className="flex justify-end mt-auto mb-20">
-            <div className="border-2 border-black p-6 rounded-[2rem] min-w-[350px] bg-white">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-100 pb-2 mb-4 text-center italic">Estado Financiero del Pedido</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-gray-500 uppercase italic">Valor Total:</span>
-                  <span className="text-lg font-black">${totalAgordado.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center text-emerald-600">
-                  <span className="text-xs font-bold uppercase italic">Seña:</span>
-                  <span className="text-lg font-black">${senaRecibida.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center pt-4 border-t-2 border-black">
-                  <span className="text-sm font-black uppercase italic">Saldo a Cancelar:</span>
-                  <span className="text-2xl font-black italic tracking-tighter">${saldoRestante.toLocaleString()}</span>
-                </div>
+              <div className="text-right">
+                <h2 className="text-2xl font-bold text-slate-800">REMITO</h2>
+                <p className="text-sm font-semibold mt-2">Nº Pedido: <span className="font-normal">{order.id?.slice(0,8).toUpperCase()}</span></p>
+                <p className="text-sm font-semibold">Fecha: <span className="font-normal">{new Date().toLocaleDateString('es-AR')}</span></p>
               </div>
-            </div>
-          </div>
+            </header>
 
-          <div className="grid grid-cols-2 gap-20 px-10 pb-10 mt-20">
-            <div className="border-t-2 border-black pt-4 text-center">
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Responsable Raíces</p>
-            </div>
-            <div className="border-t-2 border-black pt-4 text-center">
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Recibí Conforme</p>
-            </div>
+            {/* Datos del Cliente */}
+            <section className="mb-8 border border-slate-300 p-4 rounded-lg bg-slate-50">
+              <p className="mb-1"><strong className="text-slate-800">Cliente:</strong> {order.customerName || order.customer_name}</p>
+              <p><strong className="text-slate-800">Estado de Operación:</strong> {order.status === 'PENDING' ? 'Pendiente' : order.status === 'PARTIAL' ? 'Parcial' : 'Completado'}</p>
+            </section>
+
+            {/* Tabla de Artículos */}
+            <table className="w-full text-left border-collapse mb-8 border border-slate-200">
+              <thead>
+                <tr className="bg-slate-100 border-b border-slate-300">
+                  <th className="py-3 px-4 text-sm font-bold text-slate-800 border-r border-slate-200">Cant.</th>
+                  <th className="py-3 px-4 text-sm font-bold text-slate-800 border-r border-slate-200">Descripción del Artículo</th>
+                  <th className="py-3 px-4 text-sm font-bold text-slate-800">Detalles</th>
+                </tr>
+              </thead>
+              <tbody>
+                {order.items?.map((item: any, itemIndex: number) => 
+                  item.variations?.map((v: any, vIndex: number) => (
+                    <tr key={`${itemIndex}-${vIndex}`} className="border-b border-slate-200 hover:bg-slate-50">
+                      <td className="py-3 px-4 border-r border-slate-200 font-semibold">{v.quantityDelivered || v.quantityOrdered || 0}</td>
+                      <td className="py-3 px-4 border-r border-slate-200">
+                        <span className="font-medium text-slate-900">{item.productName}</span>
+                      </td>
+                      <td className="py-3 px-4 text-sm">
+                        <span className="bg-slate-100 px-2 py-1 rounded text-slate-700 font-medium mr-2">T: {v.size}</span>
+                        {v.color && <span className="bg-slate-100 px-2 py-1 rounded text-slate-700 font-medium">{v.color}</span>}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+
+            {/* Pie de página / Firmas */}
+            <footer className="mt-32 flex justify-between items-end px-10">
+              <div className="w-2/5 text-center border-t border-slate-800 pt-2">
+                <p className="text-sm font-semibold text-slate-800">Firma Entregado</p>
+              </div>
+              <div className="w-2/5 text-center border-t border-slate-800 pt-2">
+                <p className="text-sm font-semibold text-slate-800">Firma Recibido (Conformidad)</p>
+              </div>
+            </footer>
           </div>
         </div>
-      </div>
 
+      </div>
     </div>
   );
 };

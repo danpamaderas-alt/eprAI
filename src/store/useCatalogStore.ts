@@ -106,17 +106,38 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
     set({ isLoading: true });
     const companyId = useTenantStore.getState().activeCompanyId;
 
+    // ⚡ FUNCIÓN SALVAVIDAS: Si una tabla falla, devuelve un arreglo vacío pero no rompe el sistema
+    const fetchSafe = async (query: any) => {
+      try {
+        const res = await query;
+        if (res.error) {
+          console.warn('Advertencia (Tabla no encontrada o sin permisos):', res.error.message);
+          return { data: [] };
+        }
+        return res;
+      } catch (e) {
+        return { data: [] };
+      }
+    };
+
     try {
-      const [ resSizes, resColors, resPayments, resUnits, resProducts, resCustomers, resPerso, resInventory, resServices ] = await Promise.all([
-        supabase.from('sizes').select('*').order('name'),
-        supabase.from('colors').select('*').order('name'),
-        supabase.from('payment_methods').select('*').order('name'),
-        supabase.from('business_units').select('*').order('name'),
-        supabase.from('products').select('id, sku, name, category, cost_price, price, location, notes, company_id').eq('company_id', companyId).order('name'),
-        supabase.from('customers').select('*').eq('company_id', companyId).order('name'),
-        supabase.from('personalization_types').select('*').order('name'),
-        supabase.from('product_variants').select(`*, sizes(name), colors(name)`),
-        supabase.from('services').select('*').eq('company_id', companyId).order('name'),
+      // ⚡ PLAN B PARA EL INVENTARIO: Si fallan las relaciones de talles/colores, lo traemos de forma simple
+      let inventoryQuery = await supabase.from('product_variants').select('*, sizes(name), colors(name)');
+      if (inventoryQuery.error) {
+        console.warn('Falló el cruce complejo de variantes, activando modo seguro...');
+        inventoryQuery = await supabase.from('product_variants').select('*');
+      }
+
+      // ⚡ AQUÍ ESTÁ LA CORRECCIÓN: Cambiamos la consulta de products a select('*')
+      const [ resSizes, resColors, resPayments, resUnits, resProducts, resCustomers, resPerso, resServices ] = await Promise.all([
+        fetchSafe(supabase.from('sizes').select('*').order('name')),
+        fetchSafe(supabase.from('colors').select('*').order('name')),
+        fetchSafe(supabase.from('payment_methods').select('*').order('name')),
+        fetchSafe(supabase.from('business_units').select('*').order('name')),
+        fetchSafe(supabase.from('products').select('*').eq('company_id', companyId).order('name')),
+        fetchSafe(supabase.from('customers').select('*').eq('company_id', companyId).order('name')),
+        fetchSafe(supabase.from('personalization_types').select('*').order('name')),
+        fetchSafe(supabase.from('services').select('*').eq('company_id', companyId).order('name')),
       ]);
 
       set({ 
@@ -127,7 +148,7 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
         products: (resProducts.data as Product[]) || [], 
         customers: (resCustomers.data as Customer[]) || [],
         personalizationTypes: (resPerso.data as CatalogItem[]) || [], 
-        inventory: (resInventory.data as ProductVariant[]) || [], 
+        inventory: (inventoryQuery.data as ProductVariant[]) || [], 
         services: (resServices.data as Service[]) || [], 
         isLoading: false 
       });

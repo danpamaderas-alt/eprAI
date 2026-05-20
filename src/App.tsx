@@ -1,3 +1,5 @@
+import { RemitosDashboard } from './modules/orders/pages/RemitosDashboard';
+
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 // Layout & UI (Inyección de componentes desacoplados)
@@ -57,6 +59,7 @@ export default function App() {
         <Routes>
           <Route path="/clientes" element={<CustomerCRM />} />
           <Route path="/cuentas-corrientes" element={<CurrentAccounts />} />
+          <Route path="/remitos" element={<RemitosDashboard />} />
           <Route path="/rentabilidad" element={<ProfitabilityDashboard />} />
           <Route path="/" element={<Navigate to="/inicio" replace />} />
           <Route path="/cotizador" element={<QuoteDashboard />} />
