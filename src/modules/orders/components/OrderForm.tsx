@@ -123,14 +123,8 @@ export const OrderForm = memo(
           total_amount: Number(data.totalAmount || 0),
           advance_payment: Number(data.advancePayment || 0),
           items: data.items,
-<<<<<<< HEAD
-          // 👇 FIX: Si es Consumidor Final o texto vacío, manda 'null' real
-          customer_id:
-            (!selectedClientId || selectedClientId === "CONSUMIDOR_FINAL") ? null : selectedClientId,
-=======
           customer_id:
             selectedClientId === "CONSUMIDOR_FINAL" ? null : selectedClientId,
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
         };
 
         const { error } = await supabase
@@ -350,14 +344,7 @@ export const OrderForm = memo(
         )}
       </>
     );
-<<<<<<< HEAD
-  }
-);
-
-OrderForm.displayName = "OrderForm";
-=======
   },
 );
 
 OrderForm.displayName = "OrderForm";
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c

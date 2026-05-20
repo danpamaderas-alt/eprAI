@@ -22,10 +22,6 @@ export interface Product {
   sku?: string | null;        
   name: string; 
   category?: string | null; 
-<<<<<<< HEAD
-  unit_measure?: string | null; 
-=======
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
   cost_price?: number | null; 
   price?: number | null;      
   location?: string | null;   
@@ -54,13 +50,6 @@ export interface ProductVariant {
   product_id: string | null;
   size_id: string | null;
   color_id: string | null;
-<<<<<<< HEAD
-  sku?: string | null;          
-  weight?: number | null;       
-  cost_price?: number | null;   
-  price?: number | null;        
-=======
->>>>>>> 3845f4f6412c6ab365f55948c5fdc55396a4023c
   stock_quantity: number | null;
   base_quantity: number | null;     
   finished_quantity: number | null; 
