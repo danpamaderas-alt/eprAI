@@ -42,10 +42,15 @@ export const generateGiftMessage = async (
   `;
 
   // 3. ⚡ EJECUCIÓN DE LA LLAMADA
+  // VANGUARDIA (Resiliencia): Timeout para evitar que el POS se congele si la IA o la red fallan
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 segundos de límite
+
   try {
     const response = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }]
       })
@@ -68,5 +73,7 @@ export const generateGiftMessage = async (
     console.error("❌ [GiftHelper] Error llamando a la IA, usando respaldo:", error);
     // Ante cualquier fallo, devolvemos la plantilla para que el usuario no vea un error
     return templates[tone] || templates.Breve;
+  } finally {
+    clearTimeout(timeoutId); // Previene fugas de memoria limpiando el timeout si la petición fue exitosa
   }
 };

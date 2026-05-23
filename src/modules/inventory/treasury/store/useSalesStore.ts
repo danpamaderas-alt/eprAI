@@ -13,7 +13,7 @@ export interface Product {
 interface InventoryStore {
   products: Product[]; isLoading: boolean;
   fetchProducts: () => Promise<void>;
-  addProduct: (productData: any) => Promise<void>;
+  addProduct: (productData: Omit<Product, 'id'>) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
   deleteVariation: (productId: string, variationId: string) => Promise<void>;
   updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
@@ -58,6 +58,8 @@ fetchProducts: async () => {
     let updatedVariations = product.variations;
     let totalStock = newStock;
 
+    // TODO (ESCALABILIDAD): Alerta de "Race Condition". Esta suma en el frontend es peligrosa
+    // si 2 sucursales descuentan stock al mismo tiempo. Migrar a SQL RPC cuando sea posible.
     if (variationId && product.variations) {
       updatedVariations = product.variations.map(v => v.id === variationId ? { ...v, stock: newStock } : v);
       totalStock = updatedVariations.reduce((acc, v) => acc + v.stock, 0);

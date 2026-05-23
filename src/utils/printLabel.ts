@@ -8,6 +8,9 @@ export const printThermalLabel = (productName: string, sku: string, size: string
     return;
   }
 
+  // SEGURIDAD: Función para sanitizar HTML y evitar inyección de código (XSS)
+  const escapeHTML = (str: string) => str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+
   // Generamos el diseño de la etiqueta térmica (Blanco y negro puro, alto contraste)
   const html = `
     <!DOCTYPE html>
@@ -73,25 +76,25 @@ export const printThermalLabel = (productName: string, sku: string, size: string
         ${Array(quantity).fill(`
           <div style="page-break-after: always; height: 100%; display: flex; flex-direction: column; justify-content: center;">
             <div class="brand">RAÍCES</div>
-            <div class="name">${productName}</div>
+            <div class="name">${escapeHTML(productName)}</div>
             <div class="details">
-              <span class="color">${color}</span>
-              <span class="size">${size}</span>
+              <span class="color">${escapeHTML(color)}</span>
+              <span class="size">${escapeHTML(size)}</span>
             </div>
-            <div class="sku">* ${sku || 'S/N'} *</div>
+            <div class="sku">* ${escapeHTML(sku || 'S/N')} *</div>
           </div>
         `).join('')}
       </body>
+      <script>
+        window.onload = function() {
+          window.print();
+          window.close();
+        };
+      </script>
     </html>
   `;
 
   printWindow.document.write(html);
   printWindow.document.close();
   printWindow.focus();
-  
-  // Le damos 250ms al navegador para renderizar la fuente antes de escupir el papel
-  setTimeout(() => {
-    printWindow.print();
-    printWindow.close();
-  }, 250);
 };

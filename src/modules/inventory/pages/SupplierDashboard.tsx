@@ -1,253 +1,181 @@
-import { useEffect, useMemo, useCallback, memo } from 'react';
-import { useSupplierStore } from '../store/useSupplierStore';
-import Swal from 'sweetalert2';
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { Search, Building2, Plus, Truck, Phone } from "lucide-react";
+import Swal from "sweetalert2";
+import { useSupplierStore } from "../store/useSupplierStore";
 
-// 🚀 Formateador global para consistencia Raíces
-const ARS = new Intl.NumberFormat('es-AR', { 
-  style: 'currency', 
-  currency: 'ARS', 
-  maximumFractionDigits: 0 
+const ARS = new Intl.NumberFormat("es-AR", {
+  style: "currency",
+  currency: "ARS",
+  maximumFractionDigits: 0,
 });
 
-export const SupplierDashboard = memo(() => {
-  const { suppliers, debts, isLoading, fetchSupplierData, addSupplier, addDebt, registerPartialPayment } = useSupplierStore();
+export const SupplierDashboard = () => {
+  const { suppliers, isLoading, fetchSuppliers, addSupplier } =
+    useSupplierStore();
+  const [searchTerm, setSearchTerm] = useState("");
 
-  useEffect(() => { 
-    fetchSupplierData(); 
-  }, [fetchSupplierData]);
+  useEffect(() => {
+    fetchSuppliers();
+  }, [fetchSuppliers]);
 
-  // 🧠 CÁLCULOS MEMORIZADOS (Optimización de Rendimiento)
-  const totals = useMemo(() => {
-    const pending = debts
-      .filter(d => d.status === 'PENDIENTE')
-      .reduce((acc, d) => {
-        const amount = Number.parseFloat(String(d.amount || 0));
-        const paid = Number.parseFloat(String(d.paid_amount || 0));
-        return acc + (amount - paid);
-      }, 0);
-      
-    const overdue = debts.filter(d => {
-      if (d.status !== 'PENDIENTE' || !d.due_date) return false;
-      return new Date(d.due_date) < new Date();
-    }).length;
+  // 🚀 OPTIMIZACIÓN: Búsqueda rápida en memoria
+  const filteredSuppliers = useMemo(() => {
+    if (!searchTerm) return suppliers;
+    const lower = searchTerm.toLowerCase();
+    return suppliers.filter(
+      (s) =>
+        s.name.toLowerCase().includes(lower) ||
+        (s.contact && s.contact.toLowerCase().includes(lower)),
+    );
+  }, [suppliers, searchTerm]);
 
-    return { pending, overdue };
-  }, [debts]);
-
-  const handleNewSupplier = useCallback(async () => {
-    const { value: form } = await Swal.fire({
-      title: 'REGISTRAR PROVEEDOR',
+  // 🛡️ SEGURIDAD VANGUARDISTA: Modal de creación blindado contra XSS
+  const handleAddSupplier = useCallback(async () => {
+    const { value: formValues } = await Swal.fire({
+      title: "ALTA DE PROVEEDOR",
       html: `
         <div class="text-left space-y-4 p-2">
           <div>
             <label class="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Razón Social / Nombre</label>
-            <input id="s-name" class="swal2-input !w-full !m-0 !mt-1 !bg-slate-50 dark:!bg-slate-900 !border-slate-200 dark:!border-slate-700 !text-slate-900 dark:!text-white !font-bold !rounded-xl" placeholder="Ej: Textiles Berisso">
+            <input id="sup-name" class="swal2-input !w-full !m-0 !mt-1 !bg-slate-50 dark:!bg-slate-900 !border-slate-200 dark:!border-slate-700 !text-slate-900 dark:!text-white !font-bold !rounded-xl" placeholder="Ej: Textil San Juan S.A.">
           </div>
           <div>
-            <label class="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Rubro Principal</label>
-            <input id="s-cat" class="swal2-input !w-full !m-0 !mt-1 !bg-slate-50 dark:!bg-slate-900 !border-slate-200 dark:!border-slate-700 !text-slate-900 dark:!text-white !font-bold !rounded-xl" placeholder="Ej: Telas, Insumos, Logística">
+            <label class="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Contacto Principal</label>
+            <input id="sup-contact" class="swal2-input !w-full !m-0 !mt-1 !bg-slate-50 dark:!bg-slate-900 !border-slate-200 dark:!border-slate-700 !text-slate-900 dark:!text-white !rounded-xl" placeholder="Ej: Carlos López">
+          </div>
+          <div>
+            <label class="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Teléfono / WhatsApp</label>
+            <input id="sup-phone" class="swal2-input !w-full !m-0 !mt-1 !bg-slate-50 dark:!bg-slate-900 !border-slate-200 dark:!border-slate-700 !text-slate-900 dark:!text-white !rounded-xl" placeholder="Ej: +54 9 11 1234-5678">
           </div>
         </div>
       `,
       showCancelButton: true,
-      confirmButtonText: 'GUARDAR REGISTRO',
-      confirmButtonColor: '#4f46e5',
+      confirmButtonText: "REGISTRAR PROVEEDOR",
+      confirmButtonColor: "#2563eb",
       customClass: {
-        popup: 'dark:!bg-slate-900 !rounded-[2.5rem] border border-slate-200 dark:border-slate-800',
-        confirmButton: 'rounded-xl font-black text-xs px-6 py-3',
-        cancelButton: 'rounded-xl font-bold text-xs px-6 py-3'
+        popup:
+          "dark:!bg-slate-900 !rounded-[2.5rem] border border-slate-200 dark:border-slate-800",
+        confirmButton:
+          "rounded-xl font-black text-xs px-6 py-3 tracking-widest",
+        cancelButton: "rounded-xl font-bold text-xs px-6 py-3 tracking-widest",
       },
       preConfirm: () => {
-        const name = (document.getElementById('s-name') as HTMLInputElement).value.trim();
-        const category = (document.getElementById('s-cat') as HTMLInputElement).value.trim();
+        // Lectura segura directamente desde el DOM (evita inyecciones de estado)
+        const name = (
+          document.getElementById("sup-name") as HTMLInputElement
+        ).value.trim();
+        const contact = (
+          document.getElementById("sup-contact") as HTMLInputElement
+        ).value.trim();
+        const phone = (
+          document.getElementById("sup-phone") as HTMLInputElement
+        ).value.trim();
+
         if (!name) {
-          Swal.showValidationMessage('El nombre es obligatorio');
+          Swal.showValidationMessage("La Razón Social es obligatoria");
           return false;
         }
-        return { name: name.toUpperCase(), category: category.toUpperCase() };
-      }
+        return { name: name.toUpperCase(), contact, phone };
+      },
     });
 
-    if (form) {
+    if (formValues) {
       try {
-        await addSupplier(form);
-        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Proveedor guardado', showConfirmButton: false, timer: 1500 });
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Error desconocido';
-        Swal.fire('Error', `No se pudo registrar: ${msg}`, 'error');
+        await addSupplier(formValues);
+        Swal.fire({
+          toast: true,
+          position: "top-end",
+          icon: "success",
+          title: "Proveedor Registrado",
+          showConfirmButton: false,
+          timer: 2000,
+        });
+      } catch (error) {
+        Swal.fire("Error", "No se pudo registrar el proveedor.", "error");
       }
     }
   }, [addSupplier]);
 
-  const handleNewDebt = useCallback(async () => {
-    if (suppliers.length === 0) {
-      return Swal.fire('Atención', 'Primero registrá un proveedor para asignar la deuda.', 'warning');
-    }
-    
-    const options = suppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-    
-    const { value: form } = await Swal.fire({
-      title: 'CARGAR FACTURA / DEUDA',
-      html: `
-        <div class="text-left space-y-4 p-2">
-          <div>
-            <label class="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Proveedor</label>
-            <select id="d-sup" class="swal2-input !w-full !m-0 !mt-1 !bg-slate-50 dark:!bg-slate-900 !border-slate-200 dark:!border-slate-700 !text-slate-900 dark:!text-white !font-bold !rounded-xl">${options}</select>
-          </div>
-          <div>
-            <label class="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Descripción del Gasto</label>
-            <input id="d-desc" class="swal2-input !w-full !m-0 !mt-1 !bg-slate-50 dark:!bg-slate-900 !border-slate-200 dark:!border-slate-700 !text-slate-900 dark:!text-white !font-bold !rounded-xl" placeholder="Ej: Factura A - Hilos Negros">
-          </div>
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Monto Total ($)</label>
-              <input id="d-amt" type="number" class="swal2-input !w-full !m-0 !mt-1 !bg-slate-50 dark:!bg-slate-900 !border-slate-200 dark:!border-slate-700 !text-rose-500 !font-black !rounded-xl" placeholder="0">
-            </div>
-            <div>
-              <label class="text-[10px] font-black uppercase text-slate-500 tracking-widest ml-1">Vencimiento</label>
-              <input id="d-date" type="date" class="swal2-input !w-full !m-0 !mt-1 !bg-slate-50 dark:!bg-slate-900 !border-slate-200 dark:!border-slate-700 !text-slate-900 dark:!text-white !font-bold !rounded-xl">
-            </div>
-          </div>
-        </div>
-      `,
-      showCancelButton: true,
-      confirmButtonText: 'CARGAR DEUDA',
-      confirmButtonColor: '#e11d48',
-      customClass: {
-        popup: 'dark:!bg-slate-900 !rounded-[2.5rem] border border-slate-200 dark:border-slate-800',
-        confirmButton: 'rounded-xl font-black text-xs px-6 py-3 shadow-lg shadow-rose-500/20'
-      },
-      preConfirm: () => {
-        const supplier_id = (document.getElementById('d-sup') as HTMLSelectElement).value;
-        const description = (document.getElementById('d-desc') as HTMLInputElement).value.trim();
-        const amount = Number.parseFloat((document.getElementById('d-amt') as HTMLInputElement).value);
-        const due_date = (document.getElementById('d-date') as HTMLInputElement).value;
-
-        if (!amount || amount <= 0 || !description) {
-          Swal.showValidationMessage('Completá monto y descripción válidos');
-          return false;
-        }
-        return { supplier_id, description: description.toUpperCase(), amount, due_date };
-      }
-    });
-
-    if (form) {
-      try {
-        await addDebt(form);
-        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Deuda registrada', showConfirmButton: false, timer: 1500 });
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Error de conexión';
-        Swal.fire('Error', `No se pudo cargar la factura: ${msg}`, 'error');
-      }
-    }
-  }, [suppliers, addDebt]);
-
-  if (isLoading) return <div className="p-8 h-screen flex items-center justify-center font-black text-slate-500 uppercase animate-pulse tracking-[0.5em] italic">Auditando Cuentas por Pagar...</div>;
-
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-10 animate-in fade-in duration-700">
-      
-      <header className="flex flex-col md:flex-row justify-between items-center bg-slate-900 border border-slate-800 p-10 rounded-[3rem] shadow-2xl gap-6">
+    <div className="p-8 max-w-7xl mx-auto animate-in fade-in duration-500">
+      {/* CABECERA */}
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center bg-slate-900 border border-slate-800 p-8 rounded-[2rem] shadow-xl mb-8 gap-6">
         <div>
-          <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">🚚 Cuentas <span className="text-rose-500">por Pagar</span></h1>
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.3em] mt-3 italic">Gestión de Egresos y Compromisos con Proveedores.</p>
+          <h1 className="text-3xl font-black text-white uppercase tracking-tighter flex items-center gap-3">
+            <span className="bg-blue-600 text-white p-2 rounded-xl text-xl">
+              <Truck size={24} />
+            </span>
+            Proveedores
+          </h1>
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-2 italic">
+            Directorio B2B y Cuentas por Pagar
+          </p>
         </div>
-        <div className="flex gap-4">
-          <button type="button" onClick={handleNewSupplier} className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all active:scale-95">Nuevo Proveedor</button>
-          <button type="button" onClick={handleNewDebt} className="bg-rose-600 hover:bg-rose-500 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-rose-600/20 active:scale-95 transition-all">+ Cargar Factura</button>
-        </div>
+        <button
+          onClick={handleAddSupplier}
+          className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-blue-500/20 active:scale-95 transition-all flex items-center gap-2"
+        >
+          <Plus size={16} /> Nuevo Proveedor
+        </button>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-10 rounded-[3rem] shadow-sm">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 italic">Saldo Real Adeudado</p>
-          <p className="text-6xl font-black text-slate-900 dark:text-white tracking-tighter tabular-nums">{ARS.format(totals.pending)}</p>
-        </div>
-        
-        <div className={`p-10 rounded-[3rem] border shadow-xl flex items-center justify-between transition-all ${totals.overdue > 0 ? 'bg-rose-500/5 border-rose-500/20' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800'}`}>
-          <div>
-            <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-3 italic">Facturas Vencidas</p>
-            <p className="text-6xl font-black text-rose-600 dark:text-rose-500 tracking-tighter tabular-nums">{totals.overdue}</p>
-          </div>
-          {totals.overdue > 0 && <span className="text-7xl animate-bounce grayscale-0 opacity-80" aria-hidden="true">⚠️</span>}
-        </div>
+      {/* BUSCADOR */}
+      <div className="mb-8 relative">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+        <input
+          type="text"
+          placeholder="BUSCAR PROVEEDOR POR NOMBRE O CONTACTO..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full pl-12 pr-4 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-black tracking-widest uppercase outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-900 dark:text-white shadow-sm"
+        />
       </div>
 
-      <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[3rem] overflow-hidden shadow-xl">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-slate-50 dark:bg-slate-950/50 border-b dark:border-slate-800">
-                <th className="p-8 text-[10px] font-black uppercase text-slate-400 tracking-widest">Proveedor / Rubro</th>
-                <th className="p-8 text-[10px] font-black uppercase text-slate-400 tracking-widest">Concepto</th>
-                <th className="p-8 text-[10px] font-black uppercase text-slate-400 tracking-widest text-center">Vencimiento</th>
-                <th className="p-8 text-[10px] font-black uppercase text-slate-400 tracking-widest text-right">Saldo Restante</th>
-                <th className="p-8 text-[10px] font-black uppercase text-slate-400 tracking-widest text-center">Gestión</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y dark:divide-slate-800/50">
-              {debts.filter(d => d.status === 'PENDIENTE').map(debt => {
-                const totalAmt = Number.parseFloat(String(debt.amount || 0));
-                const paidAmt = Number.parseFloat(String(debt.paid_amount || 0));
-                const remaining = totalAmt - paidAmt;
-                const isOverdue = debt.due_date ? new Date(debt.due_date) < new Date() : false;
+      {/* LISTADO DE PROVEEDORES */}
+      {isLoading ? (
+        <div className="p-12 text-center animate-pulse font-black text-slate-400 uppercase tracking-widest text-xs">
+          Cargando Directorio...
+        </div>
+      ) : filteredSuppliers.length === 0 ? (
+        <div className="p-12 text-center font-black text-slate-400 uppercase tracking-widest text-xs border border-dashed border-slate-300 dark:border-slate-800 rounded-[2rem]">
+          No hay proveedores registrados en el radar.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {filteredSuppliers.map((supplier) => (
+            <div
+              key={supplier.id}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2rem] p-6 shadow-lg hover:shadow-xl transition-all group relative overflow-hidden"
+            >
+              <div className="flex items-start gap-4 mb-4">
+                <div className="bg-slate-50 dark:bg-slate-800/50 w-12 h-12 rounded-xl flex items-center justify-center text-blue-500 shrink-0">
+                  <Building2 size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tighter leading-tight">
+                    {supplier.name}
+                  </h3>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1 flex items-center gap-1">
+                    <Phone size={10} /> {supplier.contact || "Sin Contacto"}{" "}
+                    {supplier.phone ? `(${supplier.phone})` : ""}
+                  </p>
+                </div>
+              </div>
 
-                return (
-                  <tr key={debt.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group">
-                    <td className="p-8">
-                      <p className="font-black text-slate-900 dark:text-white uppercase text-sm">{debt.suppliers?.name || 'S/N'}</p>
-                      <p className="text-[9px] font-bold text-indigo-500 uppercase tracking-tighter">{debt.suppliers?.category || 'S/C'}</p>
-                    </td>
-                    <td className="p-8">
-                      <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase leading-relaxed max-w-[200px]">{debt.description}</p>
-                    </td>
-                    <td className="p-8 text-center">
-                      <span className={`text-[10px] font-black px-4 py-2 rounded-xl border uppercase tracking-widest ${isOverdue ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-transparent'}`}>
-                        {debt.due_date ? new Date(debt.due_date).toLocaleDateString('es-AR') : 'S/F'}
-                      </span>
-                    </td>
-                    <td className="p-8 text-right">
-                      <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Total: {ARS.format(totalAmt)}</p>
-                      <p className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter tabular-nums">{ARS.format(remaining)}</p>
-                    </td>
-                    <td className="p-8 text-center">
-                      <button 
-                        type="button"
-                        onClick={async () => {
-                          const { value: amount } = await Swal.fire({
-                            title: 'REGISTRAR PAGO',
-                            text: `Saldar deuda de ${ARS.format(remaining)} con ${debt.suppliers?.name}`,
-                            input: 'number',
-                            inputAttributes: { min: '1', max: remaining.toString() },
-                            showCancelButton: true,
-                            confirmButtonText: 'CONFIRMAR PAGO 💸',
-                            confirmButtonColor: '#10b981',
-                            customClass: { popup: 'dark:!bg-slate-900 !rounded-[2.5rem] border border-slate-200 dark:border-slate-800' }
-                          });
-                          if (amount) {
-                            await registerPartialPayment(debt.id, Number.parseFloat(amount), `${debt.suppliers?.name} - ${debt.description}`);
-                          }
-                        }}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all"
-                      >
-                        Pagar
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {debts.filter(d => d.status === 'PENDIENTE').length === 0 && (
-            <div className="p-32 text-center">
-               <span className="text-6xl opacity-10 block mb-4 italic" aria-hidden="true">🚚</span>
-               <p className="text-slate-400 font-black uppercase text-xs tracking-[0.5em] italic">No hay compromisos de pago pendientes.</p>
+              <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">
+                  Saldo Deudor
+                </span>
+                <span
+                  className={`text-xl font-black tracking-tighter ${supplier.balance > 0 ? "text-rose-500" : "text-emerald-500"}`}
+                >
+                  {ARS.format(supplier.balance)}
+                </span>
+              </div>
             </div>
-          )}
+          ))}
         </div>
-      </div>
+      )}
     </div>
   );
-});
-
-SupplierDashboard.displayName = 'SupplierDashboard';
+};

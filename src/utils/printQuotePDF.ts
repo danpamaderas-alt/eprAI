@@ -37,7 +37,11 @@ export const generateQuotePDF = (quote: QuoteData, items: QuoteItem[]) => {
   doc.setFontSize(10);
   doc.setTextColor(100);
   doc.text(`Nº: ${quote.quote_number}`, 140, 32);
-  doc.text(`Fecha: ${new Date(quote.created_at).toLocaleDateString('es-AR')}`, 140, 38);
+
+  // SEGURIDAD: Prevenir 'Invalid Date' si la fecha viene mal formateada
+  const parsedDate = new Date(quote.created_at);
+  const validDate = isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
+  doc.text(`Fecha: ${validDate.toLocaleDateString('es-AR')}`, 140, 38);
 
   doc.setFontSize(12);
   doc.setTextColor(0);
@@ -89,5 +93,15 @@ export const generateQuotePDF = (quote: QuoteData, items: QuoteItem[]) => {
     doc.text(doc.splitTextToSize(quote.notes, 100), 14, finalY + 21);
   }
 
-  doc.save(`Presupuesto_Raices_${quote.quote_number}.pdf`);
+  // VANGUARDIA (UX Institucional): Footer estándar de validez
+  doc.setFontSize(8);
+  doc.setTextColor(150);
+  doc.text('Validez del presupuesto: 15 días. Precios sujetos a modificación sin previo aviso.', 14, 280);
+
+  // VANGUARDIA (UX Móvil / Tablet): 
+  // En Puntos de Venta, descargar un archivo "a ciegas" molesta al vendedor.
+  // Generamos un Blob y lo abrimos en una pestaña nueva para poder imprimirlo o compartirlo fácil.
+  const pdfBlob = doc.output('blob');
+  const blobUrl = URL.createObjectURL(pdfBlob);
+  window.open(blobUrl, '_blank');
 };

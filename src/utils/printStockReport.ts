@@ -22,6 +22,9 @@ export const generateStockPDF = (products: Product[], inventory: ProductVariant[
   let totalItems = 0;
   let totalPatrimony = 0;
 
+  // SEGURIDAD: Prevenir inyección de código (XSS) al imprimir datos del usuario
+  const escapeHTML = (str: string) => str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+
   // Armamos las filas ocultando o mostrando los <td> según lo que elegiste
   const rowsHtml = products.map(p => {
     const variants = inventory.filter(v => v.product_id === p.id);
@@ -37,11 +40,11 @@ export const generateStockPDF = (products: Product[], inventory: ProductVariant[
 
       return `
         <tr>
-          ${options.showSku ? `<td class="mono">${p.sku || 'S/N'}</td>` : ''}
-          <td><strong>${p.name}</strong></td>
-          ${options.showCategory ? `<td>${p.category || '-'}</td>` : ''}
-          ${options.showSize ? `<td class="center">${v.sizes?.name || '-'}</td>` : ''}
-          ${options.showColor ? `<td class="center">${v.colors?.name || '-'}</td>` : ''}
+          ${options.showSku ? `<td class="mono">${escapeHTML(p.sku || 'S/N')}</td>` : ''}
+          <td><strong>${escapeHTML(p.name)}</strong></td>
+          ${options.showCategory ? `<td>${escapeHTML(p.category || '-')}</td>` : ''}
+          ${options.showSize ? `<td class="center">${escapeHTML(v.sizes?.name || '-')}</td>` : ''}
+          ${options.showColor ? `<td class="center">${escapeHTML(v.colors?.name || '-')}</td>` : ''}
           ${options.showBase ? `<td class="right">${v.base_quantity || 0}</td>` : ''}
           ${options.showFinished ? `<td class="right">${v.finished_quantity || 0}</td>` : ''}
           ${options.showTotal ? `<td class="right highlight">${qty}</td>` : ''}
@@ -116,6 +119,11 @@ export const generateStockPDF = (products: Product[], inventory: ProductVariant[
             <strong>$${totalPatrimony.toLocaleString('es-AR')}</strong>
           </div>` : ''}
         </div>
+        <script>
+          window.onload = function() {
+            window.print();
+          };
+        </script>
       </body>
     </html>
   `;
@@ -123,6 +131,4 @@ export const generateStockPDF = (products: Product[], inventory: ProductVariant[
   printWindow.document.write(html);
   printWindow.document.close();
   printWindow.focus();
-  
-  setTimeout(() => { printWindow.print(); }, 300);
 };

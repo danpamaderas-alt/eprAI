@@ -10,14 +10,14 @@ export interface Transaction {
   paymentMethod: string;
   type: 'INCOME' | 'EXPENSE';
   amount: number;
-  status?: string;
+  status?: 'PENDIENTE' | 'COMPLETADO' | 'CANCELADO';
 }
 
 interface TreasuryState {
   transactions: Transaction[];
   isLoading: boolean;
   fetchTransactions: () => Promise<void>;
-  addTransaction: (tx: any) => Promise<void>;
+  addTransaction: (tx: Omit<Transaction, 'id'>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   // 1. Agregamos las funciones faltantes al "contrato" de TypeScript
   updateTransaction: (id: string, data: Partial<Transaction>) => Promise<void>;

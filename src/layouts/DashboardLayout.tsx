@@ -1,7 +1,7 @@
 import { Outlet } from "react-router-dom";
 import { useThemeStore } from "../store/useThemeStore";
 import { Sidebar } from "../shared/components/layout/Sidebar/Sidebar";
-import { MobileNav } from "../shared/components/navigation/mobileNav";
+import { MobileNav } from "../shared/components/navigation/MobileNav";
 import { ThemeToggle } from "../components/ThemeToggle";
 
 export const DashboardLayout = () => {

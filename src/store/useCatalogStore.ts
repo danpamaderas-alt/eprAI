@@ -107,7 +107,8 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
     const companyId = useTenantStore.getState().activeCompanyId;
 
     // ⚡ FUNCIÓN SALVAVIDAS: Si una tabla falla, devuelve un arreglo vacío pero no rompe el sistema
-    const fetchSafe = async (query: any) => {
+    // SEGURIDAD: Reemplazamos "any" por un Genérico seguro de TypeScript
+    const fetchSafe = async <T,>(query: PromiseLike<{ data: T | null; error: any }>) => {
       try {
         const res = await query;
         if (res.error) {
@@ -171,6 +172,9 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
 
  updateStock: async (productId, sizeId, colorId, quantity) => {
     try {
+      // TODO (ESCALABILIDAD): Alerta de "Race Condition".
+      // Leer y luego escribir en 2 pasos separados puede causar inconsistencias en red.
+      // Próximo paso sugerido: Migrar esta lógica a una función RPC (ej. 'upsert_stock') en Supabase.
       const { data: existing, error: searchError } = await supabase
         .from('product_variants')
         .select('*')
@@ -214,6 +218,9 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
 
   transformToFinished: async (variantId, quantityToTransform) => {
     try {
+      // TODO (ESCALABILIDAD): Alerta de "Race Condition".
+      // Múltiples usuarios acondicionando prendas a la vez podrían evadir la validación (baseActual >= quantityToTransform).
+      // Próximo paso sugerido: Migrar a función RPC atómica en Supabase.
       const { data: item, error: fetchError } = await supabase.from('product_variants').select('*').eq('id', variantId).single();
       if (fetchError) throw fetchError;
 
@@ -240,19 +247,26 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
     }
   },
 
-  processSale: async (_customerId, cart, _total) => {
+  processSale: async (customerId, cart, total) => {
     try {
-      for (const item of cart) {
-        const { data: variant } = await supabase.from('product_variants').select('finished_quantity').eq('id', item.variantId).single();
-        if (variant) {
-          await supabase.from('product_variants').update({ 
-            finished_quantity: (variant.finished_quantity || 0) - item.qty 
-          }).eq('id', item.variantId);
-        }
-      }
+      // Mapeamos el carrito al formato JSONB que espera la función de Supabase
+      const cartItems = cart.map(item => ({
+        variantId: item.variantId,
+        qty: item.qty
+      }));
+
+      // Llamamos a la función atómica (RPC) en Supabase
+      const { error } = await supabase.rpc('process_sale_atomic', {
+        customer_id_param: customerId,
+        cart_items: cartItems,
+        total_amount_param: total
+      });
+
+      if (error) throw error;
+
       await get().fetchAllCatalogs();
     } catch (error) {
-      console.error('Error descontando stock en la venta:', error);
+      console.error('Error descontando stock en la venta (RPC):', error);
       throw error;
     }
   },

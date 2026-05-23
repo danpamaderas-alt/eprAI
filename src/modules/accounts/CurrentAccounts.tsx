@@ -1,101 +1,136 @@
-import { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import { useCrmStore } from '../crm/store/useCrmStore';
 import Swal from 'sweetalert2';
-import { Search, CreditCard, X } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 
-const formatMoney = (amount: number) => `$${Math.abs(amount).toLocaleString('es-AR')}`;
+// 1. Integridad Financiera: Formateo desde centavos (Evita errores de punto flotante)
+const formatMoney = (amountInCents: number) => {
+  const amount = amountInCents / 100;
+  return `$${amount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`;
+};
 
 export const CurrentAccounts = memo(() => {
   const { balances, isLoading, fetchBalances, addMovement } = useCrmStore();
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  
+  // Estado de UI
+  const [selectedCustomer, setSelectedCustomer] = useState<{ id: string; name: string } | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formParams, setFormParams] = useState({ movement_type: 'PAGO' as 'PAGO' | 'CARGO', amount: '' as number | '', description: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Estado local del formulario (String para evitar NaN en inputs)
+  const [formParams, setFormParams] = useState({ 
+    movement_type: 'PAGO' as 'PAGO' | 'CARGO', 
+    amount: '', 
+    description: '' 
+  });
 
   useEffect(() => {
-    const delayDebounceFn = setTimeout(() => { fetchBalances(searchTerm); }, 400);
-    return () => clearTimeout(delayDebounceFn);
+    const timer = setTimeout(() => fetchBalances(searchTerm), 400);
+    return () => clearTimeout(timer);
   }, [searchTerm, fetchBalances]);
 
-  const globalTotal = useMemo(() => balances.reduce((acc, curr) => (curr.balance && curr.balance > 0) ? acc + curr.balance : acc, 0), [balances]);
+  // Reset y apertura segura del modal
+  const handleOpenModal = (customer: { id: string; name: string }) => {
+    setSelectedCustomer(customer);
+    setFormParams({ movement_type: 'PAGO', amount: '', description: '' });
+    setIsModalOpen(true);
+  };
 
   const handleSaveMovement = useCallback(async () => {
-    if (!selectedCustomerId || !formParams.amount || !formParams.description.trim()) return;
-    const success = await addMovement({
-      customer_id: selectedCustomerId,
-      movement_type: formParams.movement_type,
-      amount: Number(formParams.amount),
-      description: formParams.description.trim(),
-      date: new Date().toISOString()
-    });
-    if (success) {
-      Swal.fire({ toast: true, icon: 'success', title: 'Registrado', position: 'top-end', showConfirmButton: false, timer: 1500 });
-      setIsModalOpen(false);
-      setFormParams({ movement_type: 'PAGO', amount: '', description: '' });
+    const amountVal = Number.parseFloat(formParams.amount);
+      
+    // Validación de integridad
+    if (!selectedCustomer || Number.isNaN(amountVal) || amountVal <= 0 || !formParams.description.trim()) {
+      Swal.fire({ icon: 'warning', title: 'Datos inválidos', text: 'Verifica el monto y el concepto.' });
+      return;
     }
-  }, [selectedCustomerId, formParams, addMovement]);
+
+    setIsSubmitting(true);
+
+    try {
+      // 2. Lógica Contable: Centavos + Signed Amount
+      const amountInCents = Math.round(amountVal * 100);
+      const signedAmount = formParams.movement_type === 'PAGO' ? -amountInCents : amountInCents;
+
+      // 3. Idempotencia: UUID generado en cliente para evitar registros duplicados
+      const success = await addMovement({
+        transaction_id: crypto.randomUUID(), 
+        customer_id: selectedCustomer.id,
+        signed_amount: signedAmount,
+        description: formParams.description.trim(),
+        // NOTA: No enviamos fecha. El Backend pone created_at: now()
+      });
+
+      if (success) {
+        Swal.fire({ toast: true, icon: 'success', title: 'Registrado', position: 'top-end', showConfirmButton: false, timer: 1500 });
+        setIsModalOpen(false);
+      } else {
+        throw new Error("Rechazo de servidor");
+      }
+    } catch (error) {
+      Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo registrar la operación.' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [selectedCustomer, formParams, addMovement]);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      <header className="flex justify-between items-end bg-white dark:bg-slate-800 p-6 rounded-3xl border dark:border-slate-700 shadow-sm">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tighter italic">Cuentas Corrientes</h1>
-          <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Radar de Cobranzas</p>
-        </div>
-        <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 p-4 rounded-2xl flex flex-col items-end">
-          <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest">Total en la calle</span>
-          <span className="text-2xl font-black text-rose-700">{formatMoney(globalTotal)}</span>
-        </div>
+    <div className="space-y-6">
+      <header className="bg-white dark:bg-slate-800 p-6 rounded-3xl border dark:border-slate-700 shadow-sm">
+        <h1 className="text-3xl font-black text-slate-900 uppercase italic">Cuentas Corrientes</h1>
+        <p className="text-sm font-bold text-slate-500 uppercase">Radar de Cobranzas</p>
       </header>
 
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
-        <input type="text" placeholder="Buscar deudor..." className="w-full pl-12 pr-4 py-3 bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 dark:text-white shadow-sm" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-      </div>
-
+      {/* Grid de Clientes */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {isLoading ? (
-          <div className="col-span-full py-20 text-center animate-pulse font-black text-slate-400 uppercase tracking-widest italic">Sincronizando deudas...</div>
-        ) : balances.map(b => {
-          const isDebtor = (b.balance || 0) > 0;
-          const badgeClass = isDebtor ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700';
-          const badgeText = isDebtor ? 'Debe' : 'A favor';
-          const textClass = isDebtor ? 'text-rose-600' : 'text-emerald-600';
-
-          return (
-            <button key={b.id} type="button" onClick={() => { setSelectedCustomerId(b.id); setIsModalOpen(true); }} className="bg-white dark:bg-slate-800 border dark:border-slate-700 p-5 rounded-3xl hover:shadow-xl hover:border-blue-400 transition-all group text-left focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <div className="flex justify-between items-start mb-4">
-                <h4 className="font-black text-slate-900 dark:text-white uppercase text-sm truncate w-2/3">{b.name}</h4>
-                <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase ${badgeClass}`}>{badgeText}</span>
-              </div>
-              <div className="flex justify-between items-end">
-                <div>
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Saldo Actual</p>
-                  <p className={`text-2xl font-black ${textClass}`}>{formatMoney(b.balance || 0)}</p>
+          <div className="col-span-full py-20 text-center text-slate-400 italic">Sincronizando...</div>
+        ) : balances.length === 0 ? (
+          <div className="col-span-full py-20 text-center text-slate-400">No se encontraron clientes.</div>
+        ) : (
+          balances.map(b => {
+            const balance = b.balance || 0;
+            return (
+              <button key={b.id} onClick={() => handleOpenModal({ id: b.id, name: b.name })} className="bg-white p-5 rounded-3xl border hover:border-blue-400 transition-all text-left">
+                <div className="flex justify-between mb-4">
+                  <h4 className="font-black truncate w-2/3">{b.name}</h4>
+                  <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase ${balance > 0 ? 'bg-rose-100 text-rose-700' : balance < 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                    {balance > 0 ? 'Debe' : balance < 0 ? 'A favor' : 'Al día'}
+                  </span>
                 </div>
-                <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-2xl group-hover:bg-blue-600 group-hover:text-white transition-colors"><CreditCard className="w-4 h-4" /></div>
-              </div>
-            </button>
-          );
-        })}
+                <p className="text-2xl font-black">{formatMoney(balance)}</p>
+              </button>
+            );
+          })
+        )}
       </div>
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] shadow-2xl w-full max-w-md p-8 border dark:border-slate-700">
+      {/* Modal - Bloqueado durante submit */}
+      {isModalOpen && selectedCustomer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm">
+          <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-md shadow-2xl">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="font-black text-slate-900 dark:text-white uppercase italic text-xl">Registrar Pago</h2>
-              <button type="button" onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-rose-500"><X /></button>
+              <div>
+                <h2 className="font-black text-xl italic">Registrar Movimiento</h2>
+                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">{selectedCustomer.name}</p>
+              </div>
+              {!isSubmitting && <button onClick={() => setIsModalOpen(false)}><X className="w-5 h-5" /></button>}
             </div>
+            
             <div className="space-y-4">
-              <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-900 rounded-xl">
+              {/* Selector tipo movimiento */}
+              <div className="flex gap-2 p-1 bg-slate-100 rounded-xl">
                 {(['PAGO', 'CARGO'] as const).map(t => (
-                  <button key={t} type="button" onClick={() => setFormParams(prev => ({...prev, movement_type: t}))} className={`flex-1 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${formParams.movement_type === t ? 'bg-slate-900 dark:bg-slate-700 text-white shadow-md' : 'text-slate-500'}`}>{t === 'PAGO' ? 'Recibí Dinero' : 'Sumar Deuda'}</button>
+                  <button key={t} onClick={() => setFormParams(p => ({...p, movement_type: t}))} className={`flex-1 py-3 rounded-lg text-[10px] font-black ${formParams.movement_type === t ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500'}`}>{t === 'PAGO' ? 'Recibí Dinero' : 'Sumar Deuda'}</button>
                 ))}
               </div>
-              <input type="number" placeholder="Monto $" className="w-full p-4 bg-slate-50 dark:bg-slate-950 border dark:border-slate-700 rounded-xl text-xl font-black outline-none focus:ring-2 focus:ring-blue-500 dark:text-white" value={formParams.amount} onChange={e => setFormParams(prev => ({...prev, amount: e.target.value === '' ? '' : Number.parseFloat(e.target.value)}))} />
-              <input type="text" placeholder="Concepto..." className="w-full p-4 bg-slate-50 dark:bg-slate-950 border dark:border-slate-700 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 dark:text-white" value={formParams.description} onChange={e => setFormParams(prev => ({...prev, description: e.target.value}))} />
-              <button type="button" onClick={handleSaveMovement} className="w-full bg-blue-600 text-white py-4 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg active:scale-95 transition-all">Confirmar Operación 💾</button>
+              
+              <input type="number" placeholder="Monto $" value={formParams.amount} onChange={e => setFormParams(p => ({...p, amount: e.target.value}))} className="w-full p-4 bg-slate-50 rounded-xl font-black text-xl" />
+              <input type="text" placeholder="Concepto..." value={formParams.description} onChange={e => setFormParams(p => ({...p, description: e.target.value}))} className="w-full p-4 bg-slate-50 rounded-xl text-sm" />
+              
+              <button disabled={isSubmitting} onClick={handleSaveMovement} className={`w-full bg-blue-600 text-white py-4 rounded-xl font-black uppercase text-[10px] ${isSubmitting ? 'opacity-50' : ''}`}>
+                {isSubmitting ? <Loader2 className="animate-spin mx-auto w-4 h-4" /> : 'Confirmar Operación 💾'}
+              </button>
             </div>
           </div>
         </div>

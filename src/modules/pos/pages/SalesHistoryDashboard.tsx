@@ -2,14 +2,29 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../../lib/supabase'; // Asegurate de que la ruta a supabase sea la correcta
 import { Calendar, Search, FileText, X } from 'lucide-react';
 
+// --- INTERFACES PARA SEGURIDAD DE TIPADO ---
+interface SaleRecord {
+  id: string;
+  customer_id?: string;
+  created_at: string;
+  total_amount?: number;
+  total?: number;
+  items?: any[];
+}
+
+interface CustomerRecord {
+  id: string;
+  name: string;
+}
+
 export const SalesHistoryDashboard = () => {
-  const [sales, setSales] = useState<any[]>([]);
-  const [customers, setCustomers] = useState<any[]>([]);
+  const [sales, setSales] = useState<SaleRecord[]>([]);
+  const [customers, setCustomers] = useState<CustomerRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Estado para el modal de detalle del ticket
-  const [selectedSale, setSelectedSale] = useState<any>(null);
+  // Estado para el modal de detalle del ticket (Cambiamos el any por un tipo dinámico)
+  const [selectedSale, setSelectedSale] = useState<SaleRecord & { customerName?: string } | null>(null);
 
   // 1. CARGAR LAS VENTAS Y LOS CLIENTES DESDE SUPABASE
   const fetchHistory = async () => {
@@ -24,13 +39,14 @@ export const SalesHistoryDashboard = () => {
       const { data: salesData, error } = await supabase
         .from('sales') 
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(100); // <-- VANGUARDIA: Límite precautorio. Considerar paginación a futuro.
 
       if (error) {
         // Si tira error porque la tabla POS se llama 'orders', te aviso por consola
         console.warn("Aviso: Revisá si tu tabla de ventas se llama 'sales' u 'orders'.", error);
       } else if (salesData) {
-        setSales(salesData);
+        setSales(salesData as SaleRecord[]);
       }
     } catch (err) {
       console.error(err);
@@ -209,7 +225,7 @@ export const SalesHistoryDashboard = () => {
 
               <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4">Artículos Vendidos</p>
               <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
-                {selectedSale.items?.map((item: any, i: number) => (
+                {selectedSale.items?.map((item, i: number) => (
                   <div key={i} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
                     <div className="flex-1">
                       <p className="font-bold text-xs text-slate-900 dark:text-white uppercase">{item.name || item.productName}</p>

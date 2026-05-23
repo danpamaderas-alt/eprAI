@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
+    "@openrouter/agent": "^0.7.0",
+    "@openrouter/sdk": "^0.12.35",
     "@supabase/supabase-js": "^2.101.1",
     "@tanstack/react-query": "^5.96.2",
     "@tanstack/react-table": "^8.21.3",

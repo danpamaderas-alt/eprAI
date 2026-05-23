@@ -4,37 +4,57 @@
    REGLAS MAESTRAS DE IMPRESIÓN PARA ERP
    ========================================= */
 @media print {
-  /* 1. Rompemos la "jaula" del layout: Hacemos la altura infinita */
-  html, body, #root, [class*="h-screen"], [class*="overflow-"] {
+  /* 1. Rompemos la "jaula" del layout: Altura infinita y static */
+  html, body, #root, 
+  [class*="h-screen"], 
+  [class*="h-dvh"],
+  [class*="h-svh"],
+  [class*="overflow-"],
+  main {
     height: auto !important;
     min-height: auto !important;
     max-height: none !important;
     overflow: visible !important;
     position: static !important;
+    padding: 0 !important; /* Resetea el padding del DashboardLayout */
+    margin: 0 !important;
   }
 
-  /* 2. Ocultamos el menú lateral (Sidebar) y barras superiores */
-  aside, nav, header {
+  /* VANGUARDIA: Evitar que el papel imprima las "canaletas" grises de scroll en tablas largas */
+  ::-webkit-scrollbar { display: none !important; }
+
+  /* 2. Ocultamos la interfaz del ERP (Sidebar, Navs, Toggles, Botones de acción) */
+  aside, nav, header, .print\:hidden, button, [class*="ThemeToggle"] {
     display: none !important;
   }
 
-  /* 3. Forzamos que el fondo general sea blanco papel */
+  /* 3. Forzamos el lienzo blanco y el renderizado exacto de colores de Tailwind */
   body {
     background-color: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    forced-color-adjust: exact !important; /* Protege los colores contra los "Modos de alto contraste" del SO */
   }
 
-  /* 4. Magia para que los renglones no se corten a la mitad entre la Hoja 1 y la Hoja 2 */
+  /* 4. Control estricto de cortes de página para tablas textiles */
   table {
     page-break-inside: auto;
+    break-inside: auto;
   }
+  
   tr {
     page-break-inside: avoid;
+    break-inside: avoid;
     page-break-after: auto;
+    break-after: auto;
   }
-}
-@media print {
-  body {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+
+  /* 5. Asegurar que el contenedor A4 ocupe el 100% real sin simular la sombra de pantalla */
+  [style*="width: 210mm"] {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
   }
 }

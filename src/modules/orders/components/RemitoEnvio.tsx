@@ -2,90 +2,100 @@ import { useRef } from 'react';
 import { useReactToPrint } from 'react-to-print';
 
 export const RemitoEnvio = () => {
-  // Referencia al contenedor que queremos imprimir
   const componentRef = useRef(null);
 
-  // Función que dispara la impresión/PDF
   const handlePrint = useReactToPrint({
     content: () => componentRef.current,
-    documentTitle: 'Remito_Envio_Raices_001',
+    documentTitle: 'Remito_Raices_001',
+    pageStyle: `
+      @media print {
+        @page { size: A4; margin: 20mm; }
+        body { -webkit-print-color-adjust: exact; }
+      }
+    `
   });
 
   return (
-    <div className="p-6">
-      <div className="mb-4 flex justify-end">
+    // CAMBIO AQUI: Quitamos max-w-4xl y dejamos que el contenedor padre (el Grid) maneje el espacio.
+    <div className="p-2 w-full flex flex-col items-center">
+      
+      <div className="mb-6 flex justify-end w-full max-w-[210mm] print:hidden">
         <button 
           onClick={handlePrint}
-          className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700"
+          className="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-blue-700 transition"
         >
-          Imprimir / Guardar PDF
+          Imprimir / PDF
         </button>
       </div>
 
-      {/* Contenedor del documento. Usamos A4 proporciones (aprox) y fondo blanco para la impresión */}
+      {/* Hoja A4 */}
+      {/* CAMBIO AQUI: Usamos minWidth en lugar de width fijo para asegurar la proporción */}
       <div 
         ref={componentRef} 
-        className="bg-white text-black p-10 shadow-lg mx-auto border"
-        style={{ width: '210mm', minHeight: '297mm' }} 
+        className="bg-white text-slate-900 p-10 shadow-2xl border border-slate-200 mx-auto print-container"
+        style={{ minWidth: '210mm', minHeight: '297mm', maxWidth: '210mm' }} 
       >
         {/* Encabezado */}
-        <header className="flex justify-between items-start border-b-2 border-gray-800 pb-6 mb-6">
+        <header className="flex justify-between items-start mb-10">
           <div>
-            <h1 className="text-4xl font-extrabold tracking-wider uppercase">RAÍCES</h1>
-            <p className="text-sm mt-1">Soluciones Textiles Integrales</p>
-            <p className="text-sm">Berisso, Buenos Aires</p>
+            <h1 className="text-4xl font-black text-slate-900 tracking-tighter uppercase">RAÍCES</h1>
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Soluciones Textiles Integrales</p>
           </div>
-          <div className="text-right">
-            <h2 className="text-2xl font-bold text-gray-700">REMITO</h2>
-            <p className="text-sm font-semibold mt-2">Nº: <span className="font-normal">0001-000045</span></p>
-            <p className="text-sm font-semibold">Fecha: <span className="font-normal">20/05/2026</span></p>
+          <div className="text-right border-l-2 border-blue-600 pl-4">
+            <h2 className="text-lg font-black text-blue-600 uppercase">Remito</h2>
+            <p className="text-sm">Nº 0001-000045</p>
+            <p className="text-sm">Fecha: 20/05/2026</p>
           </div>
         </header>
 
-        {/* Datos del Cliente */}
-        <section className="mb-8 border border-gray-300 p-4 rounded">
-          <p><strong>Cliente:</strong> Registro Provincial de las Personas</p>
-          <p><strong>Dirección:</strong> La Plata, Buenos Aires</p>
+        {/* ... (El resto de tu código queda exactamente igual, desde Datos Cliente hacia abajo) ... */}
+         <section className="bg-slate-50 p-6 rounded-lg mb-8 border border-slate-100">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-[10px] text-slate-400 font-bold uppercase">Cliente</p>
+              <p className="font-bold">Registro Provincial de las Personas</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-400 font-bold uppercase">Dirección</p>
+              <p className="font-medium text-slate-700">La Plata, Buenos Aires</p>
+            </div>
+          </div>
         </section>
 
-        {/* Tabla de Artículos */}
-        <table className="w-full text-left border-collapse mb-8">
+        <table className="w-full mb-12">
           <thead>
-            <tr className="bg-gray-100 border-b border-gray-300">
-              <th className="py-2 px-4">Cant.</th>
-              <th className="py-2 px-4">Descripción del Artículo</th>
-              <th className="py-2 px-4">Sisa (cm)</th>
-              <th className="py-2 px-4">Precio Unit.</th>
-              <th className="py-2 px-4">Subtotal</th>
+            <tr className="text-[10px] text-slate-500 uppercase border-b border-slate-300">
+              <th className="py-3 text-left">Cant.</th>
+              <th className="py-3 text-left">Descripción</th>
+              <th className="py-3 text-right">Sisa</th>
+              <th className="py-3 text-right">Precio Unit.</th>
+              <th className="py-3 text-right">Subtotal</th>
             </tr>
           </thead>
-          <tbody>
-            <tr className="border-b border-gray-200">
-              <td className="py-3 px-4">150</td>
-              <td className="py-3 px-4">Chombas de piqué institucional con logo DTF</td>
-              <td className="py-3 px-4">54</td>
-              <td className="py-3 px-4">$15,000</td>
-              <td className="py-3 px-4">$2,250,000</td>
-            </tr>
-            <tr className="border-b border-gray-200">
-              <td className="py-3 px-4">50</td>
-              <td className="py-3 px-4">Chombas de piqué institucional con logo DTF</td>
-              <td className="py-3 px-4">58</td>
-              <td className="py-3 px-4">$15,000</td>
-              <td className="py-3 px-4">$750,000</td>
-            </tr>
+          <tbody className="divide-y divide-slate-100">
+            {[1, 2].map((i) => (
+              <tr key={i} className="text-sm">
+                <td className="py-4 font-bold">150</td>
+                <td className="py-4">Chombas piqué logo DTF</td>
+                <td className="py-4 text-right">54</td>
+                <td className="py-4 text-right">$15.000</td>
+                <td className="py-4 text-right font-bold">$2.250.000</td>
+              </tr>
+            ))}
           </tbody>
+          <tfoot className="border-t-2 border-slate-900">
+            <tr>
+              <td colSpan={4} className="py-4 text-right font-bold text-lg">TOTAL</td>
+              <td className="py-4 text-right font-black text-lg">$3.000.000</td>
+            </tr>
+          </tfoot>
         </table>
 
-        {/* Pie de página / Firmas */}
-        <footer className="mt-20 flex justify-between items-end">
-          <div className="w-1/3 text-center border-t border-black pt-2">
-            <p className="text-sm">Firma Entregado</p>
-          </div>
-          <div className="w-1/3 text-center border-t border-black pt-2">
-            <p className="text-sm">Firma Recibido (Conformidad)</p>
-          </div>
+        <footer className="mt-20 grid grid-cols-2 gap-20">
+          <div className="border-t border-slate-900 pt-2 text-center text-xs font-bold uppercase">Entregado</div>
+          <div className="border-t border-slate-900 pt-2 text-center text-xs font-bold uppercase">Recibido (Conformidad)</div>
         </footer>
+
       </div>
     </div>
   );

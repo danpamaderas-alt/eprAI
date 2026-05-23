@@ -1,13 +1,20 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+export type ThemeMode = 'light' | 'dark' | 'system';
+
 interface ThemeState {
+  mode: ThemeMode;
   isDarkMode: boolean;
+  setMode: (mode: ThemeMode) => void;
+  // Compatibilidad hacia atrás
   toggleDarkMode: () => void;
   setDarkMode: (isDark: boolean) => void;
 }
 
-// Mutador imperativo del DOM (Rompe el ciclo de React para evitar FOUC en interacciones)
+const getSystemTheme = () => typeof window !== 'undefined' ? window.matchMedia('(prefers-color-scheme: dark)').matches : true;
+
+// VANGUARDIA: Mutador imperativo del DOM (Rompe el ciclo de React para evitar FOUC)
 const updateDOM = (isDark: boolean) => {
   if (typeof document !== 'undefined') {
     const root = document.documentElement;
@@ -21,42 +28,51 @@ const updateDOM = (isDark: boolean) => {
 
 export const useThemeStore = create<ThemeState>()(
   persist(
-    (set) => ({
-      // Estado inicial dinámico basado en SO (Fallback si no hay persistencia)
-      isDarkMode: typeof window !== 'undefined' 
-        ? window.matchMedia('(prefers-color-scheme: dark)').matches 
-        : true,
+    (set, get) => ({
+      mode: 'system',
+      isDarkMode: getSystemTheme(),
       
-      toggleDarkMode: () => set((state) => {
-        const newMode = !state.isDarkMode;
-        updateDOM(newMode);
-        return { isDarkMode: newMode };
-      }),
-      
-      setDarkMode: (isDark) => set(() => {
+      setMode: (mode) => {
+        const isDark = mode === 'system' ? getSystemTheme() : mode === 'dark';
         updateDOM(isDark);
-        return { isDarkMode: isDark };
-      }),
+        set({ mode, isDarkMode: isDark });
+      },
+      
+      toggleDarkMode: () => {
+        const isDark = !get().isDarkMode;
+        get().setMode(isDark ? 'dark' : 'light');
+      },
+      
+      setDarkMode: (isDark) => {
+        get().setMode(isDark ? 'dark' : 'light');
+      },
     }),
     { 
-      name: 'raices_erp_theme', // Key enterprise, sin colisiones
+      name: 'raices_erp_theme_v2', // Nueva key para evitar conflictos con versiones anteriores
       onRehydrateStorage: () => (state, error) => {
         if (error) {
           console.error('Error al hidratar el tema:', error);
         } else if (state) {
-          // Se ejecuta al cargar de localStorage (sincroniza DOM en el arranque)
-          updateDOM(state.isDarkMode);
+          const isDark = state.mode === 'system' ? getSystemTheme() : state.mode === 'dark';
+          updateDOM(isDark);
+          
+          if (state.isDarkMode !== isDark) {
+            useThemeStore.setState({ isDarkMode: isDark });
+          }
         }
       }
     }
   )
 );
 
-// Sincronización pasiva: Escuchar cambios en el Sistema Operativo en tiempo real
+// VANGUARDIA (UX): Escuchar cambios en el Sistema Operativo en tiempo real, 
+// PERO respetando si el usuario eligió forzar un modo específico.
 if (typeof window !== 'undefined') {
   const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-  mediaQuery.addEventListener('change', (e) => {
-    // Actualiza el store (y el DOM) si el OS cambia
-    useThemeStore.getState().setDarkMode(e.matches);
+  mediaQuery.addEventListener('change', () => {
+    const { mode, setMode } = useThemeStore.getState();
+    if (mode === 'system') {
+      setMode('system'); // Re-evalúa y aplica el cambio de DOM
+    }
   });
 }
