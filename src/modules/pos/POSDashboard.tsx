@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useCatalogStore } from '../../store/useCatalogStore';
 import Swal from 'sweetalert2';
-import { useCrmStore } from '../crm/store/useCrmStore'; // ✅ FIX: Conectado al nuevo cerebro unificado
+import { useCrmStore } from '../crm/store/useCrmStore';
 
 interface CartItem {
   variantId: string;
@@ -19,7 +19,7 @@ interface CartItem {
 
 export const POSDashboard = () => {
   const { products, inventory, customers, fetchAllCatalogs, processSale } = useCatalogStore();
-  const { addMovement } = useCrmStore(); // ✅ FIX: Extraemos la función correcta
+  const { addMovement } = useCrmStore(); 
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState('');
@@ -34,21 +34,31 @@ export const POSDashboard = () => {
   }, [fetchAllCatalogs]);
 
   const availableVariants = useMemo(() => {
-    return inventory.filter(v => (v.finished_quantity || 0) > 0).map(v => {
-      const prod = products.find(p => p.id === v.product_id);
-      return {
-        variantId: v.id,
-        productId: v.product_id,
-        name: prod?.name || 'Producto Desconocido',
-        sku: prod?.sku || 'S/N',
-        price: prod?.price || 0,
-        size: v.sizes?.name || 'ÚNICO',
-        color: v.colors?.name || 'ÚNICO',
-        sizeId: v.size_id,
-        colorId: v.color_id,
-        finished_qty: v.finished_quantity || 0
-      };
-    }).filter(v => v.name.toLowerCase().includes(searchTerm.toLowerCase()) || v.sku.toLowerCase().includes(searchTerm.toLowerCase()));
+    const safeSearch = searchTerm.trim().toLowerCase();
+    
+    return inventory
+      .filter(v => (v.finished_quantity || 0) > 0)
+      .map(v => {
+        const prod = products.find(p => p.id === v.product_id);
+        return {
+          variantId: v.id,
+          productId: v.product_id || '',
+          name: prod?.name || 'Producto Desconocido',
+          sku: prod?.sku || 'S/N',
+          price: prod?.price || 0,
+          size: v.sizes?.name || 'ÚNICO',
+          color: v.colors?.name || 'ÚNICO',
+          sizeId: v.size_id || '',
+          colorId: v.color_id || '',
+          finished_qty: v.finished_quantity || 0
+        };
+      })
+      .filter(v => {
+        if (!safeSearch) return true;
+        const nameMatch = v.name?.toLowerCase().includes(safeSearch);
+        const skuMatch = v.sku?.toLowerCase().includes(safeSearch);
+        return nameMatch || skuMatch;
+      });
   }, [inventory, products, searchTerm]);
 
   const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
@@ -105,31 +115,33 @@ export const POSDashboard = () => {
     if (result.isConfirmed) {
       setIsProcessing(true);
       try {
-        console.log("1. Descontando stock del inventario...");
+        // En un ERP real, el RPC 'processSale' debería recibir el tipo de pago 
+        // para afectar la tabla orders, account_movements y treasury en una SOLA transacción atómica DB.
+        // Como dependemos de dos Stores distintos, manejamos una transacción de frontend (semi-robusta).
+        
         await processSale(selectedCustomer, cart, cartTotal);
         
+        // Manejo Condicional de Finanzas
         if (paymentMethod === 'CUENTA_CORRIENTE') {
-          console.log("2. Guardando deuda en la cuenta consolidada...");
-          
-          // ✅ FIX: Usamos el Store centralizado para garantizar sincronización atómica
           const success = await addMovement({
             customer_id: selectedCustomer,
             movement_type: 'CARGO',
             amount: cartTotal,
-            description: `Venta POS - ${cart.length} artículos`,
+            description: `Venta POS - Remito Interno (Cta Cte)`,
             date: new Date().toISOString()
           });
-          
-          if (!success) {
-            throw new Error(`El sistema rechazó el movimiento en la Cuenta Corriente.`);
-          }
+          if (!success) throw new Error('Se descontó stock pero falló la carga en Cuenta Corriente.');
+        } else {
+           // Aquí idealmente debería inyectarse un record a "treasury" (Caja/Bancos) 
+           // para asentar el dinero físico/transferido ingresado.
+           console.log(`[Tesorería Audit] Pendiente registro de ingreso por ${paymentMethod}`);
         }
 
         Swal.fire(
           '¡Venta Registrada!', 
           paymentMethod === 'CUENTA_CORRIENTE' 
-            ? 'Mercadería descontada y saldo cargado en la Cuenta Corriente del cliente.'
-            : 'La mercadería se descontó del galpón correctamente.', 
+            ? 'Mercadería descontada y saldo cargado en la Cta. Corriente.'
+            : 'Venta registrada y mercadería descontada.', 
           'success'
         );
         
@@ -138,8 +150,8 @@ export const POSDashboard = () => {
         setPaymentMethod('EFECTIVO'); 
         
       } catch (error: any) {
-        console.error("❌ Fallo capturado:", error);
-        Swal.fire('Error Crítico', error.message || 'No se pudo procesar la venta.', 'error');
+        console.error("❌ Fallo capturado en Checkout:", error);
+        Swal.fire('Atención Requerida', error.message || 'Error en la sincronización de datos de venta.', 'error');
       } finally {
         setIsProcessing(false);
       }
@@ -156,7 +168,7 @@ export const POSDashboard = () => {
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">🔍</div>
             <input 
-              type="text" placeholder="Buscar artículo listo para entregar..." 
+              type="text" placeholder="Buscar artículo listo por nombre o SKU..." 
               value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-700 dark:text-white outline-none focus:border-blue-500 transition-colors"
             />
@@ -189,7 +201,7 @@ export const POSDashboard = () => {
             ))}
             {availableVariants.length === 0 && (
               <div className="col-span-full py-20 text-center text-slate-400 font-bold">
-                No hay stock terminado para vender. Usá el inventario para acondicionar prendas.
+                No hay stock terminado o coincidencia de búsqueda.
               </div>
             )}
           </div>
@@ -197,13 +209,13 @@ export const POSDashboard = () => {
       </div>
 
       {/* PANEL DERECHO: COMANDA B2B */}
-      <div className="w-96 flex flex-col bg-slate-900 rounded-3xl border border-slate-800 shadow-xl overflow-hidden text-white flex-shrink-0">
-        <div className="p-6 border-b border-slate-800">
-          <h2 className="text-lg font-black uppercase tracking-widest text-indigo-400 mb-4">Comanda B2B</h2>
+      <div className="w-96 flex flex-col bg-slate-100 dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden text-slate-900 dark:text-white flex-shrink-0">
+        <div className="p-6 border-b border-slate-200 dark:border-slate-800">
+          <h2 className="text-lg font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-4">Comanda B2B</h2>
           <select 
             value={selectedCustomer} 
             onChange={(e) => setSelectedCustomer(e.target.value)}
-            className="w-full p-3 bg-slate-950 border border-slate-700 rounded-xl text-sm font-bold text-white outline-none focus:border-indigo-500"
+            className="w-full p-3 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500"
           >
             <option value="">-- Asignar Cliente / Institución --</option>
             {customers.map(c => (
@@ -212,51 +224,51 @@ export const POSDashboard = () => {
           </select>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-950/50">
+        <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-50 dark:bg-slate-950/50">
           {cart.map(item => (
-            <div key={item.variantId} className="bg-slate-800 p-3 rounded-xl flex justify-between items-center border border-slate-700">
+            <div key={item.variantId} className="bg-white dark:bg-slate-800 p-3 rounded-xl flex justify-between items-center border border-slate-200 dark:border-slate-700">
               <div className="flex-1 min-w-0 pr-3">
                 <p className="text-xs font-black truncate">{item.name}</p>
                 <p className="text-[9px] text-slate-400 uppercase">{item.size} | {item.color}</p>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-xs font-bold text-indigo-300">{item.qty} un.</span>
-                <button onClick={() => removeFromCart(item.variantId)} className="text-slate-500 hover:text-rose-500 transition-colors">✕</button>
+                <span className="text-xs font-bold text-indigo-600 dark:text-indigo-300">{item.qty} un.</span>
+                <button onClick={() => removeFromCart(item.variantId)} className="text-slate-400 dark:text-slate-500 hover:text-rose-500 transition-colors">✕</button>
               </div>
             </div>
           ))}
           {cart.length === 0 && (
-            <div className="h-full flex items-center justify-center text-slate-600 text-sm font-bold text-center px-6">
+            <div className="h-full flex items-center justify-center text-slate-400 dark:text-slate-600 text-sm font-bold text-center px-6">
               Seleccioná prendas del catálogo para armar el pedido.
             </div>
           )}
         </div>
 
-        <div className="p-6 bg-slate-900 border-t border-slate-800">
+        <div className="p-6 bg-slate-200 dark:bg-slate-900 border-t border-slate-300 dark:border-slate-800">
           
           <div className="mb-6">
-            <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block tracking-widest">Medio de Pago / Condición</label>
+            <label className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 mb-2 block tracking-widest">Condición de Venta</label>
             <select
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value)}
-              className="w-full p-3 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white outline-none focus:border-emerald-500 transition-all"
+              className="w-full p-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-bold text-slate-900 dark:text-white outline-none focus:border-emerald-500 transition-all"
             >
               <option value="EFECTIVO">💵 Contado / Efectivo</option>
               <option value="TRANSFERENCIA">🏦 Transferencia / Billetera</option>
-              <option value="CUENTA_CORRIENTE">📒 Fiar (Anotar en Cta. Corriente)</option>
+              <option value="CUENTA_CORRIENTE">📒 Cta. Cte. (Generar Deuda)</option>
             </select>
           </div>
 
           <div className="flex justify-between items-end mb-6">
-            <span className="text-xs font-black uppercase text-slate-400 tracking-widest">Total Venta</span>
-            <span className="text-3xl font-black text-emerald-400">${cartTotal.toLocaleString('es-AR')}</span>
+            <span className="text-xs font-black uppercase text-slate-500 dark:text-slate-400 tracking-widest">Total Venta</span>
+            <span className="text-3xl font-black text-emerald-600 dark:text-emerald-400">${cartTotal.toLocaleString('es-AR')}</span>
           </div>
 
           <button 
             onClick={handleCheckout}
-            disabled={cart.length === 0 || isProcessing}
+            disabled={cart.length === 0 || isProcessing || !selectedCustomer}
             className={`w-full py-4 rounded-xl font-black uppercase tracking-widest text-sm transition-all ${
-              cart.length > 0 
+              cart.length > 0 && selectedCustomer && !isProcessing
                 ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 active:scale-95' 
                 : 'bg-slate-800 text-slate-600 cursor-not-allowed'
             }`}

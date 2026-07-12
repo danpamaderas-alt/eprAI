@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { useTenantStore } from './useTenantStore';
+import type { PostgrestError } from '@supabase/supabase-js';
 
-// --- INTERFACES BLINDADAS CONTRA NULL DE SUPABASE ---
 export interface CatalogItem { 
   id: string; 
   name: string; 
@@ -43,6 +43,9 @@ export interface Customer {
   company?: string | null; 
   phone?: string | null; 
   balance: number | null; 
+  type: string;
+  loyalty_points?: number | null;
+  portal_access?: boolean | null;
 }
 
 export interface ProductVariant {
@@ -80,7 +83,7 @@ interface CatalogState {
   updateProductComplete: (productId: string, updates: Partial<Product>) => Promise<void>;
   updateStock: (productId: string, sizeId: string, colorId: string, quantity: number) => Promise<void>;
   transformToFinished: (variantId: string, quantityToTransform: number) => Promise<void>; 
-  processSale: (_customerId: string, cart: CartItem[], _total: number) => Promise<void>;
+  processSale: (customerId: string, cart: CartItem[], total: number) => Promise<void>;
   
   addService: (data: Omit<Service, 'id' | 'company_id'>) => Promise<Service>;
   addCustomer: (data: Omit<Customer, 'id' | 'balance' | 'company_id'>) => Promise<Customer>;
@@ -103,176 +106,123 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
   isLoading: false,
 
   fetchAllCatalogs: async () => {
-    set({ isLoading: true });
     const companyId = useTenantStore.getState().activeCompanyId;
+    if (!companyId) return;
 
-    // ⚡ FUNCIÓN SALVAVIDAS: Si una tabla falla, devuelve un arreglo vacío pero no rompe el sistema
-    // SEGURIDAD: Reemplazamos "any" por un Genérico seguro de TypeScript
-    const fetchSafe = async <T,>(query: PromiseLike<{ data: T | null; error: any }>) => {
+    set({ isLoading: true });
+
+    const fetchSafe = async <T,>(query: PromiseLike<{ data: T[] | null; error: PostgrestError | null }>): Promise<{ data: T[] }> => {
       try {
         const res = await query;
         if (res.error) {
-          console.warn('Advertencia (Tabla no encontrada o sin permisos):', res.error.message);
+          console.error('Fetch error:', res.error.message);
           return { data: [] };
         }
-        return res;
+        return { data: res.data || [] };
       } catch (e) {
+        console.error('Unexpected fetch error:', e);
         return { data: [] };
       }
     };
 
     try {
-      // ⚡ PLAN B PARA EL INVENTARIO: Si fallan las relaciones de talles/colores, lo traemos de forma simple
-      let inventoryQuery = await supabase.from('product_variants').select('*, sizes(name), colors(name)');
-      if (inventoryQuery.error) {
-        console.warn('Falló el cruce complejo de variantes, activando modo seguro...');
-        inventoryQuery = await supabase.from('product_variants').select('*');
-      }
-
-      // ⚡ AQUÍ ESTÁ LA CORRECCIÓN: Cambiamos la consulta de products a select('*')
-      const [ resSizes, resColors, resPayments, resUnits, resProducts, resCustomers, resPerso, resServices ] = await Promise.all([
-        fetchSafe(supabase.from('sizes').select('*').order('name')),
-        fetchSafe(supabase.from('colors').select('*').order('name')),
-        fetchSafe(supabase.from('payment_methods').select('*').order('name')),
-        fetchSafe(supabase.from('business_units').select('*').order('name')),
-        fetchSafe(supabase.from('products').select('*').eq('company_id', companyId).order('name')),
-        fetchSafe(supabase.from('customers').select('*').eq('company_id', companyId).order('name')),
-        fetchSafe(supabase.from('personalization_types').select('*').order('name')),
-        fetchSafe(supabase.from('services').select('*').eq('company_id', companyId).order('name')),
+      const [
+        resSizes,
+        resColors,
+        resPayments,
+        resUnits,
+        resProducts,
+        resCustomers,
+        resPerso,
+        resServices,
+        inventoryQuery
+      ] = await Promise.all([
+        fetchSafe<CatalogItem>(supabase.from('sizes').select('id, name').order('name')),
+        fetchSafe<CatalogItem>(supabase.from('colors').select('id, name, hex_code').order('name')),
+        fetchSafe<CatalogItem>(supabase.from('payment_methods').select('id, name').order('name')),
+        fetchSafe<BusinessUnit>(supabase.from('business_units').select('id, code, name').order('name')),
+        fetchSafe<Product>(supabase.from('products').select('id, company_id, sku, name, category, cost_price, price').eq('company_id', companyId).order('name')),
+        fetchSafe<Customer>(supabase.from('customers').select('id, company_id, name, company, phone, balance, type, loyalty_points, portal_access').eq('company_id', companyId).order('name')),
+        fetchSafe<CatalogItem>(
+          // @ts-expect-error personalization_types may not be in generated types
+          supabase.from('personalization_types').select('id, name, base_price').eq('company_id', companyId).order('name')
+        ),
+        fetchSafe<Service>(supabase.from('services').select('id, company_id, name, price, description').eq('company_id', companyId).order('name')),
+        
+        fetchSafe<ProductVariant>(
+          supabase.from('product_variants')
+            .select('id, product_id, size_id, color_id, stock_quantity, base_quantity, finished_quantity, sizes(name), colors(name), products!inner(id, company_id, name, category, price, cost_price)')
+            .eq('products.company_id', companyId)
+        )
       ]);
 
       set({ 
-        sizes: (resSizes.data as CatalogItem[]) || [], 
-        colors: (resColors.data as CatalogItem[]) || [], 
-        paymentMethods: (resPayments.data as CatalogItem[]) || [],
-        businessUnits: (resUnits.data as BusinessUnit[]) || [], 
-        products: (resProducts.data as Product[]) || [], 
-        customers: (resCustomers.data as Customer[]) || [],
-        personalizationTypes: (resPerso.data as CatalogItem[]) || [], 
-        inventory: (inventoryQuery.data as ProductVariant[]) || [], 
-        services: (resServices.data as Service[]) || [], 
+        sizes: resSizes.data, 
+        colors: resColors.data, 
+        paymentMethods: resPayments.data,
+        businessUnits: resUnits.data, 
+        products: resProducts.data, 
+        customers: resCustomers.data,
+        personalizationTypes: resPerso.data, 
+        inventory: inventoryQuery.data, 
+        services: resServices.data, 
         isLoading: false 
       });
     } catch (error) { 
-      console.error('Error general en fetchAllCatalogs:', error); 
+      console.error('Error fetching catalogs:', error); 
       set({ isLoading: false }); 
     }
   },
 
   updateProductComplete: async (productId, updates) => {
-    try {
-      const { error } = await supabase.from('products').update(updates).eq('id', productId);
-      if (error) throw error;
-      await get().fetchAllCatalogs();
-    } catch (error) { 
-      console.error('Error al actualizar producto:', error); 
-      throw error; 
-    }
+    const { error } = await supabase.from('products').update(updates).eq('id', productId);
+    if (error) throw error;
+    await get().fetchAllCatalogs();
   },
 
- updateStock: async (productId, sizeId, colorId, quantity) => {
-    try {
-      // TODO (ESCALABILIDAD): Alerta de "Race Condition".
-      // Leer y luego escribir en 2 pasos separados puede causar inconsistencias en red.
-      // Próximo paso sugerido: Migrar esta lógica a una función RPC (ej. 'upsert_stock') en Supabase.
-      const { data: existing, error: searchError } = await supabase
-        .from('product_variants')
-        .select('*')
-        .eq('product_id', productId)
-        .eq('size_id', sizeId)
-        .eq('color_id', colorId)
-        .single();
-
-      if (searchError && searchError.code !== 'PGRST116') {
-        throw searchError; 
-      }
-      
-      if (existing) {
-        const newTotal = (existing.stock_quantity || 0) + quantity;
-        const newBase = (existing.base_quantity || 0) + quantity;
-        
-        const { error: updateError } = await supabase.from('product_variants').update({ 
-          stock_quantity: newTotal,
-          base_quantity: newBase 
-        }).eq('id', existing.id);
-
-        if (updateError) throw updateError; 
-
-      } else {
-        const { error: insertError } = await supabase.from('product_variants').insert([{ 
-          product_id: productId, 
-          size_id: sizeId, 
-          color_id: colorId, 
-          stock_quantity: quantity,
-          base_quantity: quantity 
-        }]);
-
-        if (insertError) throw insertError; 
-      }
-      await get().fetchAllCatalogs();
-    } catch (error) { 
-      console.error('🔥 Error Real en updateStock:', error); 
-      throw error; 
-    }
+  updateStock: async (productId, sizeId, colorId, quantity) => {
+    const { error } = await supabase.rpc('upsert_stock', {
+      p_product_id: productId,
+      p_size_id: sizeId,
+      p_color_id: colorId,
+      p_quantity: Number(quantity)
+    });
+    if (error) throw error; 
+    await get().fetchAllCatalogs();
   },
 
   transformToFinished: async (variantId, quantityToTransform) => {
-    try {
-      // TODO (ESCALABILIDAD): Alerta de "Race Condition".
-      // Múltiples usuarios acondicionando prendas a la vez podrían evadir la validación (baseActual >= quantityToTransform).
-      // Próximo paso sugerido: Migrar a función RPC atómica en Supabase.
-      const { data: item, error: fetchError } = await supabase.from('product_variants').select('*').eq('id', variantId).single();
-      if (fetchError) throw fetchError;
-
-      const baseActual = item.base_quantity || 0;
-      const termActual = item.finished_quantity || 0;
-
-      if (baseActual >= quantityToTransform) {
-        const newBase = baseActual - quantityToTransform;
-        const newFinished = termActual + quantityToTransform;
-
-        const { error: updateError } = await supabase.from('product_variants').update({
-            base_quantity: newBase,
-            finished_quantity: newFinished
-          }).eq('id', variantId);
-
-        if (updateError) throw updateError;
-        await get().fetchAllCatalogs();
-      } else {
-        throw new Error('No hay suficientes prendas lisas para esta operación.');
-      }
-    } catch (error) {
-      console.error('Error al acondicionar:', error);
-      throw error;
+    const { error } = await supabase.rpc('transform_to_finished', {
+      p_variant_id: variantId,
+      p_quantity: Number(quantityToTransform)
+    });
+    if (error) {
+       if (error.message.includes('No hay suficientes prendas lisas')) {
+           throw new Error('No hay suficientes prendas lisas para esta operación.');
+       }
+       throw error;
     }
+    await get().fetchAllCatalogs();
   },
 
   processSale: async (customerId, cart, total) => {
-    try {
-      // Mapeamos el carrito al formato JSONB que espera la función de Supabase
-      const cartItems = cart.map(item => ({
-        variantId: item.variantId,
-        qty: item.qty
-      }));
+    const cartItems = cart.map(item => ({
+      variantId: item.variantId,
+      qty: item.qty
+    }));
 
-      // Llamamos a la función atómica (RPC) en Supabase
-      const { error } = await supabase.rpc('process_sale_atomic', {
-        customer_id_param: customerId,
-        cart_items: cartItems,
-        total_amount_param: total
-      });
-
-      if (error) throw error;
-
-      await get().fetchAllCatalogs();
-    } catch (error) {
-      console.error('Error descontando stock en la venta (RPC):', error);
-      throw error;
-    }
+    const { error } = await supabase.rpc('process_sale_atomic', {
+      customer_id_param: customerId,
+      cart_items: cartItems,
+      total_amount_param: total
+    });
+    if (error) throw error;
+    await get().fetchAllCatalogs();
   },
 
   addService: async (serviceData) => {
     const companyId = useTenantStore.getState().activeCompanyId;
+    if (!companyId) throw new Error('No hay compañía activa.');
     const { data, error } = await supabase.from('services').insert([{ ...serviceData, company_id: companyId }]).select().single();
     if (error) throw error;
     set((state) => ({ services: [...state.services, data as Service].sort((a, b) => a.name.localeCompare(b.name)) }));
@@ -281,7 +231,8 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
 
   addCustomer: async (customerData) => {
     const companyId = useTenantStore.getState().activeCompanyId;
-    const { data, error } = await supabase.from('customers').insert([{ ...customerData, company_id: companyId }]).select().single();
+    if (!companyId) throw new Error('No hay compañía activa.');
+    const { data, error } = await supabase.from('customers').insert([{ ...customerData, type: customerData.type || 'minorista', company_id: companyId }]).select().single();
     if (error) throw error;
     set((state) => ({ customers: [...state.customers, data as Customer].sort((a, b) => a.name.localeCompare(b.name)) }));
     return data as Customer;
@@ -289,7 +240,16 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
 
   addProduct: async (productData) => {
     const companyId = useTenantStore.getState().activeCompanyId;
-    const { data, error } = await supabase.from('products').insert([{ ...productData, company_id: companyId }]).select().single();
+    if (!companyId) throw new Error('No hay compañía activa.');
+    const insertData = {
+      ...productData,
+      category: productData.category ?? 'general',
+      // Supabase schema requires price as number, not null
+      ...(productData.price != null ? { price: productData.price } : {}),
+      company_id: companyId
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await supabase.from('products').insert([insertData as any]).select().single();
     if (error) throw error;
     set((state) => ({ products: [...state.products, data as Product].sort((a, b) => a.name.localeCompare(b.name)) }));
     return data as Product;
@@ -309,10 +269,24 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
     return data as CatalogItem;
   },
 
-  addPersonalizationType: async (name, base_price) => {
-    const { data, error } = await supabase.from('personalization_types').insert([{ name, base_price }]).select().single();
+  addPersonalizationType: async (name, price) => {
+    const companyId = useTenantStore.getState().activeCompanyId;
+    if (!companyId) throw new Error('No hay compañía activa.');
+    const { data, error } = await supabase
+      // @ts-expect-error personalization_types may not be in generated types
+      .from('personalization_types')
+      .insert([{ name, base_price: price, company_id: companyId }])
+      .select('id, name, base_price')
+      .single();
     if (error) throw error;
-    set((state) => ({ personalizationTypes: [...state.personalizationTypes, data as CatalogItem].sort((a, b) => a.name.localeCompare(b.name)) }));
-    return data as CatalogItem;
+    
+    const mappedData: CatalogItem = {
+      id: data.id,
+      name: data.name,
+      base_price: data.base_price
+    };
+    
+    set((state: CatalogState) => ({ personalizationTypes: [...state.personalizationTypes, mappedData].sort((a, b) => a.name.localeCompare(b.name)) }));
+    return mappedData;
   }
 }));

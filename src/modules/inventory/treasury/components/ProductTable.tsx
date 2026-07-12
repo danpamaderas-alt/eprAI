@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { createColumnHelper, flexRender, getCoreRowModel, useReactTable, getSortedRowModel } from '@tanstack/react-table';
 import { supabase } from '../../../../lib/supabase'; // 🚀 CONEXIÓN A SUPABASE PARA LEER LOS NICHOS
 import Swal from 'sweetalert2';
+import { ARS } from '../../../../shared/utils/format';
 
 interface Variation {
   id: string;
@@ -34,7 +35,6 @@ interface ProductTableProps {
   onEditFullProduct: (product: ProductRow) => void;
 }
 
-const ARS = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 const columnHelper = createColumnHelper<ProductRow>();
 
 export const ProductTable = ({ data, onDelete, deleteVariation, onUpdateStock, onEditFullProduct }: ProductTableProps) => {

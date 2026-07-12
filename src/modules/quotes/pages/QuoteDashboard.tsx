@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import Swal from 'sweetalert2';
 import { useCatalogStore, type Product } from '../../../store/useCatalogStore';
+import { useTenantStore } from '../../../store/useTenantStore';
 import { generateQuotePDF } from '../../../utils/printQuotePDF';
 
 // Interfaces
@@ -42,10 +43,14 @@ export const QuoteDashboard = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
+      const companyId = useTenantStore.getState().activeCompanyId;
+      if (!companyId) throw new Error('No hay empresa activa');
+
       // 1. Cargamos los clientes para el buscador
       const { data: clientsData, error: clientsError } = await supabase
         .from('customers')
         .select('*')
+        .eq('company_id', companyId)
         .order('name');
         
       if (clientsError) throw clientsError;
@@ -55,14 +60,16 @@ export const QuoteDashboard = () => {
       const { data: quotesData, error: quotesError } = await supabase
         .from('quotes')
         .select('*, customers(name)')
+        .eq('company_id', companyId)
         .order('created_at', { ascending: false });
         
       if (quotesError) throw quotesError;
       setQuotes(quotesData || []);
       
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Error desconocido';
       console.error("Error detectado:", error);
-      Swal.fire('Error de Conexión', `No pudimos cargar los datos: ${error.message}`, 'error');
+      Swal.fire('Error de Conexión', `No pudimos cargar los datos: ${message}`, 'error');
     } finally {
       setIsLoading(false);
     }
@@ -107,7 +114,7 @@ export const QuoteDashboard = () => {
       };
 
       generateQuotePDF(quoteForPdf, items || []);
-    } catch (error) {
+    } catch {
       Swal.fire('Error', 'No se pudo generar el PDF.', 'error');
     }
   };
@@ -118,6 +125,9 @@ export const QuoteDashboard = () => {
     if (quoteItems.some(i => !i.product_id)) return Swal.fire('Atención', 'Todos los renglones deben tener un producto.', 'warning');
 
     try {
+      const companyId = useTenantStore.getState().activeCompanyId;
+      if (!companyId) throw new Error('No hay company_id activo');
+
       const quoteNumber = `PRE-${String(quotes.length + 1).padStart(3, '0')}`;
       const totalAmount = calculateTotal();
 

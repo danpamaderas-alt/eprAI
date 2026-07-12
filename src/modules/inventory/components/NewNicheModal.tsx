@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import Swal from 'sweetalert2';
 import { supabase } from '../../../lib/supabase';
+import { useTenantStore } from '../../../store/useTenantStore';
 
 interface NewNicheModalProps {
   isOpen: boolean;

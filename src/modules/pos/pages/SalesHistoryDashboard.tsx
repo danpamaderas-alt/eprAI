@@ -1,83 +1,99 @@
-import { useState, useEffect, useMemo } from 'react';
-import { supabase } from '../../../lib/supabase'; // Asegurate de que la ruta a supabase sea la correcta
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { supabase } from '../../../lib/supabase';
+import { useTenantStore } from '../../../store/useTenantStore'; // <-- 1. Importar Tenant
 import { Calendar, Search, FileText, X } from 'lucide-react';
 
 // --- INTERFACES PARA SEGURIDAD DE TIPADO ---
-interface SaleRecord {
-  id: string;
-  customer_id?: string;
-  created_at: string;
-  total_amount?: number;
-  total?: number;
-  items?: any[];
+// Interfaz para un item dentro del JSONB de la orden
+interface OrderItemRecord {
+  name?: string;
+  productName?: string;
+  size?: string;
+  color?: string;
+  qty?: number;
+  quantity?: number;
+  price: number;
 }
 
-interface CustomerRecord {
+// Interfaz para el registro de la orden, alineada con la tabla 'orders'
+interface OrderRecord {
   id: string;
-  name: string;
+  customer_id?: string;
+  customer_name: string; // <-- Campo clave para eficiencia
+  created_at: string;
+  total_amount: number;
+  items: OrderItemRecord[]; // <-- JSONB con items
 }
 
 export const SalesHistoryDashboard = () => {
-  const [sales, setSales] = useState<SaleRecord[]>([]);
-  const [customers, setCustomers] = useState<CustomerRecord[]>([]);
+  const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  
-  // Estado para el modal de detalle del ticket (Cambiamos el any por un tipo dinámico)
-  const [selectedSale, setSelectedSale] = useState<SaleRecord & { customerName?: string } | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
+  const companyId = useTenantStore((state) => state.activeCompanyId); // <-- Obtener companyId
 
-  // 1. CARGAR LAS VENTAS Y LOS CLIENTES DESDE SUPABASE
-  const fetchHistory = async () => {
+  // 1. CARGAR LAS VENTAS DESDE LA TABLA 'orders'
+  const fetchHistory = useCallback(async () => {
+    if (!companyId) return; // No hacer nada si no hay una empresa activa
     setIsLoading(true);
     try {
-      // Traemos los clientes para cruzar los nombres
-      const { data: custData } = await supabase.from('customers').select('id, name');
-      if (custData) setCustomers(custData);
-
-      // Traemos las ventas (Ajustá 'sales' o 'orders' según cómo se llame tu tabla en Supabase)
-      // Asumimos que la tabla de ventas POS se llama 'sales'
-      const { data: salesData, error } = await supabase
-        .from('sales') 
-        .select('*')
+      // ✅ Refactorización: Apuntamos a la tabla 'orders' y filtramos por empresa
+      const { data: ordersData, error } = await supabase
+        .from('orders') 
+        // ✅ VANGUARDIA: Seleccionamos columnas explícitas para evitar errores y sobrecarga
+        .select('id, customer_id, customer_name, created_at, total_amount, items')
+        .eq('company_id', companyId) // ✅ SEGURIDAD: Filtro Multi-Tenant
         .order('created_at', { ascending: false })
-        .limit(100); // <-- VANGUARDIA: Límite precautorio. Considerar paginación a futuro.
+        .limit(100); // <-- Límite precautorio.
 
       if (error) {
-        // Si tira error porque la tabla POS se llama 'orders', te aviso por consola
-        console.warn("Aviso: Revisá si tu tabla de ventas se llama 'sales' u 'orders'.", error);
-      } else if (salesData) {
-        setSales(salesData as SaleRecord[]);
+        console.error("Error cargando el historial de ventas desde 'orders':", error);
+        throw error;
       }
+      
+      setOrders(ordersData as unknown as OrderRecord[]);
+
     } catch (err) {
       console.error(err);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [companyId]);
 
   useEffect(() => {
-    fetchHistory();
-  }, []);
+    let active = true;
+    const load = async () => {
+      await Promise.resolve();
+      if (active) {
+        fetchHistory();
+      }
+    };
+    load();
+    return () => {
+      active = false;
+    };
+  }, [fetchHistory]); // <-- Re-fetch si cambia la empresa
 
-  // 2. FILTRAR VENTAS POR BÚSQUEDA
-  const filteredSales = useMemo(() => {
-    if (!searchTerm) return sales;
+  // 2. FILTRAR VENTAS POR BÚSQUEDA (AHORA MÁS EFICIENTE)
+  const filteredOrders = useMemo(() => {
+    if (!searchTerm) return orders;
     const lowerSearch = searchTerm.toLowerCase();
     
-    return sales.filter(sale => {
-      // Buscamos el nombre del cliente
-      const customerName = customers.find(c => c.id === sale.customer_id)?.name?.toLowerCase() || '';
+    return orders.filter(order => {
+      // ✅ Refactorización: Usamos el 'customer_name' que ya viene en la orden
+      const customerName = order.customer_name?.toLowerCase() || '';
       return (
         customerName.includes(lowerSearch) || 
-        sale.id?.toLowerCase().includes(lowerSearch)
+        order.id?.toLowerCase().includes(lowerSearch)
       );
     });
-  }, [sales, searchTerm, customers]);
+  }, [orders, searchTerm]);
 
   // 3. CÁLCULO DEL TOTAL RECAUDADO EN PANTALLA
   const totalRevenue = useMemo(() => {
-    return filteredSales.reduce((acc, curr) => acc + Number(curr.total_amount || curr.total || 0), 0);
-  }, [filteredSales]);
+    // ✅ Refactorización: Usamos 'total_amount' y el estado filtrado correcto
+    return filteredOrders.reduce((acc, curr) => acc + Number(curr.total_amount || 0), 0);
+  }, [filteredOrders]);
 
   return (
     <div className="p-8 max-w-7xl mx-auto animate-in fade-in duration-500">
@@ -97,7 +113,7 @@ export const SalesHistoryDashboard = () => {
         <div className="bg-slate-900 border border-slate-800 px-6 py-4 rounded-2xl flex items-center gap-6 shadow-xl">
           <div>
             <p className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-1">Tickets</p>
-            <p className="text-xl font-black text-white">{filteredSales.length}</p>
+            <p className="text-xl font-black text-white">{filteredOrders.length}</p>
           </div>
           <div className="w-px h-8 bg-slate-700"></div>
           <div>
@@ -139,21 +155,21 @@ export const SalesHistoryDashboard = () => {
                     Cargando registro de ventas...
                   </td>
                 </tr>
-              ) : filteredSales.length === 0 ? (
+              ) : filteredOrders.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="p-12 text-center font-black text-slate-400 uppercase tracking-widest text-xs">
                     No se encontraron ventas registradas
                   </td>
                 </tr>
               ) : (
-                filteredSales.map((sale) => {
-                  const customerName = customers.find(c => c.id === sale.customer_id)?.name || 'Cliente Ocasional';
-                  const date = new Date(sale.created_at);
-                  const itemsCount = sale.items?.length || 0;
-                  const total = Number(sale.total_amount || sale.total || 0);
+                filteredOrders.map((order) => {
+                  const customerName = order.customer_name || 'Cliente Ocasional';
+                  const date = new Date(order.created_at);
+                  const itemsCount = order.items?.length || 0;
+                  const total = Number(order.total_amount || 0);
 
                   return (
-                    <tr key={sale.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group">
+                    <tr key={order.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group">
                       <td className="px-6 py-5">
                         <div className="flex items-center gap-3">
                           <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-lg text-slate-500">
@@ -161,7 +177,7 @@ export const SalesHistoryDashboard = () => {
                           </div>
                           <div className="flex flex-col">
                             <span className="font-black text-sm text-slate-900 dark:text-white uppercase">{date.toLocaleDateString('es-AR')}</span>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">#{sale.id.split('-')[0].toUpperCase()}</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">#{order.id.split('-')[0].toUpperCase()}</span>
                           </div>
                         </div>
                       </td>
@@ -180,7 +196,7 @@ export const SalesHistoryDashboard = () => {
                       </td>
                       <td className="px-6 py-5 text-center">
                         <button 
-                          onClick={() => setSelectedSale({...sale, customerName})}
+                          onClick={() => setSelectedOrder(order)}
                           className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white rounded-xl transition-all shadow-sm opacity-100 md:opacity-0 group-hover:opacity-100"
                           title="Ver Ticket"
                         >
@@ -190,23 +206,23 @@ export const SalesHistoryDashboard = () => {
                     </tr>
                   );
                 })
-              )
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
       {/* ✅ MODAL FLOTANTE PARA VER EL TICKET COMPLETO */}
-      {selectedSale && (
+      {selectedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-4xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
             
             <div className="p-6 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
               <div>
                 <h3 className="font-black text-lg text-slate-900 dark:text-white uppercase italic tracking-tighter">Detalle de Venta</h3>
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Ticket #{selectedSale.id.split('-')[0].toUpperCase()}</p>
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Ticket #{selectedOrder.id.split('-')[0].toUpperCase()}</p>
               </div>
-              <button onClick={() => setSelectedSale(null)} className="text-slate-400 hover:text-rose-500 bg-white dark:bg-slate-800 p-2 rounded-full transition-colors">
+              <button onClick={() => setSelectedOrder(null)} className="text-slate-400 hover:text-rose-500 bg-white dark:bg-slate-800 p-2 rounded-full transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -215,25 +231,25 @@ export const SalesHistoryDashboard = () => {
               <div className="flex justify-between items-center mb-6 pb-6 border-b border-slate-100 dark:border-slate-800">
                 <div>
                   <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Cliente</p>
-                  <p className="font-black text-slate-900 dark:text-white uppercase">{selectedSale.customerName}</p>
+                  <p className="font-black text-slate-900 dark:text-white uppercase">{selectedOrder.customer_name}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Fecha</p>
-                  <p className="font-black text-slate-900 dark:text-white uppercase">{new Date(selectedSale.created_at).toLocaleString('es-AR')}</p>
+                  <p className="font-black text-slate-900 dark:text-white uppercase">{new Date(selectedOrder.created_at).toLocaleString('es-AR')}</p>
                 </div>
               </div>
 
               <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-4">Artículos Vendidos</p>
               <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
-                {selectedSale.items?.map((item, i: number) => (
+                {selectedOrder.items?.map((item, i: number) => (
                   <div key={i} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
                     <div className="flex-1">
                       <p className="font-bold text-xs text-slate-900 dark:text-white uppercase">{item.name || item.productName}</p>
                       <p className="text-[10px] text-slate-500 uppercase mt-0.5">{item.size} | {item.color}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-black text-sm text-slate-700 dark:text-slate-300">x{item.qty || item.quantity}</p>
-                      <p className="text-[10px] font-bold text-emerald-500">${(item.price * (item.qty || item.quantity)).toLocaleString('es-AR')}</p>
+                      <p className="font-black text-sm text-slate-700 dark:text-slate-300">x{item.qty || item.quantity || 0}</p>
+                      <p className="text-[10px] font-bold text-emerald-500">${(item.price * (item.qty || item.quantity || 0)).toLocaleString('es-AR')}</p>
                     </div>
                   </div>
                 ))}
@@ -243,7 +259,7 @@ export const SalesHistoryDashboard = () => {
             <div className="p-6 bg-slate-900 border-t border-slate-800 flex justify-between items-center">
               <span className="text-xs font-black uppercase text-slate-400 tracking-widest">Total Abonado</span>
               <span className="text-3xl font-black text-emerald-400 tracking-tighter">
-                ${Number(selectedSale.total_amount || selectedSale.total || 0).toLocaleString('es-AR')}
+                ${Number(selectedOrder.total_amount || 0).toLocaleString('es-AR')}
               </span>
             </div>
 

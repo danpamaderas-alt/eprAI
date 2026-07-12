@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../../../lib/supabase';
+import { useTenantStore } from '../../../store/useTenantStore';
 import Swal from 'sweetalert2';
 
 export interface Reseller {
@@ -34,8 +35,11 @@ export const useResellerStore = create<ResellerState>((set) => ({
 
   fetchData: async () => {
     set({ isLoading: true });
+    const companyId = useTenantStore.getState().activeCompanyId;
+    if (!companyId) { set({ isLoading: false }); return; }
+
     const [resData, txData] = await Promise.all([
-      supabase.from('resellers').select('*').order('name', { ascending: true }),
+      supabase.from('resellers').select('*').eq('company_id', companyId).order('name', { ascending: true }),
       supabase.from('reseller_transactions').select('*').order('date', { ascending: false })
     ]);
 
@@ -47,8 +51,11 @@ export const useResellerStore = create<ResellerState>((set) => ({
   },
 
   addReseller: async (name, phone) => {
+    const companyId = useTenantStore.getState().activeCompanyId;
+    if (!companyId) throw new Error('No hay company_id activo');
+
     const newReseller: Reseller = { id: crypto.randomUUID(), name, phone, created_at: new Date().toISOString() };
-    const { error } = await supabase.from('resellers').insert([newReseller]);
+    const { error } = await supabase.from('resellers').insert([{ ...newReseller, company_id: companyId }]);
     if (!error) {
       set((state) => ({ resellers: [...state.resellers, newReseller] }));
       Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Revendedor creado', showConfirmButton: false, timer: 1500 });
@@ -56,8 +63,11 @@ export const useResellerStore = create<ResellerState>((set) => ({
   },
 
   addTransaction: async (data) => {
+    const companyId = useTenantStore.getState().activeCompanyId;
+    if (!companyId) throw new Error('No hay company_id activo');
+
     const newTx: ResellerTransaction = { id: crypto.randomUUID(), ...data, date: new Date().toISOString() };
-    const { error } = await supabase.from('reseller_transactions').insert([newTx]);
+    const { error } = await supabase.from('reseller_transactions').insert([{ ...newTx, company_id: companyId }]);
     if (!error) {
       set((state) => ({ transactions: [newTx, ...state.transactions] }));
     } else {

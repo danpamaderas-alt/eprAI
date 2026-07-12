@@ -1,17 +1,11 @@
 export type MessageTone = 'Amigo' | 'Formal' | 'Breve';
 
-// 🚀 CONSTANTE: URL de la API para mantener el código limpio
-const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
-
 export const generateGiftMessage = async (
   clientName: string, 
   giftName: string, 
   tone: MessageTone
 ): Promise<string> => {
   
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
-
-  // 1. 🛡️ PLANTILLAS DE RESPALDO (Por si falla la red o no hay API Key)
   const templates: Record<MessageTone, string> = {
     Amigo: `¡Hola ${clientName}! Fabricamos este ${giftName} en nuestro lab 3D especialmente para vos. Gracias por ser parte de la comunidad Raíces y bancar el diseño local. ¡A disfrutarlo, sigamos creciendo juntos!`,
     
@@ -20,13 +14,6 @@ export const generateGiftMessage = async (
     Breve: `${clientName}, este ${giftName} 3D es para vos. ¡Gracias por ser parte de la familia Raíces! Sigamos construyendo juntos.`
   };
 
-  // Verificación de seguridad de la llave
-  if (!apiKey || apiKey === "TU_LLAVE_AQUI" || apiKey.length < 10) {
-    console.warn("⚠️ [GiftHelper] Usando plantillas estáticas (API Key no configurada)");
-    return templates[tone] || templates.Breve;
-  }
-
-  // 2. 🧠 CONFIGURACIÓN DEL PROMPT
   const prompt = `
     Actúa como el encargado de comunidad de "RAÍCES LAB", un laboratorio de impresión 3D en Berisso, Argentina.
     
@@ -41,13 +28,11 @@ export const generateGiftMessage = async (
     No uses comillas. Firma como: El equipo de Raíces.
   `;
 
-  // 3. ⚡ EJECUCIÓN DE LA LLAMADA
-  // VANGUARDIA (Resiliencia): Timeout para evitar que el POS se congele si la IA o la red fallan
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 segundos de límite
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
 
   try {
-    const response = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
+    const response = await fetch('/api/gemini', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       signal: controller.signal,

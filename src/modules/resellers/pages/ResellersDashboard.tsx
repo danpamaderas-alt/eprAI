@@ -3,12 +3,14 @@ import { useForm } from 'react-hook-form';
 import { useResellerStore } from '../store/useResellerStore';
 import { useTreasuryStore } from '../../inventory/treasury/store/useTreasuryStore';
 import Swal from 'sweetalert2';
+import { ARS } from '../../../shared/utils/format';
 
 // Tipos para los formularios
 interface NewResellerFields { name: string; phone: string; }
-interface NewTransactionFields { type: 'GOODS_GIVEN' | 'PAYMENT'; amount: number; description: string; paymentMethod: string; }
+interface NewTransactionFields { type: 'GOODS_GIVEN' | 'PAYMENT'; amount: number; description: string; paymentMethod: 'MERCADO_PAGO' | 'BANCO' | 'EFECTIVO'; }
 
 export const ResellersDashboard = () => {
+  "use no memo";
   const { resellers, transactions, fetchData, addReseller, addTransaction, isLoading } = useResellerStore();
   const { addTransaction: addTreasuryTransaction } = useTreasuryStore();
 
@@ -39,8 +41,7 @@ export const ResellersDashboard = () => {
     }, 0);
   }, [resellerTxs]);
 
-  const formatCurrency = (val: number) => 
-    new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(val);
+  const formatCurrency = (val: number) => ARS.format(val);
 
   // Handlers
   const onCreateReseller = async (data: NewResellerFields) => {
@@ -69,15 +70,15 @@ export const ResellersDashboard = () => {
           description: `💰 PAGO REV.: ${selectedReseller.name} (${data.description || 'S/D'})`, // <-- CORREGIDO
           category: 'VENTA', // <-- CORREGIDO
           date: new Date().toISOString(),
-          paymentMethod: data.paymentMethod as any, // <-- CORREGIDO
+          paymentMethod: data.paymentMethod, // <-- CORREGIDO
           businessUnit: 'RAICES',
-          status: 'COMPLETED'
+          status: 'COMPLETADO'
         });
       }
 
       txForm.reset({ type: data.type, paymentMethod: data.paymentMethod, description: '', amount: 0 });
       Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Movimiento registrado', showConfirmButton: false, timer: 1500 });
-    } catch (error) {
+    } catch {
       Swal.fire('Error', 'No se pudo registrar la operación', 'error');
     }
   };
@@ -170,7 +171,7 @@ export const ResellersDashboard = () => {
 
                   {watchTxType === 'PAYMENT' && (
                     <div className="space-y-1.5 animate-in slide-in-from-left-4">
-                      <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1 text-emerald-500">Destino Tesorería</label>
+                      <label className="text-[9px] font-black uppercase tracking-widest ml-1 text-emerald-500">Destino Tesorería</label>
                       <select {...txForm.register('paymentMethod')} className="w-full bg-slate-800 border border-slate-700 text-white text-xs p-3 rounded-xl outline-none">
                         <option value="EFECTIVO">CAJA FUERTE (EFE)</option>
                         <option value="MERCADO_PAGO">MERCADO PAGO</option>

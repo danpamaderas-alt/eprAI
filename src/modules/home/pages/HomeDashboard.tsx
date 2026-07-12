@@ -3,12 +3,7 @@ import { useOrderStore } from '../../orders/store/useOrderStore';
 import { useCatalogStore } from '../../../store/useCatalogStore';
 import { useCrmStore } from '../../crm/store/useCrmStore'; // ✅ FIX: Usamos el store de CRM para balances
 import { useNavigate } from 'react-router-dom';
-
-const ARS = new Intl.NumberFormat('es-AR', { 
-  style: 'currency', 
-  currency: 'ARS', 
-  maximumFractionDigits: 0 
-});
+import { ARS } from '../../../shared/utils/format';
 
 export const HomeDashboard = memo(() => {
   const navigate = useNavigate();

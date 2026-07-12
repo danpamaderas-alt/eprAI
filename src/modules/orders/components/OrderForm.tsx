@@ -1,63 +1,78 @@
-import { RemitoEnvio } from './RemitoEnvio';
-import { useState, useEffect, useMemo, useCallback, memo } from "react";
+import { useState, useEffect, memo } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { orderSchema, type OrderFormValues } from "../schemas/orderSchema";
+import { orderSchema, type OrderFormValues, type OrderItem } from "../schemas/orderSchema";
 import { useCatalogStore } from "../../../store/useCatalogStore";
-import { useCrmStore } from "../../crm/store/useCrmStore";
+import { useCrmStore, type CustomerBalance } from "../../crm/store/useCrmStore";
 import { useTenantStore } from "../../../store/useTenantStore";
 import { supabase } from "../../../lib/supabase";
 import Swal from "sweetalert2";
+import type { Database } from "../../../shared/types/database.types";
 
 import { OrderMatrixModal } from "./OrderMatrixModal";
 
 interface OrderFormProps {
-  orderToEdit?: any;
+  orderToEdit?: {
+    id: string;
+    due_date?: string;
+    customer_name?: string;
+    status?: string;
+    business_unit?: string;
+    items?: OrderItem[];
+    total_amount?: number;
+    advance_payment?: number;
+    customer_id?: string;
+  } | null;
   onClose: () => void;
   onSuccess: () => void;
 }
+
+const mapStatusToEnglish = (status?: string): 'PENDING' | 'PARTIAL' | 'DELIVERED' | 'CANCELLED' => {
+  const s = status?.toUpperCase();
+  if (s === 'PENDIENTE' || s === 'PENDING') return 'PENDING';
+  if (s === 'PARCIAL' || s === 'PARTIAL') return 'PARTIAL';
+  if (s === 'FINALIZADO' || s === 'ENTREGADO' || s === 'DELIVERED') return 'DELIVERED';
+  if (s === 'CANCELADO' || s === 'CANCELLED') return 'CANCELLED';
+  return 'PENDING';
+};
 
 export const OrderForm = memo(
   ({ orderToEdit, onClose, onSuccess }: OrderFormProps) => {
     const {
       products,
-      sizes,
-      colors,
       fetchAllCatalogs,
-      addProduct,
-      updateStock,
     } = useCatalogStore();
+    
+    // Ahora balances tiene el tipo correcto CustomerBalance[] importado desde useCrmStore
     const { balances, fetchBalances } = useCrmStore();
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedClientId, setSelectedClientId] = useState(
-      orderToEdit?.customer_id || "",
+      orderToEdit?.customer_id || "CONSUMIDOR_FINAL",
     );
     const [activeMatrixIndex, setActiveMatrixIndex] = useState<number | null>(
       null,
     );
 
-    // 🛡️ FIX: Sincronización blindada contra 'undefined'
     useEffect(() => {
       const sync = async () => {
-        // Usamos el operador || [] para que .length nunca lea de algo indefinido
-        if ((products || []).length === 0) await fetchAllCatalogs();
-        if ((balances || []).length === 0) await fetchBalances();
+        if (!products || products.length === 0) await fetchAllCatalogs();
+        if (!balances || balances.length === 0) await fetchBalances();
       };
       sync();
-    }, [fetchAllCatalogs, fetchBalances]); // Eliminamos .length de las dependencias para evitar loops
+    }, [products, balances, fetchAllCatalogs, fetchBalances]);
 
     const { register, control, handleSubmit, watch, setValue } =
       useForm<OrderFormValues>({
-        resolver: zodResolver(orderSchema),
+        resolver: zodResolver(orderSchema) as never,
         defaultValues: orderToEdit
           ? {
               dueDate: orderToEdit.due_date
                 ? orderToEdit.due_date.substring(0, 10)
                 : new Date().toISOString().split("T")[0],
               customerName: orderToEdit.customer_name || "Consumidor Final",
-              status: orderToEdit.status || "PENDIENTE",
-              businessUnit: orderToEdit.business_unit || "ROJO_SHOWROOM",
+              status: mapStatusToEnglish(orderToEdit.status),
+              businessUnit: (orderToEdit.business_unit || "ROJO_SHOWROOM") as "GENERAL" | "RAICES" | "RJ_CO" | "BITA_IT" | "ROJO_SHOWROOM" | "UNIFORMES",
               items: orderToEdit.items || [],
               totalAmount: Number(orderToEdit.total_amount || 0),
               advancePayment: Number(orderToEdit.advance_payment || 0),
@@ -65,7 +80,7 @@ export const OrderForm = memo(
           : {
               dueDate: new Date().toISOString().split("T")[0],
               customerName: "Consumidor Final",
-              status: "PENDIENTE",
+              status: "PENDING",
               businessUnit: "ROJO_SHOWROOM",
               items: [],
               totalAmount: 0,
@@ -79,10 +94,9 @@ export const OrderForm = memo(
     });
     const watchItems = watch("items") || [];
 
-    // Sincronizar nombre de cliente
     useEffect(() => {
       if (selectedClientId && selectedClientId !== "CONSUMIDOR_FINAL") {
-        const c = (balances || []).find((x: any) => x.id === selectedClientId);
+        const c = balances.find((x: CustomerBalance) => x.id === selectedClientId);
         if (c) setValue("customerName", c.name);
       } else {
         setValue("customerName", "Consumidor Final");
@@ -94,11 +108,14 @@ export const OrderForm = memo(
       setIsSubmitting(true);
 
       try {
+        const companyId = useTenantStore.getState().activeCompanyId;
+        if (!companyId) throw new Error('Acción rechazada: Falta ID de compañía activa (Tenant).');
+
         let totalOrdered = 0;
         let totalDelivered = 0;
 
-        (data.items || []).forEach((item: any) => {
-          (item.variations || []).forEach((v: any) => {
+        (data.items || []).forEach((item) => {
+          (item.variations || []).forEach((v) => {
             totalOrdered += Number(v.quantityOrdered || 0);
             totalDelivered += Number(v.quantityDelivered || 0);
           });
@@ -106,35 +123,63 @@ export const OrderForm = memo(
 
         let newStatus = data.status;
         if (
-          newStatus !== "CANCELADO" &&
-          newStatus !== "ENTREGADO" &&
+          newStatus !== "CANCELLED" &&
+          newStatus !== "DELIVERED" &&
           totalOrdered > 0
         ) {
-          if (totalDelivered >= totalOrdered) newStatus = "FINALIZADO";
-          else if (totalDelivered > 0) newStatus = "PARCIAL";
-          else newStatus = "PENDIENTE";
+          if (totalDelivered >= totalOrdered) newStatus = "DELIVERED";
+          else if (totalDelivered > 0) newStatus = "PARTIAL";
+          else newStatus = "PENDING";
         }
 
-        const payload = {
-          company_id: useTenantStore.getState().activeCompanyId,
+        const orderPayload = {
+          company_id: companyId,
           due_date: data.dueDate,
           customer_name: data.customerName,
           status: newStatus,
           business_unit: data.businessUnit,
           total_amount: Number(data.totalAmount || 0),
           advance_payment: Number(data.advancePayment || 0),
-          items: data.items,
-          customer_id:
-            selectedClientId === "CONSUMIDOR_FINAL" ? null : selectedClientId,
+          items: data.items as never, // JSONB backup required by schema
+          customer_id: selectedClientId === "CONSUMIDOR_FINAL" ? null : selectedClientId,
         };
 
-        const { error } = await supabase
-          .from("orders")
-          .upsert(orderToEdit ? { id: orderToEdit.id, ...payload } : payload, {
-            onConflict: "id",
-          });
+        const upsertPayload: Database['public']['Tables']['orders']['Insert'] = orderToEdit
+          ? { id: orderToEdit.id, ...orderPayload }
+          : orderPayload;
 
-        if (error) throw error;
+        // 1. Inserción o Actualización de la tabla 'orders'
+        const { data: savedOrder, error: orderError } = await supabase
+          .from("orders")
+          .upsert(upsertPayload, {
+            onConflict: "id",
+          })
+          .select('id')
+          .single();
+
+        if (orderError) throw orderError;
+        if (!savedOrder) throw new Error("No se pudo recuperar el ID de la orden guardada.");
+
+        // 2. Mapeo relacional atómico para la tabla 'order_items' (Schema Enforcement)
+        const flatOrderItems = (data.items || []).flatMap((item) => 
+          (item.variations || []).map((v) => ({
+            order_id: savedOrder.id,
+            variant_id: v.variantId || null,
+            quantity: Number(v.quantityOrdered || 0),
+            price: 0 // Nota: El form actual no trae precio por variation en Hoja de Ruta, seteamos 0 por compatibilidad
+          }))
+        ).filter(item => item.variant_id && item.quantity > 0);
+
+        if (orderToEdit) {
+          // Si editamos, borramos los items viejos para recrear la relación
+          const { error: delError } = await supabase.from('order_items').delete().eq('order_id', savedOrder.id);
+          if (delError) console.warn('[OrderForm] Falla limpiando order_items antiguos', delError);
+        }
+
+        if (flatOrderItems.length > 0) {
+          const { error: itemsError } = await supabase.from('order_items').insert(flatOrderItems as never);
+          if (itemsError) throw new Error(`Error vinculando items relacionales: ${itemsError.message}`);
+        }
 
         Swal.fire({
           icon: "success",
@@ -145,8 +190,9 @@ export const OrderForm = memo(
           showConfirmButton: false,
         });
         onSuccess();
-      } catch (e: any) {
-        Swal.fire("Error de Servidor", e.message, "error");
+      } catch (e: unknown) {
+        console.error('Falla en la orden:', e);
+        Swal.fire("Error Crítico de Servidor", (e as Error).message, "error");
       } finally {
         setIsSubmitting(false);
       }
@@ -158,7 +204,7 @@ export const OrderForm = memo(
         .join("");
       const { value: selectedId } = await Swal.fire({
         title: "BUSCAR PRENDA",
-        html: `<select id="sw-prod-id" class="swal2-input !w-full !m-0 !rounded-xl dark:bg-slate-800 dark:text-white">
+        html: `<select id="sw-prod-id" class="swal2-input w-full! m-0! rounded-xl! dark:bg-slate-800 dark:text-white">
                <option value="" disabled selected>Elegir del catálogo...</option>
                ${productOptions}
              </select>`,
@@ -238,7 +284,7 @@ export const OrderForm = memo(
                   className="w-full p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white font-bold outline-none"
                 >
                   <option value="CONSUMIDOR_FINAL">👤 CONSUMIDOR FINAL</option>
-                  {(balances || []).map((c: any) => (
+                  {(balances || []).map((c: CustomerBalance) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
                     </option>
@@ -334,9 +380,9 @@ export const OrderForm = memo(
                 (p) => p.name === watchItems[activeMatrixIndex]?.productName,
               )!
             }
-            currentVariations={watchItems[activeMatrixIndex]?.variations || []}
+            currentVariations={(watchItems[activeMatrixIndex]?.variations as never) || []}
             onSave={(newVariations) => {
-              setValue(`items.${activeMatrixIndex}.variations`, newVariations);
+              setValue(`items.${activeMatrixIndex}.variations`, newVariations as never);
               setActiveMatrixIndex(null);
             }}
             onClose={() => setActiveMatrixIndex(null)}

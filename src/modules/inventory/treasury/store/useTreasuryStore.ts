@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../../../../lib/supabase';
+import { useTenantStore } from '../../../../store/useTenantStore';
 
 export interface Transaction {
   id: string;
@@ -19,7 +20,6 @@ interface TreasuryState {
   fetchTransactions: () => Promise<void>;
   addTransaction: (tx: Omit<Transaction, 'id'>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
-  // 1. Agregamos las funciones faltantes al "contrato" de TypeScript
   updateTransaction: (id: string, data: Partial<Transaction>) => Promise<void>;
   resolvePayment: (id: string) => Promise<void>;
 }
@@ -29,28 +29,34 @@ export const useTreasuryStore = create<TreasuryState>((set, get) => ({
   isLoading: false,
 
   fetchTransactions: async () => {
+    const companyId = useTenantStore.getState().activeCompanyId;
+    if (!companyId) return;
+
     set({ isLoading: true });
     try {
       const { data, error } = await supabase
         .from('treasury')
-        .select('*')
+        .select('id, amount, type, date, description, category, business_unit, payment_method, status')
+        .eq('company_id', companyId)
         .order('date', { ascending: false });
 
       if (error) {
-        console.error("❌ Error Supabase:", error.message);
+        console.error("Error Supabase:", error.message);
         set({ isLoading: false });
         return;
       }
 
-      set({ transactions: data || [], isLoading: false });
+      set({ transactions: (data || []) as Transaction[], isLoading: false });
     } catch (err) {
-      console.error("💥 Error:", err);
+      console.error("Error:", err);
       set({ isLoading: false });
     }
   },
 
   addTransaction: async (tx) => {
-    const { error } = await supabase.from('treasury').insert([tx]);
+    const companyId = useTenantStore.getState().activeCompanyId;
+    if (!companyId) throw new Error('No hay company_id activo');
+    const { error } = await supabase.from('treasury').insert([{ ...tx, company_id: companyId }]);
     if (error) throw error;
     await get().fetchTransactions();
   },
@@ -61,16 +67,13 @@ export const useTreasuryStore = create<TreasuryState>((set, get) => ({
     await get().fetchTransactions();
   },
 
-  // 2. Implementamos la lógica de actualización
   updateTransaction: async (id, data) => {
     const { error } = await supabase.from('treasury').update(data).eq('id', id);
     if (error) throw error;
     await get().fetchTransactions();
   },
 
-  // 3. Implementamos la lógica de resolución rápida
   resolvePayment: async (id) => {
-    // Pasa el estado a COMPLETADO (podés cambiar la palabra si usás 'PAGADO' o 'ACREDITADO' en tu BD)
     const { error } = await supabase.from('treasury').update({ status: 'COMPLETADO' }).eq('id', id);
     if (error) throw error;
     await get().fetchTransactions();

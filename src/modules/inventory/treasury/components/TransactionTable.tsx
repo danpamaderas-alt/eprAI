@@ -8,6 +8,7 @@ import {
 import { type Transaction } from '../schemas/transactionSchema';
 import Swal from 'sweetalert2';
 import { useTreasuryStore } from '../store/useTreasuryStore';
+import { ARS } from '../../../../shared/utils/format';
 
 interface TransactionTableProps {
   data: Transaction[];
@@ -71,7 +72,7 @@ export const TransactionTable = ({ data, onDelete, onUpdateStatus }: Transaction
       try {
         await resolvePayment(tx.id, formValues.amount, formValues.method);
         Swal.fire({ icon: 'success', title: '¡Registrado!', timer: 1500, showConfirmButton: false });
-      } catch (e) {
+      } catch {
         Swal.fire('Error', 'No se pudo actualizar', 'error');
       }
     }
@@ -105,7 +106,7 @@ export const TransactionTable = ({ data, onDelete, onUpdateStatus }: Transaction
       cell: (info) => {
         const amount = Number(info.getValue()) || 0;
         const type = String(info.row.original.type);
-        const formatted = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(amount);
+        const formatted = ARS.format(amount);
         const color = type === 'INCOME' ? 'text-emerald-600 dark:text-emerald-400' : type === 'EXPENSE' ? 'text-rose-600 dark:text-rose-400' : 'text-blue-600 dark:text-blue-400';
         return <span className={`font-black tabular-nums ${color}`}>{type === 'EXPENSE' ? '- ' : ''}{formatted}</span>;
       }

@@ -4,7 +4,6 @@ import {
   Tag,
   Box,
   Hash,
-  AlertCircle,
   Ruler,
   Unlock,
   Lock,
@@ -41,7 +40,7 @@ interface MatrixHoldingProProps {
   onSave: (productData: ProductData, variants: MatrixVariant[]) => void;
   sizes?: CatalogItem[]; // Ahora es opcional por si falla la DB
   colors?: CatalogItem[]; // Ahora es opcional por si falla la DB
-  products?: any[];
+  products?: Product[];
   initialProduct?: ProductData | null;
   onAddSize?: (name: string) => Promise<CatalogItem>;
   onAddColor?: (name: string) => Promise<CatalogItem>;
@@ -68,7 +67,7 @@ export const MatrixHoldingPro = ({
     initialProduct?.unit_measure || "UNIDADES",
   );
 
-  const [existingProduct, setExistingProduct] = useState<any>(
+  const [existingProduct, setExistingProduct] = useState<Product | null>(
     initialProduct || null,
   );
 
@@ -155,7 +154,7 @@ export const MatrixHoldingPro = ({
   const checkProductExistence = (nameToCheck: string) => {
     if (!nameToCheck || isNameLocked) return;
     const found = products.find(
-      (p: any) => p.name.trim().toLowerCase() === nameToCheck.toLowerCase(),
+      (p: Product) => p.name.trim().toLowerCase() === nameToCheck.toLowerCase(),
     );
     if (found) {
       setExistingProduct(found);
@@ -187,6 +186,7 @@ export const MatrixHoldingPro = ({
         .substring(0, 4)
         .toUpperCase();
       const random = Math.floor(1000 + Math.random() * 9000);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setBaseSku(`${catPart}-${namePart}-${random}`);
     }
   }, [category, productName, isSkuLocked, baseSku]);
@@ -227,7 +227,7 @@ export const MatrixHoldingPro = ({
         if (added && added.id) {
           setSelectedSizes((prev) => [...prev, added.id]); // Lo auto-selecciona
         }
-      } catch (e) {
+      } catch {
         Swal.fire("Error", "No se pudo guardar el talle.", "error");
       }
     }
@@ -256,7 +256,7 @@ export const MatrixHoldingPro = ({
         if (added && added.id) {
           setSelectedColors((prev) => [...prev, added.id]); // Lo auto-selecciona
         }
-      } catch (e) {
+      } catch {
         Swal.fire("Error", "No se pudo guardar el color.", "error");
       }
     }
@@ -317,7 +317,7 @@ export const MatrixHoldingPro = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
+    <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-100 flex items-center justify-center p-4 animate-in fade-in duration-300">
       <div className="bg-white dark:bg-slate-900 w-full max-w-6xl rounded-[3.5rem] shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[95vh] overflow-hidden">
         <header className="p-8 border-b dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center">
           <div>
@@ -505,7 +505,7 @@ export const MatrixHoldingPro = ({
                 1. Seleccionar Talles / Medidas
               </p>
               <div className="flex flex-wrap gap-2">
-                {safeSizes.map((s: any) => (
+                {safeSizes.map((s: CatalogItem) => (
                   <button
                     key={s.id}
                     onClick={() =>
@@ -535,7 +535,7 @@ export const MatrixHoldingPro = ({
                 2. Seleccionar Colores / Opciones
               </p>
               <div className="flex flex-wrap gap-2">
-                {safeColors.map((c: any) => (
+                {safeColors.map((c: CatalogItem) => (
                   <button
                     key={c.id}
                     onClick={() =>
@@ -575,7 +575,7 @@ export const MatrixHoldingPro = ({
                         key={sId}
                         className="p-6 text-center text-[10px] font-black text-slate-900 dark:text-white border-l dark:border-slate-800"
                       >
-                        {safeSizes.find((x: any) => x.id === sId)?.name}
+                        {safeSizes.find((x: CatalogItem) => x.id === sId)?.name}
                       </th>
                     ))}
                   </tr>
@@ -587,7 +587,7 @@ export const MatrixHoldingPro = ({
                       className="border-t dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
                     >
                       <td className="p-6 text-xs font-black text-slate-700 dark:text-slate-300 uppercase">
-                        {safeColors.find((x: any) => x.id === cId)?.name}
+                        {safeColors.find((x: CatalogItem) => x.id === cId)?.name}
                       </td>
                       {selectedSizes.map((sId) => (
                         <td
@@ -616,7 +616,7 @@ export const MatrixHoldingPro = ({
         <footer className="p-8 border-t dark:border-slate-800 bg-slate-50 dark:bg-slate-900 flex justify-end items-center gap-6">
           <button
             onClick={handleFinalSave}
-            className="px-12 py-5 bg-slate-900 dark:bg-blue-600 hover:bg-black dark:hover:bg-blue-500 text-white rounded-[2rem] font-black text-sm uppercase tracking-[0.3em] shadow-2xl active:scale-95 transition-all"
+            className="px-12 py-5 bg-slate-900 dark:bg-blue-600 hover:bg-black dark:hover:bg-blue-500 text-white rounded-4xl font-black text-sm uppercase tracking-[0.3em] shadow-2xl active:scale-95 transition-all"
           >
             CONFIRMAR LOTE 🚀
           </button>

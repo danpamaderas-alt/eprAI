@@ -43,8 +43,9 @@ export const GiftCardPrintable = memo(({ message, onClose }: GiftCardProps) => {
     [onClose],
   );
 
-<div
-  role="dialog"
+  return (
+    <div
+      role="dialog"
   aria-modal="true"
   aria-labelledby="gift-card-title"
   aria-describedby="gift-card-message"
@@ -88,7 +89,7 @@ export const GiftCardPrintable = memo(({ message, onClose }: GiftCardProps) => {
               className="text-3xl font-black tracking-widest text-slate-800 flex items-center justify-center gap-1"
             >
               RAÍCES{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-cyan-500">
+              <span className="text-transparent bg-clip-text bg-linear-to-r from-indigo-500 to-cyan-500">
                 LAB
               </span>
             </h1>
@@ -97,19 +98,19 @@ export const GiftCardPrintable = memo(({ message, onClose }: GiftCardProps) => {
             </p>
           </div>
 
-          <div className="w-8 h-1 bg-gradient-to-r from-indigo-300 to-cyan-300 mx-auto my-6 rounded-full opacity-50"></div>
+          <div className="w-8 h-1 bg-linear-to-r from-indigo-300 to-cyan-300 mx-auto my-6 rounded-full opacity-50"></div>
 
           <div className="flex-1 flex items-center justify-center overflow-hidden">
             <p
               id="gift-card-message"
-              className="text-slate-700 text-sm font-medium text-center leading-relaxed italic px-2 break-words [text-wrap:balance]"
+              className="text-slate-700 text-sm font-medium text-center leading-relaxed italic px-2 wrap-break-word text-balance"
             >
               “{message}”
             </p>
           </div>
 
           <div className="mt-auto flex flex-col items-center gap-2 mb-2">
-            <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-slate-200 to-transparent mb-2"></div>
+            <div className="w-full h-px bg-linear-to-r from-transparent via-slate-200 to-transparent mb-2"></div>
             <div className="flex items-center justify-between w-full px-2">
               <span className="text-[7px] font-black tracking-[0.2em] text-slate-400 uppercase">
                 BERISSO, ARG

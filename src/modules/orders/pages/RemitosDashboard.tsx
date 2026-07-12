@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Printer, Plus, Trash2, FileText, User, Zap, MessageCircle, MapPin, CheckSquare, DollarSign } from 'lucide-react';
+import { Printer, Plus, Trash2, FileText, User, MessageCircle, MapPin, CheckSquare, DollarSign } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 // Importamos la base de datos de tu catálogo y clientes
@@ -25,6 +25,7 @@ export const RemitosDashboard = () => {
   }, [fetchAllCatalogs, fetchBalances]);
 
   const [viewType, setViewType] = useState<'STANDARD' | 'PENDING' | 'VALUED'>('STANDARD');
+  const [comprobanteNumber] = useState(() => Math.floor(Math.random() * 100000).toString().padStart(6, '0'));
 
   const [cliente, setCliente] = useState('');
   const [domicilio, setDomicilio] = useState('');
@@ -106,7 +107,7 @@ export const RemitosDashboard = () => {
 
   const removeItem = (id: string) => setItems(items.filter(item => item.id !== id));
 
-  const updateItemField = (id: string, field: keyof PedidoItem, value: any) => {
+  const updateItemField = (id: string, field: keyof PedidoItem, value: string | number) => {
     setItems(items.map(item => item.id === id ? { ...item, [field]: value } : item));
   };
 
@@ -154,7 +155,7 @@ export const RemitosDashboard = () => {
 
       {/* PANEL IZQUIERDO DE CARGA */}
       {/* 2. Se adapta a 100% en pantallas chicas, fijo a 450px en pantallas grandes */}
-      <div className="w-full xl:w-[450px] flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl rounded-[2rem] overflow-hidden hide-on-print shrink-0 h-full">
+      <div className="w-full xl:w-[450px] flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl rounded-4xl overflow-hidden hide-on-print shrink-0 h-full">
         <header className="p-6 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 shrink-0">
           <h1 className="text-2xl font-black italic tracking-tighter dark:text-white uppercase flex items-center gap-2">
             <FileText className="w-6 h-6 text-blue-600" /> Carga de <span className="text-blue-600">Pedidos</span>
@@ -292,7 +293,7 @@ export const RemitosDashboard = () => {
       </div>
 
       {/* PANEL DERECHO: HOJA A4 Y VISTAS */}
-      <div className="w-full xl:flex-1 flex flex-col bg-slate-200 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-[2rem] overflow-hidden relative shadow-inner print-expand print-container h-full">
+      <div className="w-full xl:flex-1 flex flex-col bg-slate-200 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-4xl overflow-hidden relative shadow-inner print-expand print-container h-full">
         
         <div className="absolute top-4 right-4 xl:top-6 xl:right-6 z-10 flex flex-wrap gap-2 xl:gap-3 hide-on-print items-center">
           <div className="flex bg-slate-950/90 backdrop-blur p-1 rounded-xl border border-slate-800 shadow-xl">
@@ -335,7 +336,7 @@ export const RemitosDashboard = () => {
                     {viewType === 'PENDING' ? 'Control de Saldos' : viewType === 'VALUED' ? 'Hoja Valorada' : 'Orden Interna'}
                   </h2>
                   <p className="text-base font-semibold text-slate-700 mt-1">
-                    Nº Comprobante: <span className="font-bold">0001-{Math.floor(Math.random() * 100000).toString().padStart(6, '0')}</span>
+                    Nº Comprobante: <span className="font-bold">0001-{comprobanteNumber}</span>
                   </p>
                   <p className="text-xs font-bold text-slate-600 mt-3">
                     Fecha Emisión: <span className="font-normal text-slate-900">{new Date().toLocaleDateString('es-AR')}</span>

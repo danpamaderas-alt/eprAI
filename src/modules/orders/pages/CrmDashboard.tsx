@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../../lib/supabase';
 import Swal from 'sweetalert2';
+import { useTenantStore } from '../../../store/useTenantStore';
 
 // --- INTERFACES ---
 interface Client {
   id: string;
   name: string;
   type: string;
-  document_id?: string;
+  cuit?: string;
   phone?: string;
   email?: string;
   notes?: string;
@@ -20,7 +21,7 @@ interface Deal {
   status: string;
   expected_revenue: number;
   notes?: string;
-  clients?: Client; // Para traer el nombre del cliente relacionado
+  customers?: Client; // Para traer el nombre del cliente relacionado
 }
 
 const DEAL_STATUSES = [
@@ -35,7 +36,6 @@ export const CrmDashboard = () => {
   const [activeTab, setActiveTab] = useState<'KANBAN' | 'CLIENTS'>('KANBAN');
   const [clients, setClients] = useState<Client[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
 
   // Estados de Modales
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
@@ -45,37 +45,47 @@ export const CrmDashboard = () => {
   const [clientForm, setClientForm] = useState<Partial<Client>>({ type: 'B2C' });
   const [dealForm, setDealForm] = useState<Partial<Deal>>({ status: 'NUEVO', expected_revenue: 0 });
 
-  useEffect(() => {
-    fetchCrmData();
-  }, []);
-
-  const fetchCrmData = async () => {
-    setIsLoading(true);
+  const fetchCrmData = useCallback(async () => {
     try {
+      const companyId = useTenantStore.getState().activeCompanyId;
+      if (!companyId) return;
+
       // Traemos Clientes
-      const { data: clientsData } = await supabase.from('clients').select('*').order('name');
-      if (clientsData) setClients(clientsData);
+      const { data: clientsData } = await supabase.from('customers').select('*').eq('company_id', companyId).order('name');
+      if (clientsData) setClients(clientsData as unknown as Client[]);
 
       // Traemos Tratos/Ventas con los datos del cliente cruzados
-      const { data: dealsData } = await supabase.from('deals').select('*, clients(*)').order('created_at', { ascending: false });
-      if (dealsData) setDeals(dealsData);
+      const { data: dealsData } = await supabase.from('deals').select('*, customers(*)').eq('company_id', companyId).order('created_at', { ascending: false });
+      if (dealsData) setDeals(dealsData as unknown as Deal[]);
     } catch (error) {
       console.error('Error fetching CRM data:', error);
-    } finally {
-      setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchCrmData();
+  }, [fetchCrmData]);
 
   // --- LÓGICA DE GUARDADO ---
   const handleSaveClient = async () => {
     if (!clientForm.name) return Swal.fire('Error', 'El nombre es obligatorio', 'warning');
     try {
-      await supabase.from('clients').insert([clientForm]);
+      const activeCompanyId = useTenantStore.getState().activeCompanyId;
+      await supabase.from('customers').insert([{
+        name: clientForm.name,
+        type: clientForm.type || 'B2C',
+        phone: clientForm.phone || null,
+        email: clientForm.email || null,
+        notes: clientForm.notes || null,
+        cuit: clientForm.cuit || null,
+        company_id: activeCompanyId
+      }]);
       Swal.fire({ toast: true, icon: 'success', title: 'Cliente guardado', position: 'top-end', showConfirmButton: false, timer: 1500 });
       setIsClientModalOpen(false);
       setClientForm({ type: 'B2C' });
       fetchCrmData();
-    } catch (error) {
+    } catch {
       Swal.fire('Error', 'No se pudo guardar el cliente', 'error');
     }
   };
@@ -83,12 +93,23 @@ export const CrmDashboard = () => {
   const handleSaveDeal = async () => {
     if (!dealForm.title || !dealForm.client_id) return Swal.fire('Error', 'Título y Cliente son obligatorios', 'warning');
     try {
-      await supabase.from('deals').insert([dealForm]);
+      const companyId = useTenantStore.getState().activeCompanyId;
+      if (!companyId) throw new Error('No hay company_id activo');
+
+      const dealInsert = {
+        title: dealForm.title,
+        client_id: dealForm.client_id,
+        expected_revenue: dealForm.expected_revenue ?? 0,
+        status: dealForm.status ?? 'NUEVO',
+        notes: dealForm.notes ?? null,
+        company_id: companyId
+      };
+      await supabase.from('deals').insert([dealInsert]);
       Swal.fire({ toast: true, icon: 'success', title: 'Oportunidad creada', position: 'top-end', showConfirmButton: false, timer: 1500 });
       setIsDealModalOpen(false);
       setDealForm({ status: 'NUEVO', expected_revenue: 0 });
       fetchCrmData();
-    } catch (error) {
+    } catch {
       Swal.fire('Error', 'No se pudo crear la oportunidad', 'error');
     }
   };
@@ -108,7 +129,7 @@ export const CrmDashboard = () => {
     // Guardamos en Supabase
     try {
       await supabase.from('deals').update({ status: newStatus }).eq('id', dealId);
-    } catch (error) {
+    } catch {
       Swal.fire('Error', 'No se pudo mover la tarjeta', 'error');
       fetchCrmData(); // Revertimos si falla
     }
@@ -158,7 +179,7 @@ export const CrmDashboard = () => {
                 key={col.id} 
                 onDrop={(e) => handleDrop(e, col.id)}
                 onDragOver={handleDragOver}
-                className="min-w-[300px] w-[300px] flex-shrink-0 bg-slate-100 dark:bg-slate-800/50 rounded-2xl p-3 flex flex-col gap-3 h-full overflow-y-auto border border-transparent dark:border-slate-700/50"
+                className="min-w-[300px] w-[300px] shrink-0 bg-slate-100 dark:bg-slate-800/50 rounded-2xl p-3 flex flex-col gap-3 h-full overflow-y-auto border border-transparent dark:border-slate-700/50"
               >
                 <div className="flex items-center gap-2 mb-2 px-2">
                   <div className={`w-3 h-3 rounded-full ${col.color}`}></div>
@@ -177,14 +198,14 @@ export const CrmDashboard = () => {
                   >
                     <div className="flex justify-between items-start mb-2">
                       <span className="text-[10px] font-black uppercase px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-md">
-                        {deal.clients?.name || 'Cliente sin asignar'}
+                        {deal.customers?.name || 'Cliente sin asignar'}
                       </span>
                     </div>
                     <h4 className="font-bold text-sm text-slate-800 dark:text-white leading-tight mb-3">
                       {deal.title}
                     </h4>
                     <div className="flex justify-between items-end mt-auto pt-3 border-t border-slate-100 dark:border-slate-800">
-                      <span className="text-[10px] text-slate-400 font-bold uppercase truncate max-w-[120px]">{deal.clients?.type || 'B2C'}</span>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase truncate max-w-[120px]">{deal.customers?.type || 'B2C'}</span>
                       <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
                         ${deal.expected_revenue?.toLocaleString('es-AR')}
                       </span>
@@ -224,7 +245,7 @@ export const CrmDashboard = () => {
                     <tr key={c.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all">
                       <td className="p-5 align-top">
                         <span className="font-black text-sm dark:text-white uppercase block leading-none mb-1">{c.name}</span>
-                        <span className="text-[10px] font-bold text-slate-400">{c.document_id || 'Sin CUIT/DNI'}</span>
+                        <span className="text-[10px] font-bold text-slate-400">{c.cuit || 'Sin CUIT/DNI'}</span>
                       </td>
                       <td className="p-5 align-top space-y-1">
                         <div className="text-xs font-bold text-slate-700 dark:text-slate-300">📱 {c.phone || '-'}</div>
@@ -259,7 +280,7 @@ export const CrmDashboard = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2"><label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">Razón Social / Nombre *</label><input value={clientForm.name || ''} onChange={e => setClientForm({...clientForm, name: e.target.value})} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-xl dark:text-white font-bold" /></div>
                 <div><label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">Tipo</label><select value={clientForm.type} onChange={e => setClientForm({...clientForm, type: e.target.value})} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-xl dark:text-white font-bold"><option value="B2C">Minorista (B2C)</option><option value="CLUB">Club / Institución</option><option value="B2B">Empresa (B2B)</option><option value="GOBIERNO">Gobierno / Licitación</option></select></div>
-                <div><label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">CUIT / DNI</label><input value={clientForm.document_id || ''} onChange={e => setClientForm({...clientForm, document_id: e.target.value})} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-xl dark:text-white font-bold" /></div>
+                <div><label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">CUIT / DNI</label><input value={clientForm.cuit || ''} onChange={e => setClientForm({...clientForm, cuit: e.target.value})} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-xl dark:text-white font-bold" /></div>
                 <div><label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">Teléfono / WhatsApp</label><input value={clientForm.phone || ''} onChange={e => setClientForm({...clientForm, phone: e.target.value})} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-xl dark:text-white font-bold" /></div>
                 <div><label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">Email</label><input type="email" value={clientForm.email || ''} onChange={e => setClientForm({...clientForm, email: e.target.value})} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-xl dark:text-white font-bold" /></div>
                 <div className="col-span-2"><label className="text-[10px] font-black uppercase text-slate-400 mb-1 block">Notas / Acuerdos</label><textarea value={clientForm.notes || ''} onChange={e => setClientForm({...clientForm, notes: e.target.value})} className="w-full p-3 bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-xl dark:text-white font-medium resize-none" rows={2} /></div>

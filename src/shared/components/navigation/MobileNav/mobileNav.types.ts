@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 
 export interface NavItem {
-  readonly path: string;
+  readonly href: string;
   readonly label: string;
-  readonly Icon: LucideIcon;
+  readonly icon: LucideIcon;
 }

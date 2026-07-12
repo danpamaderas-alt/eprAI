@@ -3,13 +3,7 @@ import { useCatalogStore } from '../../../store/useCatalogStore';
 import { useCrmStore } from '../../crm/store/useCrmStore'; // ✅ FIX: Usamos el store de CRM para deudas
 import { useTreasuryStore } from '../treasury/store/useTreasuryStore';
 import { AIAnalyticBrain } from '../../ai/AIAnalyticBrain';
-
-// 🚀 Formateador global para consistencia en todo el Holding
-const ARS = new Intl.NumberFormat('es-AR', { 
-  style: 'currency', 
-  currency: 'ARS', 
-  maximumFractionDigits: 0 
-});
+import { ARS } from '../../../shared/utils/format';
 
 export const ProfitabilityDashboard = memo(() => {
   // 🧠 CONEXIÓN MULTI-MOTOR (Arquitectura Descentralizada)

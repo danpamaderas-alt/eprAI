@@ -1,98 +1,101 @@
-import { RemitosDashboard } from './modules/orders/pages/RemitosDashboard';
-
+import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-// Layout & UI (Inyección de componentes desacoplados)
-import { useThemeStore } from "./store/useThemeStore";
-import { Sidebar } from "./shared/components/layout/Sidebar/Sidebar";
-import { MobileNav } from "./shared/components/navigation/MobileNav";
+import { useAuthStore } from "./store/useAuthStore";
+import { ProtectedRoute } from "./shared/components/layout/ProtectedRoute";
+import { DashboardLayout } from "./layouts/DashboardLayout";
 
-// Modules
-import { CustomerCRM } from "./modules/customers/CustomerCRM";
-import { POSDashboard } from "./modules/pos/POSDashboard";
-import { ProfitabilityDashboard } from "./modules/inventory/pages/ProfitabilityDashboard";
-import { WorkerDashboard } from "./modules/production/components/WorkerDashboard";
-import { QuoteDashboard } from "./modules/quotes/pages/QuoteDashboard";
-import { SupplierDashboard } from "./modules/inventory/pages/SupplierDashboard";
-import { DashboardInicio } from "./modules/home/pages/DashboardInicio";
-import { SalesDashboard } from "./modules/inventory/pages/SalesDashboard";
-import { ServicesDashboard } from "./modules/inventory/pages/ServicesDashboard";
-import { OrdersDashboard } from "./modules/orders/pages/OrdersDashboard";
-import { InventoryDashboard } from "./modules/inventory/pages/InventoryDashboard";
-import { TreasuryDashboard } from "./modules/inventory/pages/TreasuryDashboard";
-import { FinancialDashboard } from "./modules/inventory/pages/FinancialDashboard";
-import { ProductionDashboard } from "./modules/production/components/ProductionDashboard";
-import { RawMaterialDashboard } from "./modules/inventory/components/RawMaterialDashboard";
-import { CurrentAccounts } from "./modules/accounts/CurrentAccounts";
+const LoginPage = lazy(() => import("./modules/auth/LoginPage").then(m => ({ default: m.LoginPage })));
+const CustomerCRM = lazy(() => import("./modules/customers/CustomerCRM").then(m => ({ default: m.CustomerCRM })));
+const POSDashboard = lazy(() => import("./modules/pos/POSDashboard").then(m => ({ default: m.POSDashboard })));
+const ProfitabilityDashboard = lazy(() => import("./modules/inventory/pages/ProfitabilityDashboard").then(m => ({ default: m.ProfitabilityDashboard })));
+const WorkerDashboard = lazy(() => import("./modules/production/components/WorkerDashboard").then(m => ({ default: m.WorkerDashboard })));
+const QuoteDashboard = lazy(() => import("./modules/quotes/pages/QuoteDashboard").then(m => ({ default: m.QuoteDashboard })));
+const SupplierDashboard = lazy(() => import("./modules/inventory/pages/SupplierDashboard").then(m => ({ default: m.SupplierDashboard })));
+const DashboardInicio = lazy(() => import("./modules/home/pages/DashboardInicio").then(m => ({ default: m.DashboardInicio })));
+const SalesDashboard = lazy(() => import("./modules/inventory/pages/SalesDashboard").then(m => ({ default: m.SalesDashboard })));
+const ServicesDashboard = lazy(() => import("./modules/inventory/pages/ServicesDashboard").then(m => ({ default: m.ServicesDashboard })));
+const OrdersDashboard = lazy(() => import("./modules/orders/pages/OrdersDashboard").then(m => ({ default: m.OrdersDashboard })));
+const InventoryDashboard = lazy(() => import("./modules/inventory/pages/InventoryDashboard").then(m => ({ default: m.InventoryDashboard })));
+const TreasuryDashboard = lazy(() => import("./modules/inventory/pages/TreasuryDashboard").then(m => ({ default: m.TreasuryDashboard })));
+const FinancialDashboard = lazy(() => import("./modules/inventory/pages/FinancialDashboard").then(m => ({ default: m.FinancialDashboard })));
+const ProductionDashboard = lazy(() => import("./modules/production/components/ProductionDashboard").then(m => ({ default: m.ProductionDashboard })));
+const RawMaterialDashboard = lazy(() => import("./modules/inventory/components/RawMaterialDashboard").then(m => ({ default: m.RawMaterialDashboard })));
+const CurrentAccounts = lazy(() => import("./modules/accounts/CurrentAccounts").then(m => ({ default: m.CurrentAccounts })));
+const RemitosDashboard = lazy(() => import("./modules/orders/pages/RemitosDashboard").then(m => ({ default: m.RemitosDashboard })));
+const CostCalculator = lazy(() => import("./modules/finances/pages/CostCalculator").then(m => ({ default: m.CostCalculator })));
+const Print3DCalculator = lazy(() => import("./modules/finances/pages/Print3DCalculator").then(m => ({ default: m.Print3DCalculator })));
+const StockEntry = lazy(() => import("./modules/inventory/pages/StockEntry").then(m => ({ default: m.StockEntry })));
+const StockWithdrawal = lazy(() => import("./modules/inventory/pages/StockWithdrawal").then(m => ({ default: m.StockWithdrawal })));
+const StockHistory = lazy(() => import("./modules/inventory/pages/StockHistory").then(m => ({ default: m.StockHistory })));
 
-// ==========================================
-// COMPONENTE: ESTRUCTURA PRINCIPAL (APP SHELL)
-// ==========================================
-const MainLayout = ({ children }: { children: React.ReactNode }) => {
-  const { isDarkMode } = useThemeStore();
+const LoadingFallback = () => (
+  <div className="h-full flex items-center justify-center">
+    <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+  </div>
+);
 
-  return (
-    <div
-      className={`min-h-screen flex ${isDarkMode ? "dark bg-slate-950" : "bg-slate-50"}`}
-    >
-      {/* 🖥️ --- SIDEBAR DE ESCRITORIO (Totalmente encapsulado) --- */}
-      <Sidebar />
-
-      {/* 📄 --- ÁREA PRINCIPAL --- */}
-      <main className="flex-1 h-screen overflow-y-auto bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white transition-colors duration-300 p-4 md:p-8 pb-24 md:pb-8 relative">
-        {children}
-      </main>
-
-      {/* 📱 --- NAVEGACIÓN MÓVIL (Totalmente encapsulada) --- */}
-      <MobileNav />
-    </div>
-  );
-};
-
-// ==========================================
-// ENRUTADOR PRINCIPAL
-// ==========================================
 export default function App() {
+  const initializeAuth = useAuthStore((state) => state.initialize);
+
+  useEffect(() => {
+    return initializeAuth();
+  }, [initializeAuth]);
+
   return (
     <BrowserRouter>
-      <MainLayout>
+      <Suspense fallback={<LoadingFallback />}>
         <Routes>
-          <Route path="/clientes" element={<CustomerCRM />} />
-          <Route path="/cuentas-corrientes" element={<CurrentAccounts />} />
-          <Route path="/remitos" element={<RemitosDashboard />} />
-          <Route path="/rentabilidad" element={<ProfitabilityDashboard />} />
-          <Route path="/" element={<Navigate to="/inicio" replace />} />
-          <Route path="/cotizador" element={<QuoteDashboard />} />
-          <Route path="/inicio" element={<DashboardInicio />} />
-          <Route path="/tesoreria" element={<TreasuryDashboard />} />
-          <Route path="/finanzas" element={<FinancialDashboard />} />
-          <Route path="/inventario" element={<InventoryDashboard />} />
-          <Route path="/ventas" element={<SalesDashboard />} />
-          <Route path="/pedidos" element={<OrdersDashboard />} />
-          <Route path="/talleristas" element={<WorkerDashboard />} />
-          <Route path="/proveedores" element={<SupplierDashboard />} />
-          <Route path="/produccion" element={<ProductionDashboard />} />
-          <Route path="/servicios" element={<ServicesDashboard />} />
-          <Route path="/pos" element={<POSDashboard />} />
-          <Route path="/insumos" element={<RawMaterialDashboard />} />
+          <Route path="/login" element={<LoginPage />} />
+
           <Route
-            path="*"
+            path="/*"
             element={
-              <div className="h-full flex flex-col items-center justify-center text-slate-400">
-                <span className="text-6xl mb-4" aria-hidden="true">
-                  🚧
-                </span>
-                <h2 className="text-xl font-black uppercase tracking-widest">
-                  Directorio No Encontrado
-                </h2>
-                <p className="text-sm mt-2">
-                  La ruta especificada no existe en el sistema.
-                </p>
-              </div>
+              <ProtectedRoute>
+                <DashboardLayout />
+              </ProtectedRoute>
             }
-          />
+          >
+            <Route path="clientes" element={<CustomerCRM />} />
+            <Route path="cuentas-corrientes" element={<CurrentAccounts />} />
+            <Route path="remitos" element={<RemitosDashboard />} />
+            <Route path="rentabilidad" element={<ProfitabilityDashboard />} />
+            <Route path="cotizador" element={<QuoteDashboard />} />
+            <Route path="inicio" element={<DashboardInicio />} />
+            <Route path="tesoreria" element={<TreasuryDashboard />} />
+            <Route path="finanzas" element={<FinancialDashboard />} />
+            <Route path="inventario" element={<InventoryDashboard />} />
+            <Route path="ventas" element={<SalesDashboard />} />
+            <Route path="pedidos" element={<OrdersDashboard />} />
+            <Route path="talleristas" element={<WorkerDashboard />} />
+            <Route path="proveedores" element={<SupplierDashboard />} />
+            <Route path="produccion" element={<ProductionDashboard />} />
+            <Route path="servicios" element={<ServicesDashboard />} />
+            <Route path="pos" element={<POSDashboard />} />
+            <Route path="insumos" element={<RawMaterialDashboard />} />
+            <Route path="ingreso-stock" element={<StockEntry />} />
+            <Route path="egreso-stock" element={<StockWithdrawal />} />
+            <Route path="historial-stock" element={<StockHistory />} />
+            <Route path="calculadora" element={<CostCalculator />} />
+            <Route path="calculadora-3d" element={<Print3DCalculator />} />
+            <Route path="" element={<Navigate to="/inicio" replace />} />
+            <Route
+              path="*"
+              element={
+                <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                  <span className="text-6xl mb-4" aria-hidden="true">🚧</span>
+                  <h2 className="text-xl font-black uppercase tracking-widest">
+                    Directorio No Encontrado
+                  </h2>
+                  <p className="text-sm mt-2">
+                    La ruta especificada no existe en el sistema.
+                  </p>
+                </div>
+              }
+            />
+          </Route>
         </Routes>
-      </MainLayout>
+      </Suspense>
     </BrowserRouter>
   );
 }

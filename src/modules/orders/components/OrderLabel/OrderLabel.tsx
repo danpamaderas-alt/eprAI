@@ -29,10 +29,10 @@ const formatShortId = (id: string): string => {
 };
 
 export const OrderLabel = memo(({ order, printTimestamp = new Date() }: OrderLabelProps) => {
-  if (!order) return null;
-
   // useMemo justificado solo por la iteración de arrays potencialmente grandes
-  const totalItems = useMemo(() => calculateTotalItems(order.items), [order.items]);
+  const totalItems = useMemo(() => calculateTotalItems(order?.items), [order?.items]);
+
+  if (!order) return null;
   
   // SIN useMemo: Es una operación de string trivial, es más rápido ejecutarla directo.
   const shortId = formatShortId(order.id);
@@ -52,7 +52,7 @@ export const OrderLabel = memo(({ order, printTimestamp = new Date() }: OrderLab
       {/* CLIENTE */}
       <div>
         <p className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Cliente</p>
-        <p className="text-lg font-black uppercase leading-tight break-words">
+        <p className="text-lg font-black uppercase leading-tight wrap-break-word">
           {order.customerName}
         </p>
       </div>

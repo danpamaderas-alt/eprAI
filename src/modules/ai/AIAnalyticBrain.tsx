@@ -4,17 +4,11 @@ import { useCatalogStore } from "../../store/useCatalogStore";
 import { useCrmStore } from "../crm/store/useCrmStore";
 import { useTreasuryStore } from "../inventory/treasury/store/useTreasuryStore";
 
-// 🚀 URL de Google Gemini 1.5 Flash (Súper rápido para análisis)
-const GEMINI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
-
 export const AIAnalyticBrain = () => {
   const [analysis, setAnalysis] = useState<string>("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 🧠 Consumimos los datos que ya están en la memoria RAM del navegador (Zustand)
-  // Esto significa que llamar a la IA cuesta CERO consultas a Supabase. ¡Ultra eficiente!
   const { products, inventory } = useCatalogStore();
   const { balances } = useCrmStore();
   const { transactions } = useTreasuryStore();
@@ -24,7 +18,6 @@ export const AIAnalyticBrain = () => {
     setError(null);
 
     try {
-      // 1. Recopilar el contexto financiero
       const cashBalance = transactions
         .filter((t) => t.status === "COMPLETED" || !t.status)
         .reduce(
@@ -50,15 +43,6 @@ export const AIAnalyticBrain = () => {
         }
       });
 
-      // 2. Validar credenciales de seguridad
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!apiKey || apiKey === "TU_LLAVE_AQUI" || apiKey.length < 10) {
-        throw new Error(
-          "API Key de Gemini no configurada. Edita el archivo .env en la raíz del proyecto.",
-        );
-      }
-
-      // 3. Ingeniería de Prompts (Instrucción a la IA)
       const prompt = `
         Actúa como el Director Financiero (CFO) experto de "Raíces", un Holding de indumentaria corporativa.
         Analiza la siguiente situación financiera de la empresa y da 3 consejos accionables, cortos y directos.
@@ -74,38 +58,45 @@ export const AIAnalyticBrain = () => {
         - Separa los 3 consejos con emojis o viñetas.
       `;
 
-      // 4. Seguridad y Estabilidad: AbortController para prevenir "cuelgues" de pantalla
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos de límite
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-      const response = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const response = await fetch('/api/gemini', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
       });
 
-      clearTimeout(timeoutId); // Limpiamos la memoria
-      if (!response.ok)
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
         throw new Error(
-          `El servidor de Google rechazó la conexión (Error ${response.status}).`,
+          `Error del servicio de IA (código ${response.status}).`,
         );
+      }
 
       const data = await response.json();
       const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
-      if (!aiText)
+      if (!aiText) {
         throw new Error(
           "La respuesta de la Inteligencia Artificial estaba vacía.",
         );
+      }
+
       setAnalysis(aiText);
-    } catch (err: any) {
-      if (err.name === "AbortError") {
-        setError(
-          "La conexión a internet está inestable o la IA tardó demasiado en responder.",
-        );
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        if (err.name === "AbortError") {
+          setError(
+            "La conexión a internet está inestable o la IA tardó demasiado en responder.",
+          );
+        } else {
+          setError(err.message);
+        }
       } else {
-        setError(err.message || "Error desconocido del motor neuronal.");
+        setError("Error desconocido del motor neuronal.");
       }
     } finally {
       setIsAnalyzing(false);
@@ -114,7 +105,6 @@ export const AIAnalyticBrain = () => {
 
   return (
     <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] shadow-xl relative overflow-hidden group transition-all">
-      {/* Ícono de Fondo */}
       <div className="absolute top-0 right-0 p-8 opacity-[0.03] text-8xl group-hover:scale-110 group-hover:opacity-[0.05] transition-all duration-700 select-none pointer-events-none">
         <Bot size={180} />
       </div>

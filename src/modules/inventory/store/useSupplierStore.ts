@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../../../lib/supabase';
+import { useTenantStore } from '../../../store/useTenantStore';
 
 export interface Supplier {
   id: string;
@@ -21,20 +22,29 @@ export const useSupplierStore = create<SupplierState>((set, get) => ({
   isLoading: false,
 
   fetchSuppliers: async () => {
+    const companyId = useTenantStore.getState().activeCompanyId;
+    if (!companyId) return;
+
     set({ isLoading: true });
     try {
-      const { data, error } = await supabase.from('suppliers').select('*').order('name');
+      const { data, error } = await supabase
+        .from('suppliers')
+        .select('id, name, contact, phone, balance')
+        .eq('company_id', companyId)
+        .order('name');
       if (error) throw error;
-      set({ suppliers: data as Supplier[] });
+      set({ suppliers: (data as Supplier[]) || [] });
     } catch (error) {
-      console.error('❌ Error cargando proveedores:', error);
+      console.error('Error cargando proveedores:', error);
     } finally {
       set({ isLoading: false });
     }
   },
 
   addSupplier: async (data) => {
-    const { error } = await supabase.from('suppliers').insert([{ ...data, balance: 0 }]);
+    const companyId = useTenantStore.getState().activeCompanyId;
+    if (!companyId) throw new Error('No hay company_id activo');
+    const { error } = await supabase.from('suppliers').insert([{ ...data, balance: 0, company_id: companyId }]);
     if (error) throw error;
     await get().fetchSuppliers();
   }

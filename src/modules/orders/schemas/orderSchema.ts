@@ -7,6 +7,9 @@ export const itemVariationSchema = z.object({
   color: z.string().min(1, 'Color requerido').max(30),
   quantityOrdered: z.coerce.number().int().positive('Mínimo 1 unidad'),
   quantityDelivered: z.coerce.number().int().min(0),
+  variantId: z.string().nullable().optional(),
+  sizeId: z.string().optional(),
+  colorId: z.string().optional(),
 });
 
 // 2. Artículo del pedido (Prenda o Servicio)

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useCatalogStore } from "../../../store/useCatalogStore";
+import { useCatalogStore } from "../store/useCatalogStore";
 import { Search, Briefcase, Plus, FileText } from "lucide-react";
 import Swal from "sweetalert2";
 
@@ -32,15 +32,15 @@ export const ServicesDashboard = () => {
         <div class="space-y-4 mt-4 text-left">
           <div>
             <label class="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">Nombre del Servicio</label>
-            <input id="s-name" class="swal2-input !w-full !m-0 !mt-1 !bg-slate-950 !border-slate-800 !text-white !rounded-xl" placeholder="Ej: Bordado Premium Corporativo">
+            <input id="s-name" class="swal2-input w-full! m-0! mt-1! bg-slate-950! border-slate-800! text-white! rounded-xl!" placeholder="Ej: Bordado Premium Corporativo">
           </div>
           <div>
             <label class="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">Descripción / Detalles</label>
-            <textarea id="s-desc" rows="3" class="swal2-textarea !w-full !m-0 !mt-1 !bg-slate-950 !border-slate-800 !text-white !rounded-xl text-sm p-4" placeholder="Especificaciones del servicio..."></textarea>
+            <textarea id="s-desc" rows="3" class="swal2-textarea w-full! m-0! mt-1! bg-slate-950! border-slate-800! text-white! rounded-xl! text-sm p-4" placeholder="Especificaciones del servicio..."></textarea>
           </div>
           <div>
             <label class="text-[10px] font-black text-slate-500 uppercase ml-1 tracking-widest">Precio Base ($)</label>
-            <input id="s-price" type="number" class="swal2-input !w-full !m-0 !mt-1 !bg-slate-950 !border-slate-800 !text-emerald-400 !rounded-xl !text-center !font-black text-xl" placeholder="0">
+            <input id="s-price" type="number" class="swal2-input w-full! m-0! mt-1! bg-slate-950! border-slate-800! text-emerald-400! rounded-xl! text-center! font-black! text-xl" placeholder="0">
           </div>
         </div>
       `,
@@ -48,7 +48,7 @@ export const ServicesDashboard = () => {
       confirmButtonText: "CREAR SERVICIO",
       cancelButtonText: "CANCELAR",
       customClass: {
-        popup: "!bg-slate-900 !border-slate-800 !rounded-[2rem]",
+        popup: "bg-slate-900! border-slate-800! rounded-4xl",
         confirmButton:
           "w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl uppercase text-xs transition-colors",
         cancelButton:
@@ -87,7 +87,7 @@ export const ServicesDashboard = () => {
           timer: 3000,
           customClass: { popup: "!bg-slate-900 !text-white" },
         });
-      } catch (error) {
+      } catch {
         Swal.fire("Error", "No se pudo crear el servicio.", "error");
       }
     }
@@ -96,7 +96,7 @@ export const ServicesDashboard = () => {
   return (
     <div className="p-8 max-w-7xl mx-auto animate-in fade-in duration-500">
       {/* CABECERA */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center bg-slate-900 border border-slate-800 p-8 rounded-[2rem] shadow-xl mb-8 gap-6">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center bg-slate-900 border border-slate-800 p-8 rounded-4xl shadow-xl mb-8 gap-6">
         <div>
           <h1 className="text-3xl font-black text-white uppercase tracking-tighter flex items-center gap-3">
             <span className="bg-indigo-500 text-white p-2 rounded-xl text-xl">
@@ -134,7 +134,7 @@ export const ServicesDashboard = () => {
           Cargando Catálogo de Servicios...
         </div>
       ) : filteredServices.length === 0 ? (
-        <div className="p-12 text-center font-black text-slate-400 uppercase tracking-widest text-xs border border-dashed border-slate-300 dark:border-slate-800 rounded-[2rem]">
+        <div className="p-12 text-center font-black text-slate-400 uppercase tracking-widest text-xs border border-dashed border-slate-300 dark:border-slate-800 rounded-4xl">
           No se encontraron servicios registrados.
         </div>
       ) : (
@@ -142,7 +142,7 @@ export const ServicesDashboard = () => {
           {filteredServices.map((service) => (
             <div
               key={service.id}
-              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2rem] p-6 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all group"
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-4xl p-6 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all group"
             >
               <div className="bg-slate-50 dark:bg-slate-800/50 w-12 h-12 rounded-xl flex items-center justify-center mb-4 text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
                 <FileText size={20} />

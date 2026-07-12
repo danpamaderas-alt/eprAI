@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { supabase } from '../../../lib/supabase'; 
+import { supabase } from '../../../lib/supabase';
+import { useTenantStore } from '../../../store/useTenantStore'; 
 
 export interface Delivery {
   id: string;
@@ -30,9 +31,13 @@ export const useLogisticsStore = create<LogisticsStore>((set) => ({
   fetchDeliveries: async () => {
     set({ isLoading: true });
     try {
+      const companyId = useTenantStore.getState().activeCompanyId;
+      if (!companyId) { set({ isLoading: false }); return; }
+
       const { data, error } = await supabase
         .from('deliveries')
         .select('*')
+        .eq('company_id', companyId)
         .order('created_at', { ascending: false });
       if (error) throw error;
       set({ deliveries: data as Delivery[] });
@@ -40,7 +45,10 @@ export const useLogisticsStore = create<LogisticsStore>((set) => ({
   },
 
   addDelivery: async (data) => {
-    const { data: newDelivery, error } = await supabase.from('deliveries').insert([data]).select().single();
+    const companyId = useTenantStore.getState().activeCompanyId;
+    if (!companyId) throw new Error('No hay company_id activo');
+
+    const { data: newDelivery, error } = await supabase.from('deliveries').insert([{ ...data, company_id: companyId }]).select().single();
     if (error) throw error;
     set((state) => ({ deliveries: [newDelivery as Delivery, ...state.deliveries] }));
   },

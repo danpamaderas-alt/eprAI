@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../../../lib/supabase';
-// Importamos el store del catálogo para poder actualizar la pantalla de inventario en tiempo real
 import { useCatalogStore } from '../../../store/useCatalogStore'; 
+import { useTenantStore } from '../../../store/useTenantStore';
 
 export interface OrderVariation {
   sizeId: string;
@@ -19,6 +19,7 @@ export interface OrderItem {
 
 export interface Order {
   id: string;
+  company_id?: string;
   customer_name: string;
   total_amount: number;
   advance_payment: number;
@@ -32,8 +33,7 @@ interface OrderState {
   orders: Order[];
   isLoading: boolean;
   fetchOrders: () => Promise<void>;
-  registerPartialDelivery: (orderId: string, deliveryData: any) => Promise<void>;
-  // ✅ NUEVA FUNCIÓN: Crear Pedido y Descontar Stock
+  registerPartialDelivery: (orderId: string, deliveryData: Record<string, unknown>) => Promise<void>;
   createOrder: (orderData: Omit<Order, 'id'>) => Promise<void>;
 }
 
@@ -42,75 +42,56 @@ export const useOrderStore = create<OrderState>((set, get) => ({
   isLoading: false,
 
   fetchOrders: async () => {
+    const companyId = useTenantStore.getState().activeCompanyId;
+    if (!companyId) return;
+
     set({ isLoading: true });
+    
     const { data, error } = await supabase
       .from('orders')
-      .select('*')
+      .select('id, company_id, customer_name, total_amount, advance_payment, status, due_date, business_unit, items, created_at')
+      .eq('company_id', companyId)
       .order('created_at', { ascending: false });
 
     if (!error) {
       set({ orders: data || [], isLoading: false });
     } else {
-      console.error("Error cargando pedidos:", error);
+      console.error("Error fetching 'orders':", error.message);
       set({ isLoading: false });
     }
   },
 
-  // ✅ LÓGICA PARA CREAR PEDIDO Y DESCONTAR STOCK AUTOMÁTICAMENTE
   createOrder: async (orderData) => {
-    try {
-      // VANGUARDIA (Atomicidad y Rendimiento):
-      // Delegamos la creación del pedido y el descuento de stock a una sola transacción SQL.
-      const { error } = await supabase.rpc('create_order_atomic', {
-        order_payload: orderData
-      });
+    const companyId = useTenantStore.getState().activeCompanyId;
+    if (!companyId) throw new Error("No hay una empresa activa seleccionada para crear el pedido.");
 
-      if (error) throw error;
+    const payloadWithTenant = { ...orderData, company_id: companyId };
 
-      // 3. Recargamos los pedidos y le avisamos al inventario que se actualice
-      await get().fetchOrders();
-      await useCatalogStore.getState().fetchAllCatalogs();
+    const { data, error: rpcError } = await supabase.rpc('create_order_atomic', {
+      order_payload: payloadWithTenant
+    });
 
-    } catch (error) {
-      console.error("❌ Error al crear pedido y descontar stock:", error);
-      throw error;
+    if (rpcError) {
+      console.error("Error en create_order_atomic:", rpcError.message);
+      throw new Error(`Error creando pedido: ${rpcError.message}`);
     }
+
+    await get().fetchOrders();
+    await useCatalogStore.getState().fetchAllCatalogs();
   },
 
   registerPartialDelivery: async (orderId, deliveryData) => {
-    const { data: order } = await supabase
-      .from('orders')
-      .select('items, status')
-      .eq('id', orderId)
-      .single();
+    try {
+      const { error } = await supabase.rpc('register_partial_delivery', {
+        p_order_id: orderId,
+        p_delivery_data: deliveryData
+      });
 
-    if (!order) return;
-
-    const updatedItems = order.items.map((item: OrderItem) => {
-      const deliveryItem = deliveryData.itemsDelivered.find((d: any) => d.itemId === item.id);
-      if (deliveryItem) {
-        return {
-          ...item,
-          variations: item.variations.map((v: OrderVariation) => {
-            if (v.id === deliveryItem.variationId) {
-              return { ...v, quantityDelivered: (v.quantityDelivered || 0) + deliveryItem.quantity };
-            }
-            return v;
-          })
-        };
-      }
-      return item;
-    });
-    
-    const { error } = await supabase
-      .from('orders')
-      .update({ 
-        items: updatedItems,
-        status: 'PARTIAL' 
-      })
-      .eq('id', orderId);
-
-    if (error) throw error;
-    await get().fetchOrders();
+      if (error) throw error;
+      
+      await get().fetchOrders();
+    } catch (error) {
+      throw error;
+    }
   }
 }));

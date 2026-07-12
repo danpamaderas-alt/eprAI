@@ -2,12 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { Search, Building2, Plus, Truck, Phone } from "lucide-react";
 import Swal from "sweetalert2";
 import { useSupplierStore } from "../store/useSupplierStore";
-
-const ARS = new Intl.NumberFormat("es-AR", {
-  style: "currency",
-  currency: "ARS",
-  maximumFractionDigits: 0,
-});
+import { ARS } from '../../../shared/utils/format';
 
 export const SupplierDashboard = () => {
   const { suppliers, isLoading, fetchSuppliers, addSupplier } =
@@ -90,7 +85,7 @@ export const SupplierDashboard = () => {
           showConfirmButton: false,
           timer: 2000,
         });
-      } catch (error) {
+      } catch {
         Swal.fire("Error", "No se pudo registrar el proveedor.", "error");
       }
     }

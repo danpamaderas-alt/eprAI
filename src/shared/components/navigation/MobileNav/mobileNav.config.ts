@@ -3,15 +3,18 @@ import {
   ShoppingCart, 
   Package, 
   Users, 
-  BarChart, // 💡 Usamos BarChart genérico por compatibilidad
+  BarChart,
   Truck,
+  Wrench,
   } from "lucide-react";
+import type { NavItem } from "./mobileNav.types";
 
-export const NAV_ITEMS = [
-  { label: "Inicio", href: "/", icon: LayoutDashboard },
+export const NAV_ITEMS: readonly NavItem[] = [
+  { label: "Inicio", href: "/inicio", icon: LayoutDashboard },
   { label: "Ventas", href: "/ventas", icon: ShoppingCart },
   { label: "Stock", href: "/inventario", icon: Package },
-  { label: "Clientes", href: "/crm", icon: Users },
-  { label: "Logística", href: "/logistica", icon: Truck },
-  { label: "Radar", href: "/analitica", icon: BarChart },
+  { label: "Clientes", href: "/clientes", icon: Users },
+  { label: "Servicios", href: "/servicios", icon: Wrench },
+  { label: "Remitos", href: "/remitos", icon: Truck },
+  { label: "Finanzas", href: "/finanzas", icon: BarChart },
 ];

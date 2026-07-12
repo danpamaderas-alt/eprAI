@@ -14,7 +14,7 @@ BEGIN
   -- 1. Insertamos el pedido mapeando los campos del JSON a la tabla orders
   INSERT INTO orders (
     customer_name, total_amount, advance_payment, 
-    status, due_date, business_unit, items
+    status, due_date, business_unit, items, company_id
   )
   VALUES (
     order_payload->>'customer_name',
@@ -23,7 +23,8 @@ BEGIN
     order_payload->>'status',
     (order_payload->>'due_date')::TIMESTAMP,
     order_payload->>'business_unit',
-    order_payload->'items'
+    order_payload->'items',
+    (order_payload->>'company_id')::UUID
   )
   RETURNING id INTO v_new_order_id;
 

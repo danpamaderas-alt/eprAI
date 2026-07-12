@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../../../lib/supabase';
+import { useTenantStore } from '../../../store/useTenantStore';
 
-// --- INTERFACES SEGURAS ---
 export interface FinancialTransaction {
   id: string;
   type: 'INCOME' | 'EXPENSE';
@@ -38,30 +38,27 @@ export const useFinanceStore = create<FinanceState>((set) => ({
   isLoading: false,
 
   fetchFinancialData: async () => {
+    const companyId = useTenantStore.getState().activeCompanyId;
+    if (!companyId) return;
+
     set({ isLoading: true });
     try {
-      // VANGUARDIA (Rendimiento): Llamamos a múltiples tablas en paralelo
-      // para no bloquear la interfaz y hacer que el dashboard sea "relámpago".
       const [treasuryRes, ordersRes] = await Promise.all([
-        supabase.from('treasury').select('*'),
-        supabase.from('orders').select('total_amount, advance_payment, status')
+        supabase.from('treasury').select('id, type, amount, date').eq('company_id', companyId),
+        supabase.from('orders').select('total_amount, advance_payment, status').eq('company_id', companyId)
       ]);
 
       if (treasuryRes.error) throw treasuryRes.error;
       if (ordersRes.error) throw ordersRes.error;
 
-      // Procesamos los ingresos y egresos de la tesorería
       let income = 0;
       let expenses = 0;
       
       (treasuryRes.data || []).forEach((tx) => {
-        if (tx.status === 'COMPLETADO') {
-          if (tx.type === 'INCOME') income += Number(tx.amount || 0);
-          if (tx.type === 'EXPENSE') expenses += Number(tx.amount || 0);
-        }
+        if (tx.type === 'INCOME') income += Number(tx.amount || 0);
+        if (tx.type === 'EXPENSE') expenses += Number(tx.amount || 0);
       });
 
-      // Calculamos el dinero que está "en la calle" (Cuentas por cobrar de pedidos en curso)
       let pendingReceivables = 0;
       (ordersRes.data || []).forEach((order) => {
          if (order.status !== 'CANCELLED' && order.status !== 'DELIVERED') {
@@ -83,7 +80,7 @@ export const useFinanceStore = create<FinanceState>((set) => ({
         isLoading: false
       });
     } catch (error) {
-      console.error('❌ Error cargando datos financieros:', error);
+      console.error('Error fetching financial data:', error);
       set({ isLoading: false });
     }
   }

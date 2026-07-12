@@ -10,7 +10,7 @@ export const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   
   const navigate = useNavigate();
-  const setCompany = useTenantStore((state) => state.setActiveCompanyId); //
+  const setCompany = useTenantStore((state) => state.setActiveCompany); //
 
   const handleLogin = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,12 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback, memo } from "react";
+﻿import React, { useState, useEffect, useRef, useCallback, memo } from "react";
 import Swal from "sweetalert2";
 import { useCrmStore } from "../store/useCrmStore";
-
-const CUSTOMER_TYPES = [
-  { id: "MINORISTA", label: "👤 Minorista" },
-  { id: "MAYORISTA", label: "🏷️ Mayorista" },
-  { id: "INSTITUCION", label: "🏛️ Institución" },
-];
+import { CUSTOMER_TYPES } from '../../../shared/utils/status';
 
 interface ClientFormModalProps {
   isOpen: boolean;
@@ -47,27 +42,38 @@ export const ClientFormModal = memo(
         if (!formData.name.trim()) return;
 
         setIsSubmitting(true);
-        const success = await addCustomer({
-          name: formData.name.trim().toUpperCase(),
-          type: formData.type,
-          phone: formData.phone || null,
-          email: formData.email || null,
-          address: formData.address || null,
-          cuit: formData.cuit || null,
-          balance: 0,
-        });
-        setIsSubmitting(false);
+        try {
+          const success = await addCustomer({
+            name: formData.name.trim().toUpperCase(),
+            type: formData.type,
+            phone: formData.phone || null,
+            email: formData.email || null,
+            address: formData.address || null,
+            cuit: formData.cuit || null,
+            balance: 0,
+          });
 
-        if (success) {
+          if (success) {
+            Swal.fire({
+              icon: "success",
+              title: "Registrado",
+              timer: 1500,
+              showConfirmButton: false,
+              background: "#0f172a",
+              color: "#fff",
+            });
+            onClose();
+          }
+        } catch (err) {
           Swal.fire({
-            icon: "success",
-            title: "Registrado",
-            timer: 1500,
-            showConfirmButton: false,
+            icon: "error",
+            title: "Error al guardar",
+            text: err instanceof Error ? err.message : "Ocurrió un error inesperado",
             background: "#0f172a",
             color: "#fff",
           });
-          onClose();
+        } finally {
+          setIsSubmitting(false);
         }
       },
       [formData, addCustomer, onClose],
@@ -94,7 +100,7 @@ export const ClientFormModal = memo(
                   id="modal-name"
                   ref={nameInputRef}
                   className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="EJ: JUAN PÉREZ"
+                  placeholder="EJ: JUAN PEREZ"
                   value={formData.name}
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
@@ -107,7 +113,7 @@ export const ClientFormModal = memo(
                   htmlFor="modal-type"
                   className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2"
                 >
-                  Categoría
+                  Categoria
                 </label>
                 <select
                   id="modal-type"
@@ -125,31 +131,66 @@ export const ClientFormModal = memo(
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                    Telefono
+                  </label>
+                  <input
+                    className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white outline-none"
+                    placeholder="TELEFONO"
+                    value={formData.phone}
+                    onChange={(e) =>
+                      setFormData({ ...formData, phone: e.target.value })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                    CUIT/DNI
+                  </label>
+                  <input
+                    className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white outline-none"
+                    placeholder="CUIT / DNI"
+                    value={formData.cuit}
+                    onChange={(e) =>
+                      setFormData({ ...formData, cuit: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                  Email
+                </label>
                 <input
-                  aria-label="Teléfono"
+                  type="email"
                   className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white outline-none"
-                  placeholder="TELÉFONO"
-                  value={formData.phone}
+                  placeholder="EMAIL"
+                  value={formData.email}
                   onChange={(e) =>
-                    setFormData({ ...formData, phone: e.target.value })
+                    setFormData({ ...formData, email: e.target.value })
                   }
                 />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                  Direccion
+                </label>
                 <input
-                  aria-label="CUIT/DNI"
                   className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white outline-none"
-                  placeholder="CUIT / DNI"
-                  value={formData.cuit}
+                  placeholder="DIRECCION"
+                  value={formData.address}
                   onChange={(e) =>
-                    setFormData({ ...formData, cuit: e.target.value })
+                    setFormData({ ...formData, address: e.target.value })
                   }
                 />
               </div>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full bg-blue-600 text-white p-5 rounded-2xl font-black uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 active:scale-95 transition-all"
+                className="w-full bg-blue-600 text-white p-5 rounded-2xl font-black uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 active:scale-95 transition-all disabled:opacity-50"
               >
-                {isSubmitting ? "Guardando..." : "💾 Guardar Cliente"}
+                {isSubmitting ? "Guardando..." : "Guardar Cliente"}
               </button>
               <button
                 type="button"

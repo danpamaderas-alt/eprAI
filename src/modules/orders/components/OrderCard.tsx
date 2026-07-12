@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../../../lib/supabase'; // Ajustá esta ruta si es necesario
 import Swal from 'sweetalert2';
-
-const ARS = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+import { ARS } from '../../../shared/utils/format';
 
 const STATUS_COLORS: Record<string, string> = {
   'PENDIENTE': 'bg-slate-100 text-slate-600 border-slate-200',
@@ -42,7 +41,7 @@ export const OrderCard = ({ order: initialOrder }: any) => {
       
       setOrder({ ...order, status: newStatus });
       Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `Pedido ${newStatus}`, showConfirmButton: false, timer: 1500 });
-    } catch (err) {
+    } catch {
       Swal.fire('Error', 'No se pudo actualizar el estado', 'error');
     } finally {
       setIsUpdating(false);

@@ -1,45 +1,72 @@
-import { memo, useCallback } from 'react';
+﻿import { memo, useCallback, useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LogOut } from 'lucide-react';
+import {
+  LogOut,
+  LayoutDashboard,
+  ShoppingCart,
+  ClipboardList,
+  Truck,
+  Package,
+  Warehouse,
+  Landmark,
+  BarChart3,
+  TrendingUp,
+  FileText,
+  Factory,
+  Scissors,
+  Ruler,
+  Calculator,
+  Printer,
+  Users,
+  CreditCard,
+  Moon,
+  Sun,
+  Plus,
+  Sprout,
+  Pencil,
+  type LucideIcon,
+} from 'lucide-react';
 
-// Dependencias de entorno
 import { supabase } from '../../../../lib/supabase';
 import { useThemeStore } from '../../../../store/useThemeStore';
 import { useTenantStore } from '../../../../store/useTenantStore';
+import { CompanyFormModal } from '../ui/CompanyFormModal';
 
-// ==========================================
-// CONFIGURACIÓN DE RUTAS
-// ==========================================
 interface NavRoute {
   readonly path: string;
   readonly label: string;
+  readonly icon: LucideIcon;
   readonly highlight?: 'indigo' | 'rose' | 'emerald';
 }
 
 const DESKTOP_ROUTES: readonly NavRoute[] = [
-  { path: '/inicio', label: '📊 Inicio' },
-  { path: '/ventas', label: '💰 Punto de Venta' },
-  { path: '/pedidos', label: '📋 Pedidos' },
-  { path: '/remitos', label: '📑 Remitos / Envíos' }, // <-- AQUÍ ESTÁ EL NUEVO MÓDULO
-  { path: '/inventario', label: '📦 Inventario' },
-  { path: '/proveedores', label: '🚚 Proveedores' },
-  { path: '/tesoreria', label: '💵 Tesorería' },
-  { path: '/finanzas', label: '📈 Centro Financiero' },
-  { path: '/rentabilidad', label: '📊 Radar de Rentabilidad' },
-  { path: '/cotizador', label: '📄 Presupuestos B2B', highlight: 'indigo' },
-  { path: '/produccion', label: '🏭 A Fabricar', highlight: 'rose' },
-  { path: '/talleristas', label: '✂️ Equipo y Taller', highlight: 'emerald' },
-  { path: '/insumos', label: '🧵 Insumos y Taller', highlight: 'indigo' },
+  { path: '/inicio', label: 'Inicio', icon: LayoutDashboard },
+  { path: '/ventas', label: 'Punto de Venta', icon: ShoppingCart },
+  { path: '/pedidos', label: 'Pedidos', icon: ClipboardList },
+  { path: '/remitos', label: 'Remitos / Envíos', icon: Truck },
+  { path: '/inventario', label: 'Inventario', icon: Package },
+  { path: '/proveedores', label: 'Proveedores', icon: Warehouse },
+  { path: '/tesoreria', label: 'Tesorería', icon: Landmark },
+  { path: '/finanzas', label: 'Centro Financiero', icon: BarChart3 },
+  { path: '/rentabilidad', label: 'Rentabilidad', icon: TrendingUp },
+  { path: '/cotizador', label: 'Presupuestos B2B', icon: FileText, highlight: 'indigo' },
+  { path: '/produccion', label: 'A Fabricar', icon: Factory, highlight: 'rose' },
+  { path: '/talleristas', label: 'Equipo y Taller', icon: Scissors, highlight: 'emerald' },
+  { path: '/insumos', label: 'Insumos y Taller', icon: Ruler, highlight: 'indigo' },
+  { path: '/calculadora', label: 'Calculadora de Costos', icon: Calculator, highlight: 'indigo' },
+  { path: '/calculadora-3d', label: 'Calc. Impresión 3D', icon: Printer, highlight: 'indigo' },
 ];
 
-// ==========================================
-// COMPONENTE AUXILIAR
-// ==========================================
+const CRM_ROUTES: readonly NavRoute[] = [
+  { path: '/clientes', label: 'Directorio', icon: Users },
+  { path: '/cuentas-corrientes', label: 'Cuentas Corrientes', icon: CreditCard },
+];
+
 type SidebarItemProps = NavRoute;
 
-const SidebarItem = memo(({ path, label, highlight }: SidebarItemProps) => {
+const SidebarItem = memo(({ path, label, icon: Icon, highlight }: SidebarItemProps) => {
   const getClasses = (isActive: boolean) => {
-    const base = "flex items-center gap-3 px-5 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all focus:outline-none focus:ring-2 focus:ring-blue-500";
+    const base = "flex items-center gap-3 px-4 py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all focus:outline-none focus:ring-2 focus:ring-blue-500";
     if (!isActive) return `${base} text-slate-400 hover:bg-slate-800 hover:text-slate-200`;
 
     switch (highlight) {
@@ -52,6 +79,7 @@ const SidebarItem = memo(({ path, label, highlight }: SidebarItemProps) => {
 
   return (
     <NavLink to={path} className={({ isActive }) => getClasses(isActive)}>
+      <Icon className="w-4 h-4 shrink-0" />
       {label}
     </NavLink>
   );
@@ -59,15 +87,57 @@ const SidebarItem = memo(({ path, label, highlight }: SidebarItemProps) => {
 
 SidebarItem.displayName = 'SidebarItem';
 
-// ==========================================
-// COMPONENTE PRINCIPAL: SIDEBAR
-// ==========================================
 export const Sidebar = memo(() => {
   const { isDarkMode, toggleDarkMode } = useThemeStore();
   const { activeCompanyId, setActiveCompany } = useTenantStore();
   const navigate = useNavigate();
 
-  // 🚀 FIX: Manejo seguro de la promesa de cierre de sesión
+  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([
+    { id: "11111111-1111-1111-1111-111111111111", name: "Raíces (Principal)" },
+    { id: "22222222-2222-2222-2222-222222222222", name: "Rojo Showroom (Secundaria)" }
+  ]);
+  const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
+  const [editingCompany, setEditingCompany] = useState<{ id: string; name: string } | null>(null);
+
+  const fetchCompanies = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from("companies")
+        .select("id, name")
+        .order("name");
+      if (error) throw error;
+      if (data && data.length > 0) {
+        setCompanies(data);
+      }
+    } catch (err) {
+      console.error("Error fetching companies:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCompanies();
+  }, [fetchCompanies]);
+
+  const handleCompanySaved = useCallback((company: { id: string; name: string }) => {
+    setCompanies((prev) => {
+      const exists = prev.find((c) => c.id === company.id);
+      if (exists) {
+        return prev.map((c) => (c.id === company.id ? company : c));
+      }
+      return [...prev, company].sort((a, b) => a.name.localeCompare(b.name));
+    });
+    setActiveCompany(company.id);
+    navigate('/');
+  }, [setActiveCompany, navigate]);
+
+  const handleEditCompany = useCallback(() => {
+    const current = companies.find((c) => c.id === activeCompanyId);
+    if (current) {
+      setEditingCompany(current);
+      setIsCompanyModalOpen(true);
+    }
+  }, [companies, activeCompanyId]);
+
   const handleSignOut = useCallback(async () => {
     try {
       await supabase.auth.signOut();
@@ -77,76 +147,116 @@ export const Sidebar = memo(() => {
   }, []);
 
   return (
-    <aside aria-label="Navegación lateral de escritorio" className="hidden md:flex sticky top-0 left-0 h-screen w-72 bg-slate-900 flex-col border-r border-slate-800 flex-shrink-0 transition-colors duration-300">
-      
-      {/* HEADER E IDENTIDAD */}
-      <div className="h-20 flex items-center justify-between px-6 border-b border-slate-800 shrink-0">
-        <h1 className="text-2xl font-black text-white italic tracking-tighter uppercase">
-          🌱 Raíces <span className="text-blue-500 text-[10px] block tracking-[0.4em] not-italic mt-1">HOLDING ERP</span>
-        </h1>
-        <button 
-          onClick={toggleDarkMode} 
-          aria-label={isDarkMode ? 'Activar modo claro' : 'Activar modo oscuro'}
-          className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          {isDarkMode ? '🌙' : '☀️'}
-        </button>
-      </div>
-
-      {/* SELECTOR DE ENTORNO */}
-      <div className="p-4 border-b border-slate-800 bg-slate-800/50 shrink-0">
-        <label htmlFor="tenant-select" className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">
-          Entorno de Trabajo
-        </label>
-        <select 
-          id="tenant-select"
-          value={activeCompanyId}
-          onChange={(e) => {
-            setActiveCompany(e.target.value);
-            navigate('/');
-          }}
-          className="w-full p-2 bg-slate-950 border border-slate-700 text-white font-bold text-xs rounded-lg outline-none focus:border-blue-500 cursor-pointer transition-colors"
-        >
-          <option value="11111111-1111-1111-1111-111111111111">Raíces (Principal)</option>
-          <option value="22222222-2222-2222-2222-222222222222">Rojo Showroom (Secundaria)</option>
-        </select>
-      </div>
-
-      {/* RUTAS DE NAVEGACIÓN */}
-      <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1 custom-scrollbar">
-        <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] mb-4 ml-2" aria-hidden="true">Módulos</p>
+    <>
+      <aside aria-label="Navegación lateral de escritorio" className="hidden md:flex sticky top-0 left-0 h-screen w-72 bg-slate-900 flex-col border-r border-slate-800 shrink-0 transition-colors duration-300">
         
-        {DESKTOP_ROUTES.map((route) => (
-          <SidebarItem key={route.path} {...route} />
-        ))}
-        
-        {/* Agrupación modular (CRM) */}
-        <div className="pt-4 mt-4 border-t border-slate-800">
-          <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.3em] mb-4 ml-2" aria-hidden="true">CRM</p>
-          <SidebarItem path="/clientes" label="🤝 Directorio" />
-          <SidebarItem path="/cuentas-corrientes" label="💳 Cuentas Corrientes" />
+        {/* HEADER */}
+        <div className="h-20 flex items-center justify-between px-6 border-b border-slate-800 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center shrink-0">
+              <Sprout className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-black text-white tracking-tight uppercase leading-none">
+                Raíces
+              </h1>
+              <span className="text-[9px] font-bold text-blue-400 uppercase tracking-[0.3em]">Holding ERP</span>
+            </div>
+          </div>
+          <button 
+            onClick={toggleDarkMode} 
+            aria-label={isDarkMode ? 'Activar modo claro' : 'Activar modo oscuro'}
+            className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center transition-colors text-slate-400 hover:text-white"
+          >
+            {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
         </div>
-      </nav>
 
-      {/* PIE Y USUARIO */}
-      <div className="p-4 border-t border-slate-800 shrink-0">
-        <div className="flex items-center gap-3 px-2 mb-4">
-           <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white font-black text-xs shrink-0" aria-hidden="true">J</div>
-           <div className="overflow-hidden">
-             <p className="text-xs font-bold text-white truncate">Jorge (Local)</p>
-             <p className="text-[9px] text-emerald-400 font-black uppercase tracking-widest truncate">Sin Candados 🔓</p>
-           </div>
+        {/* TENANT SELECTOR */}
+        <div className="p-4 border-b border-slate-800 bg-slate-800/50 shrink-0">
+          <div className="flex justify-between items-center mb-2">
+            <label htmlFor="tenant-select" className="block text-[10px] font-bold uppercase tracking-widest text-slate-500">
+              Entorno de Trabajo
+            </label>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleEditCompany}
+                className="flex items-center gap-1 text-[9px] font-bold text-slate-400 hover:text-white uppercase tracking-widest transition-colors"
+                title="Editar empresa actual"
+              >
+                <Pencil className="w-3 h-3" />
+              </button>
+              <button
+                onClick={() => { setEditingCompany(null); setIsCompanyModalOpen(true); }}
+                className="flex items-center gap-1 text-[9px] font-bold text-blue-400 hover:text-blue-300 uppercase tracking-widest transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+                Nueva
+              </button>
+            </div>
+          </div>
+          <select 
+            id="tenant-select"
+            value={activeCompanyId}
+            onChange={(e) => {
+              setActiveCompany(e.target.value);
+              navigate('/');
+            }}
+            className="w-full p-2 bg-slate-950 border border-slate-700 text-white font-bold text-xs rounded-xl outline-none focus:border-blue-500 cursor-pointer transition-colors"
+          >
+            {companies.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
         </div>
-        <button 
-          onClick={handleSignOut} 
-          className="w-full flex justify-center items-center gap-2 py-3 bg-slate-950 hover:bg-rose-900/50 text-slate-400 hover:text-rose-500 border border-slate-800 rounded-xl font-black text-[10px] uppercase tracking-widest transition-colors focus:outline-none focus:ring-2 focus:ring-rose-500"
-        >
-          <LogOut size={14} aria-hidden="true" />
-          Bloqueo Desactivado
-        </button>
-      </div>
-      
-    </aside>
+
+        {/* NAVIGATION */}
+        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5 custom-scrollbar">
+          <p className="text-[9px] font-bold text-slate-600 uppercase tracking-[0.3em] mb-3 ml-3" aria-hidden="true">Módulos</p>
+          
+          {DESKTOP_ROUTES.map((route) => (
+            <SidebarItem key={route.path} {...route} />
+          ))}
+          
+          <div className="pt-3 mt-3 border-t border-slate-800">
+            <p className="text-[9px] font-bold text-slate-600 uppercase tracking-[0.3em] mb-3 ml-3" aria-hidden="true">CRM</p>
+            {CRM_ROUTES.map((route) => (
+              <SidebarItem key={route.path} {...route} />
+            ))}
+          </div>
+        </nav>
+
+        {/* FOOTER */}
+        <div className="p-4 border-t border-slate-800 shrink-0">
+          <div className="flex items-center gap-3 px-2 mb-3">
+             <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold text-xs shrink-0">
+               J
+             </div>
+             <div className="overflow-hidden">
+               <p className="text-xs font-bold text-white truncate">Jorge</p>
+               <p className="text-[9px] text-emerald-400 font-bold uppercase tracking-widest truncate">Administrador</p>
+             </div>
+          </div>
+          <button 
+            onClick={handleSignOut} 
+            className="w-full flex justify-center items-center gap-2 py-2.5 bg-slate-950 hover:bg-rose-900/50 text-slate-400 hover:text-rose-400 border border-slate-800 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-colors"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            Cerrar Sesión
+          </button>
+        </div>
+        
+      </aside>
+
+      <CompanyFormModal
+        isOpen={isCompanyModalOpen}
+        onClose={() => { setIsCompanyModalOpen(false); setEditingCompany(null); }}
+        onSaved={handleCompanySaved}
+        editCompany={editingCompany as any}
+      />
+    </>
   );
 });
 
