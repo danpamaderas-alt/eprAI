@@ -10,62 +10,108 @@ import {
   ChevronUp,
   Clock,
   Sparkles,
+  FileDown,
+  Settings2,
+  RotateCcw,
+  Pencil,
+  AlertTriangle,
+  Layers,
 } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { useToastStore } from "../../../store/useToastStore";
+
+// ====================================================
+// PRESETS DE IMPRESORAS
+// ====================================================
+interface PrinterPreset {
+  id: string;
+  name: string;
+  power: number;        // W
+  buildVolume: string;  // mm
+  maxTemp: number;      // °C
+  speed: string;        // mm/s
+  layer: string;        // mm recomendado
+  notes?: string;
+}
+
+const PRINTERS: PrinterPreset[] = [
+  { id: "custom",  name: "Personalizada", power: 250, buildVolume: "—", maxTemp: 260, speed: "—", layer: "—", notes: "Ingresá la potencia manualmente" },
+  { id: "ender3v1", name: "Creality Ender 3 v1", power: 250, buildVolume: "220×220×250", maxTemp: 260, speed: "50", layer: "0.2", notes: "Estándar de entrada" },
+  { id: "ender3v2", name: "Creality Ender 3 V2", power: 250, buildVolume: "220×220×250", maxTemp: 260, speed: "50", layer: "0.2", notes: "Con pantalla y mejor base" },
+  { id: "ender3s1", name: "Creality Ender 3 S1", power: 250, buildVolume: "220×220×270", maxTemp: 260, speed: "80", layer: "0.2", notes: "Extrusor directo" },
+  { id: "ender3v3se", name: "Creality Ender 3 V3 SE", power: 350, buildVolume: "220×220×250", maxTemp: 260, speed: "180", layer: "0.2", notes: "Auto-levelling" },
+  { id: "ender5plus", name: "Creality Ender 5 Plus", power: 500, buildVolume: "350×350×400", maxTemp: 260, speed: "80", layer: "0.2", notes: "Volumen grande" },
+  { id: "ender5s1", name: "Creality Ender 5 S1", power: 500, buildVolume: "220×220×280", maxTemp: 260, speed: "80", layer: "0.2", notes: "Volumen medio-grande" },
+  { id: "cr10", name: "Creality CR-10", power: 300, buildVolume: "300×300×400", maxTemp: 250, speed: "50", layer: "0.2", notes: "Clásico de gran volumen" },
+  { id: "k1", name: "Creality K1", power: 480, buildVolume: "220×220×250", maxTemp: 300, speed: "600", layer: "0.2", notes: "CoreXY rápido" },
+];
 
 // ====================================================
 // TIPOS
 // ====================================================
+type RoundingStrategy = "exact" | "990" | "999" | "900" | "hundred";
+
 interface Inputs {
+  printerModel: string;
   // Material
   pieceWeight: number;      // g
   rollPrice: number;        // $
   rollWeight: number;       // g (default 1000)
   wasteFactor: number;      // % (default 15)
   // Máquina
-  printTime: number;        // horas
+  printTime: number;        // horas por pieza
   machinePower: number;     // W (default 250)
   electricityCost: number;  // $/kWh
   amortizationPerHour: number; // $/h
   maintenancePerHour: number;  // $/h
   // Mano de obra
-  prepTime: number;         // h
-  postTime: number;         // h
+  prepTime: number;         // h por pieza
+  postTime: number;         // h por pieza
   laborRate: number;        // $/h
   // Operativos
   fixedCostMonthly: number; // $
   fixedCostPercent: number; // % asignado al proyecto
+  // Lote
+  quantity: number;         // piezas del lote
   // Precio
   profitMargin: number;     // %
   iva: number;              // %
   designBonus: number;      // % plus por diseño propio
   ownDesign: boolean;
+  rounding: RoundingStrategy;
 }
 
 interface SavedJob {
   id: string;
   name: string;
   inputs: Inputs;
-  finalPrice: number;
+  finalPriceTotal: number;
+  finalPriceUnit: number;
   savedAt: string;
 }
 
 interface Breakdown {
-  cm: number;          // Costo material
-  chElec: number;      // Costo eléctrico
-  ch: number;          // Costo máquina total
-  cmo: number;         // Costo mano de obra
+  cm: number;          // Costo material por unidad
+  chElec: number;      // Costo eléctrico $/h
+  ch: number;          // Costo máquina por unidad
+  cmo: number;         // Costo mano de obra por unidad
+  cp: number;          // Costo producción por unidad
+  cpTotal: number;     // Costo producción del lote
   fixedProrated: number;
-  cp: number;          // Costo producción
   designPlus: number;
-  basePrice: number;
-  priceWithMargin: number;
-  priceWithIva: number;
+  basePriceTotal: number;
+  priceWithMarginTotal: number;
+  priceWithIvaTotal: number;
+  roundedTotal: number;
+  roundedUnit: number;
 }
 
 // ====================================================
 // DEFAULTS
 // ====================================================
 const DEFAULT: Inputs = {
+  printerModel: "ender3v1",
   pieceWeight: 0,
   rollPrice: 0,
   rollWeight: 1000,
@@ -80,25 +126,86 @@ const DEFAULT: Inputs = {
   laborRate: 0,
   fixedCostMonthly: 0,
   fixedCostPercent: 0,
+  quantity: 1,
   profitMargin: 30,
   iva: 21,
   designBonus: 20,
   ownDesign: false,
+  rounding: "exact",
 };
 
-const STORAGE_KEY = "raices-print3d-history";
+// Campos que se persisten como "predeterminados"
+const DEFAULTABLE_KEYS = [
+  "machinePower",
+  "electricityCost",
+  "amortizationPerHour",
+  "maintenancePerHour",
+  "laborRate",
+  "fixedCostMonthly",
+  "profitMargin",
+  "iva",
+  "wasteFactor",
+] as const;
+
+const HISTORY_KEY = "raices-print3d-history";
+const DEFAULTS_KEY = "raices-print3d-defaults";
 
 // ====================================================
 // HELPERS
 // ====================================================
-const fmt = (n: number) =>
+const fmt = (n: number, decimals = 2) =>
   new Intl.NumberFormat("es-AR", {
     style: "currency",
     currency: "ARS",
-    minimumFractionDigits: 2,
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
   }).format(n);
 
-const pct = (n: number) => `${n.toFixed(1)}%`;
+const applyRounding = (v: number, strategy: RoundingStrategy): number => {
+  if (v <= 0) return 0;
+  switch (strategy) {
+    case "exact":
+      return Math.round(v * 100) / 100;
+    case "990":
+      return Math.max(0.99, Math.floor(v) + 0.99);
+    case "999":
+      return Math.max(0.999, Math.floor(v) + 0.999);
+    case "900":
+      return Math.max(0.9, Math.floor(v) + 0.9);
+    case "hundred":
+      return Math.ceil(v / 100) * 100;
+    default:
+      return Math.round(v * 100) / 100;
+  }
+};
+
+const loadJSON = <T,>(key: string): T | null => {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+};
+
+const mergeDefaults = (base: Inputs): Inputs => {
+  const stored = loadJSON<Partial<Inputs>>(DEFAULTS_KEY);
+  if (!stored) return base;
+  const merged = { ...base };
+  for (const k of DEFAULTABLE_KEYS) {
+    const v = stored[k];
+    if (typeof v === "number" && isFinite(v)) (merged as Record<string, unknown>)[k] = v;
+  }
+  return merged;
+};
+
+const ROUNDING_LABELS: Record<RoundingStrategy, string> = {
+  exact: "Exacto",
+  "990": "Terminar en .990",
+  "999": "Terminar en .999",
+  "900": "Terminar en .900",
+  hundred: "Redondear a centena",
+};
 
 // ====================================================
 // SUB-COMPONENTE: TARJETA DE SECCIÓN
@@ -183,24 +290,82 @@ const Field = ({
 );
 
 // ====================================================
+// SUB-COMPONENTE: SELECT
+// ====================================================
+const FieldSelect = ({
+  id,
+  label,
+  value,
+  onChange,
+  options,
+  hint,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  hint?: string;
+}) => (
+  <div className="space-y-1">
+    <label htmlFor={id} className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">
+      {label}
+      {hint && <span className="normal-case ml-1 text-slate-600">({hint})</span>}
+    </label>
+    <select
+      id={id}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full bg-slate-950 border border-slate-700 text-white text-sm font-black rounded-xl py-3 pl-4 pr-10 outline-none focus:border-indigo-500 transition-colors appearance-none cursor-pointer"
+    >
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+  </div>
+);
+
+// ====================================================
 // COMPONENTE PRINCIPAL
 // ====================================================
 export const Print3DCalculator = () => {
-  const [inputs, setInputs] = useState<Inputs>(DEFAULT);
+  const toast = useToastStore((s) => s.toast);
+  const [inputs, setInputs] = useState<Inputs>(() => mergeDefaults(DEFAULT));
   const [jobName, setJobName] = useState("");
   const [history, setHistory] = useState<SavedJob[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setHistory(JSON.parse(raw) as SavedJob[]);
-    } catch { /* ignorar */ }
+    const saved = loadJSON<SavedJob[]>(HISTORY_KEY);
+    if (saved) setHistory(saved);
   }, []);
 
   const set = useCallback(
     <K extends keyof Inputs>(key: K, value: Inputs[K]) =>
       setInputs((prev) => ({ ...prev, [key]: value })),
+    []
+  );
+
+  // -------------------------------------------------------
+  // PRINTER PRESET
+  // -------------------------------------------------------
+  const printer = useMemo(
+    () => PRINTERS.find((p) => p.id === inputs.printerModel) ?? PRINTERS[0],
+    [inputs.printerModel]
+  );
+
+  const handlePrinterChange = useCallback(
+    (id: string) => {
+      const preset = PRINTERS.find((p) => p.id === id);
+      setInputs((prev) => ({
+        ...prev,
+        printerModel: id,
+        machinePower: preset ? preset.power : prev.machinePower,
+      }));
+    },
     []
   );
 
@@ -212,41 +377,71 @@ export const Print3DCalculator = () => {
             printTime, machinePower, electricityCost, amortizationPerHour, maintenancePerHour,
             prepTime, postTime, laborRate,
             fixedCostMonthly, fixedCostPercent,
-            profitMargin, iva, designBonus, ownDesign } = inputs;
+            profitMargin, iva, designBonus, ownDesign, quantity, rounding } = inputs;
 
-    // Costo Material: Cm = (pieceWeight × pricePerGram) × (1 + waste%)
+    const qty = Math.max(1, quantity || 1);
+
+    // Costo Material por unidad
     const pricePerGram = rollWeight > 0 ? rollPrice / rollWeight : 0;
     const cm = pieceWeight * pricePerGram * (1 + wasteFactor / 100);
 
-    // Costo Máquina: Ch = printTime × (elec/h + amort/h + maint/h)
+    // Costo Máquina por unidad
     const chElec = (machinePower / 1000) * electricityCost; // $/h
     const ch = printTime * (chElec + amortizationPerHour + maintenancePerHour);
 
-    // Costo Mano de Obra: Cmo = (prep + post) × tarifa
+    // Costo Mano de Obra por unidad
     const cmo = (prepTime + postTime) * laborRate;
 
-    // Costos Fijos prorrateados
+    // Costo de Producción por unidad y del lote
+    const cp = cm + ch + cmo;
+    const cpTotal = cp * qty;
+
+    // Costos fijos (una vez por proyecto)
     const fixedProrated = fixedCostMonthly * (fixedCostPercent / 100);
 
-    // Costo de Producción Total
-    const cp = cm + ch + cmo;
+    // Plus por diseño propio (una vez por proyecto)
+    const designPlus = ownDesign ? cpTotal * (designBonus / 100) : 0;
 
-    // Plus por diseño propio (sobre cp)
-    const designPlus = ownDesign ? cp * (designBonus / 100) : 0;
+    // Base total del lote
+    const basePriceTotal = cpTotal + fixedProrated + designPlus;
 
-    // Precio base (CP + fijos + diseño)
-    const basePrice = cp + fixedProrated + designPlus;
+    // Con margen
+    const priceWithMarginTotal = profitMargin < 100
+      ? basePriceTotal / (1 - profitMargin / 100)
+      : basePriceTotal;
 
-    // Precio con margen
-    const priceWithMargin = profitMargin < 100
-      ? basePrice / (1 - profitMargin / 100)
-      : basePrice;
+    // Con IVA
+    const priceWithIvaTotal = priceWithMarginTotal * (1 + iva / 100);
 
-    // Precio final con IVA
-    const priceWithIva = priceWithMargin * (1 + iva / 100);
+    // Redondeo aplicado al total
+    const roundedTotal = applyRounding(priceWithIvaTotal, rounding);
+    const roundedUnit = qty > 0 ? roundedTotal / qty : 0;
 
-    return { cm, chElec, ch, cmo, fixedProrated, cp, designPlus, basePrice, priceWithMargin, priceWithIva };
+    return {
+      cm, chElec, ch, cmo, cp, cpTotal, fixedProrated, designPlus,
+      basePriceTotal, priceWithMarginTotal, priceWithIvaTotal, roundedTotal, roundedUnit,
+    };
   }, [inputs]);
+
+  // -------------------------------------------------------
+  // VALIDACIONES / ADVERTENCIAS
+  // -------------------------------------------------------
+  const warnings = useMemo<string[]>(() => {
+    const list: string[] = [];
+    const { profitMargin, rollWeight, pieceWeight, printTime, quantity, wasteFactor, rounding } = inputs;
+    if (profitMargin >= 100) list.push("El margen de beneficio debe ser menor a 100%.");
+    if (profitMargin > 80 && profitMargin < 100) list.push("El margen es muy alto (>80%). Verificá que sea intencional.");
+    if (rollWeight <= 0) list.push("El peso del rollo debe ser mayor a 0 para calcular el material.");
+    if (pieceWeight <= 0) list.push("Falta el peso de la pieza.");
+    if (printTime <= 0) list.push("Falta el tiempo de impresión.");
+    if (quantity < 1) list.push("La cantidad de piezas debe ser al menos 1.");
+    if (wasteFactor >= 100) list.push("El factor de desperdicio debe ser menor a 100%.");
+    if (inputs.ownDesign && inputs.designBonus <= 0) list.push("El plus por diseño propio debería ser mayor a 0.");
+    if (rounding === "990" || rounding === "999" || rounding === "900") list.push("El redondeo psicológico baja levemente el precio final.");
+    return list;
+  }, [inputs]);
+
+  const hasCriticalWarnings = warnings.some((w) => w.includes("100") && w.includes("margen"));
 
   // -------------------------------------------------------
   // HANDLERS
@@ -254,36 +449,136 @@ export const Print3DCalculator = () => {
   const handleReset = useCallback(() => {
     setInputs(DEFAULT);
     setJobName("");
+    setEditingId(null);
   }, []);
 
   const handleSave = useCallback(() => {
+    const qty = Math.max(1, inputs.quantity || 1);
     const entry: SavedJob = {
-      id: crypto.randomUUID(),
+      id: editingId ?? crypto.randomUUID(),
       name: jobName.trim() || `Trabajo ${new Date().toLocaleDateString("es-AR")}`,
-      inputs: { ...inputs },
-      finalPrice: bd.priceWithIva,
-      savedAt: new Date().toISOString(),
+      inputs: { ...inputs, quantity: qty },
+      finalPriceTotal: bd.roundedTotal,
+      finalPriceUnit: bd.roundedUnit,
+      savedAt: editingId
+        ? history.find((j) => j.id === editingId)?.savedAt ?? new Date().toISOString()
+        : new Date().toISOString(),
     };
+
     setHistory((prev) => {
-      const updated = [entry, ...prev].slice(0, 10);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      const existing = editingId ? prev.filter((j) => j.id !== editingId) : prev;
+      const updated = [entry, ...existing].slice(0, 10);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
       return updated;
     });
+
+    toast(editingId ? "Trabajo actualizado" : "Trabajo guardado en el historial", { type: "success" });
     setJobName("");
-  }, [jobName, inputs, bd]);
+    setEditingId(null);
+  }, [jobName, inputs, bd, editingId, history, toast]);
 
   const handleLoad = useCallback((job: SavedJob) => {
-    setInputs(job.inputs);
+    setInputs((prev) => mergeDefaults({ ...DEFAULT, ...job.inputs, printerModel: job.inputs.printerModel || prev.printerModel }));
     setJobName(job.name);
+    setEditingId(job.id);
+    setShowHistory(false);
   }, []);
 
-  const handleDelete = useCallback((id: string) => {
-    setHistory((prev) => {
-      const updated = prev.filter((j) => j.id !== id);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      return updated;
+  const handleDelete = useCallback(
+    (id: string) => {
+      setHistory((prev) => {
+        const updated = prev.filter((j) => j.id !== id);
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+        return updated;
+      });
+      if (editingId === id) setEditingId(null);
+      toast("Trabajo eliminado", { type: "info" });
+    },
+    [editingId, toast]
+  );
+
+  const handleSaveDefaults = useCallback(() => {
+    const toStore: Partial<Record<(typeof DEFAULTABLE_KEYS)[number], number>> = {};
+    for (const k of DEFAULTABLE_KEYS) {
+      const v = inputs[k];
+      if (typeof v === "number" && isFinite(v)) toStore[k] = v;
+    }
+    localStorage.setItem(DEFAULTS_KEY, JSON.stringify(toStore));
+    toast("Valores guardados como predeterminados", { type: "success" });
+  }, [inputs, toast]);
+
+  const handleRestoreDefaults = useCallback(() => {
+    localStorage.removeItem(DEFAULTS_KEY);
+    setInputs((prev) => ({ ...DEFAULT, printerModel: prev.printerModel }));
+    toast("Predeterminados restaurados", { type: "info" });
+  }, [toast]);
+
+  // -------------------------------------------------------
+  // EXPORTAR PDF
+  // -------------------------------------------------------
+  const handleExportPDF = useCallback(() => {
+    const doc = new jsPDF();
+    const primary: [number, number, number] = [124, 58, 237];
+
+    doc.setFillColor(...primary);
+    doc.rect(0, 0, 210, 34, "F");
+    doc.setFontSize(18);
+    doc.setTextColor(255);
+    doc.text("Presupuesto - Impresión 3D", 14, 14);
+    doc.setFontSize(10);
+    doc.text(`Emitido: ${new Date().toLocaleString("es-AR")}`, 14, 22);
+    doc.text(`Trabajo: ${jobName.trim() || "(sin nombre)"}`, 14, 29);
+
+    doc.setTextColor(0);
+    doc.setFontSize(12);
+    doc.text("Datos del trabajo", 14, 44);
+    doc.setFontSize(9);
+    doc.text(`Impresora: ${printer.name} (potencia ${printer.power}W)`, 14, 51);
+    doc.text(`Cantidad de piezas: ${Math.max(1, inputs.quantity || 1)}`, 14, 57);
+    doc.text(`Peso por pieza: ${inputs.pieceWeight} g · Desperdicio: ${inputs.wasteFactor}%`, 14, 63);
+
+    autoTable(doc, {
+      startY: 70,
+      head: [["Concepto", "Valor"]],
+      body: [
+        ["Costo Material (por unidad)", fmt(bd.cm)],
+        ["Costo Máquina (por unidad)", fmt(bd.ch)],
+        ["Mano de Obra (por unidad)", fmt(bd.cmo)],
+        ["Costo Producción (por unidad)", fmt(bd.cp)],
+        ["Costo Producción del lote", fmt(bd.cpTotal)],
+        ["Costos fijos prorrateados", fmt(bd.fixedProrated)],
+        ...(inputs.ownDesign ? [["Plus diseño propio", fmt(bd.designPlus)]] : []),
+        ["Base antes de margen", fmt(bd.basePriceTotal)],
+        [`Precio con margen (${inputs.profitMargin}%)`, fmt(bd.priceWithMarginTotal)],
+        [`Precio con IVA (${inputs.iva}%)`, fmt(bd.priceWithIvaTotal)],
+        [`Redondeo: ${ROUNDING_LABELS[inputs.rounding]}`, fmt(bd.roundedTotal)],
+      ],
+      theme: "grid",
+      headStyles: { fillColor: primary, textColor: 255, fontStyle: "bold" },
+      styles: { fontSize: 9 },
+      columnStyles: { 1: { halign: "right" } },
     });
-  }, []);
+
+    const y = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 70;
+
+    doc.setFillColor(230, 230, 255);
+    doc.roundedRect(14, y + 10, 182, 16, 3, 3, "F");
+    doc.setFontSize(12);
+    doc.setTextColor(...primary);
+    doc.text(`Precio total: ${fmt(bd.roundedTotal)}`, 20, y + 20);
+    doc.setFontSize(10);
+    doc.setTextColor(80);
+    doc.text(`Precio por unidad: ${fmt(bd.roundedUnit)} (lote de ${Math.max(1, inputs.quantity || 1)} piezas)`, 20, y + 28);
+
+    doc.setFontSize(8);
+    doc.setTextColor(150);
+    doc.text("Validez del presupuesto: 15 días. Precios sujetos a modificacion sin previo aviso.", 14, 288);
+
+    const blob = doc.output("blob");
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+    toast("PDF generado", { type: "success" });
+  }, [bd, inputs, jobName, printer, toast]);
 
   // ====================================================
   // RENDER
@@ -302,7 +597,7 @@ export const Print3DCalculator = () => {
               Calculadora Impresión 3D
             </h1>
             <p className="text-slate-400 text-sm mt-1">
-              Motor de costos con fórmulas de material, máquina, mano de obra y operativos.
+              Motor de costos con material, máquina, mano de obra, lote, redondeo y presets de impresora.
             </p>
           </div>
         </div>
@@ -323,23 +618,73 @@ export const Print3DCalculator = () => {
         </div>
       </div>
 
+      {/* Indicador de edición */}
+      {editingId && (
+        <div className="flex items-center gap-3 px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl">
+          <Pencil size={14} className="text-amber-400 shrink-0" aria-hidden />
+          <p className="text-xs font-black text-amber-300">
+            Editando: {jobName.trim() || "trabajo sin nombre"}
+          </p>
+          <button
+            onClick={() => { setEditingId(null); setJobName(""); }}
+            className="ml-auto text-[10px] font-black uppercase tracking-wider text-slate-400 hover:text-white transition-colors"
+          >
+            Cancelar edición
+          </button>
+        </div>
+      )}
+
+      {/* Advertencias */}
+      {warnings.length > 0 && (
+        <div className="space-y-2">
+          {warnings.map((w, i) => (
+            <div
+              key={i}
+              className={`flex items-start gap-3 px-4 py-3 rounded-2xl border ${
+                i === 0 && hasCriticalWarnings
+                  ? "bg-rose-500/10 border-rose-500/30"
+                  : "bg-amber-500/10 border-amber-500/30"
+              }`}
+            >
+              <AlertTriangle size={14} className={`shrink-0 mt-0.5 ${i === 0 && hasCriticalWarnings ? "text-rose-400" : "text-amber-400"}`} aria-hidden />
+              <p className={`text-xs font-bold ${i === 0 && hasCriticalWarnings ? "text-rose-300" : "text-amber-300"}`}>{w}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* GRID DE INPUTS */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
 
-        {/* ── 1. MATERIAL ── */}
+        {/* ── 1. IMPRESORA + MATERIAL ── */}
         <SectionCard
           icon={<span className="text-base" aria-hidden>🧶</span>}
-          title="1. Material"
+          title="1. Impresora y Material"
           color="bg-violet-600/20 text-violet-400"
         >
+          <FieldSelect
+            id="printer-model"
+            label="Modelo de impresora"
+            value={inputs.printerModel}
+            onChange={handlePrinterChange}
+            options={PRINTERS.map((p) => ({ value: p.id, label: p.name }))}
+          />
+          {printer.id !== "custom" && (
+            <div className="p-3 bg-slate-800/50 rounded-xl border border-slate-700 text-[10px] font-bold text-slate-400 space-y-1">
+              <p className="flex justify-between"><span>Volumen:</span><span className="text-slate-200">{printer.buildVolume} mm</span></p>
+              <p className="flex justify-between"><span>Temp. máx.:</span><span className="text-slate-200">{printer.maxTemp}°C</span></p>
+              <p className="flex justify-between"><span>Velocidad:</span><span className="text-slate-200">{printer.speed} mm/s</span></p>
+              <p className="flex justify-between"><span>Capa:</span><span className="text-slate-200">{printer.layer} mm</span></p>
+            </div>
+          )}
+
           <Field id="piece-weight"  label="Peso de la pieza"   value={inputs.pieceWeight}  onChange={(v) => set("pieceWeight", v)}  suffix="g" step={1} />
           <Field id="roll-price"    label="Precio del rollo"   value={inputs.rollPrice}    onChange={(v) => set("rollPrice", v)}    prefix="$" />
           <Field id="roll-weight"   label="Peso del rollo"     value={inputs.rollWeight}   onChange={(v) => set("rollWeight", v)}   suffix="g" step={1} hint="default 1000 g" />
           <Field id="waste-factor"  label="Factor de desperdicio" value={inputs.wasteFactor} onChange={(v) => set("wasteFactor", v)} suffix="%" step={1} hint="default 15%" />
 
-          {/* resultado parcial */}
           <div className="mt-1 p-3 bg-violet-600/10 rounded-xl border border-violet-600/20 flex justify-between items-center">
-            <span className="text-[10px] font-black text-violet-400 uppercase tracking-wider">C. Material</span>
+            <span className="text-[10px] font-black text-violet-400 uppercase tracking-wider">C. Material / pieza</span>
             <span className="text-sm font-black text-violet-300">{fmt(bd.cm)}</span>
           </div>
         </SectionCard>
@@ -350,11 +695,11 @@ export const Print3DCalculator = () => {
           title="2. Máquina / Impresión"
           color="bg-amber-600/20 text-amber-400"
         >
-          <Field id="print-time"    label="Tiempo de impresión" value={inputs.printTime}   onChange={(v) => set("printTime", v)}   suffix="h" step={0.5} />
-          <Field id="machine-power" label="Potencia de la máquina" value={inputs.machinePower} onChange={(v) => set("machinePower", v)} suffix="W" step={10} hint="default 250 W" />
-          <Field id="elec-cost"     label="Costo eléctrico"     value={inputs.electricityCost} onChange={(v) => set("electricityCost", v)} prefix="$" suffix="/kWh" hint="por kWh" />
-          <Field id="amortization"  label="Amortización"        value={inputs.amortizationPerHour} onChange={(v) => set("amortizationPerHour", v)} prefix="$" suffix="/h" />
-          <Field id="maintenance"   label="Mantenimiento"       value={inputs.maintenancePerHour}  onChange={(v) => set("maintenancePerHour", v)} prefix="$" suffix="/h" />
+          <Field id="print-time"    label="Tiempo por pieza"   value={inputs.printTime}   onChange={(v) => set("printTime", v)}   suffix="h" step={0.5} />
+          <Field id="machine-power" label="Potencia"           value={inputs.machinePower} onChange={(v) => set("machinePower", v)} suffix="W" step={10} hint={printer.id !== "custom" ? `según ${printer.name}` : "manual"} />
+          <Field id="elec-cost"     label="Costo eléctrico"    value={inputs.electricityCost} onChange={(v) => set("electricityCost", v)} prefix="$" suffix="/kWh" hint="por kWh" />
+          <Field id="amortization"  label="Amortización"       value={inputs.amortizationPerHour} onChange={(v) => set("amortizationPerHour", v)} prefix="$" suffix="/h" />
+          <Field id="maintenance"   label="Mantenimiento"      value={inputs.maintenancePerHour}  onChange={(v) => set("maintenancePerHour", v)} prefix="$" suffix="/h" />
 
           <div className="mt-1 p-3 bg-amber-600/10 rounded-xl border border-amber-600/20 space-y-1">
             <div className="flex justify-between">
@@ -362,7 +707,7 @@ export const Print3DCalculator = () => {
               <span className="text-[10px] font-black text-amber-500">{fmt(bd.chElec)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider">C. Máquina total</span>
+              <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider">C. Máquina / pieza</span>
               <span className="text-sm font-black text-amber-300">{fmt(bd.ch)}</span>
             </div>
           </div>
@@ -374,12 +719,12 @@ export const Print3DCalculator = () => {
           title="3. Mano de Obra"
           color="bg-emerald-600/20 text-emerald-400"
         >
-          <Field id="prep-time"   label="Tiempo de preparación"    value={inputs.prepTime}   onChange={(v) => set("prepTime", v)}   suffix="h" step={0.25} hint="Slicer, setup" />
-          <Field id="post-time"   label="Tiempo de post-procesado" value={inputs.postTime}   onChange={(v) => set("postTime", v)}   suffix="h" step={0.25} hint="lijado, pintura" />
-          <Field id="labor-rate"  label="Tarifa hora hombre"       value={inputs.laborRate}  onChange={(v) => set("laborRate", v)}  prefix="$" suffix="/h" />
+          <Field id="prep-time"   label="Prep. por pieza"     value={inputs.prepTime}   onChange={(v) => set("prepTime", v)}   suffix="h" step={0.25} hint="Slicer, setup" />
+          <Field id="post-time"   label="Post-proc. por pieza" value={inputs.postTime}   onChange={(v) => set("postTime", v)}   suffix="h" step={0.25} hint="lijado, pintura" />
+          <Field id="labor-rate"  label="Tarifa hora hombre"  value={inputs.laborRate}  onChange={(v) => set("laborRate", v)}  prefix="$" suffix="/h" />
 
           <div className="mt-1 p-3 bg-emerald-600/10 rounded-xl border border-emerald-600/20 flex justify-between items-center">
-            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wider">C. Mano de Obra</span>
+            <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wider">C. Mano de Obra / pieza</span>
             <span className="text-sm font-black text-emerald-300">{fmt(bd.cmo)}</span>
           </div>
         </SectionCard>
@@ -390,10 +735,20 @@ export const Print3DCalculator = () => {
           title="4. Operativos y Precio"
           color="bg-indigo-600/20 text-indigo-400"
         >
+          <Field id="quantity"      label="Cantidad de piezas"   value={inputs.quantity}  onChange={(v) => set("quantity", Math.max(0, v))}  suffix="und" step={1} />
           <Field id="fixed-monthly" label="Costos fijos mensuales" value={inputs.fixedCostMonthly} onChange={(v) => set("fixedCostMonthly", v)} prefix="$" hint="total del mes" />
           <Field id="fixed-pct"     label="% asignado a este trabajo" value={inputs.fixedCostPercent} onChange={(v) => set("fixedCostPercent", v)} suffix="%" step={1} />
           <Field id="profit-margin" label="Margen de beneficio" value={inputs.profitMargin} onChange={(v) => set("profitMargin", v)} suffix="%" step={1} />
           <Field id="iva"           label="IVA / Impuesto"      value={inputs.iva}          onChange={(v) => set("iva", v)}          suffix="%" step={1} />
+
+          {/* Redondeo */}
+          <FieldSelect
+            id="rounding"
+            label="Estrategia de redondeo"
+            value={inputs.rounding}
+            onChange={(v) => set("rounding", v as RoundingStrategy)}
+            options={(Object.keys(ROUNDING_LABELS) as RoundingStrategy[]).map((k) => ({ value: k, label: ROUNDING_LABELS[k] }))}
+          />
 
           {/* Toggle Diseño Propio */}
           <div className="p-3 bg-slate-800/50 rounded-xl border border-slate-700 space-y-2">
@@ -410,12 +765,29 @@ export const Print3DCalculator = () => {
                   <Sparkles size={12} className="text-violet-400" aria-hidden />
                   Diseño Propio
                 </span>
-                <span className="text-[9px] text-slate-500 font-bold">Aplica plus de valor sobre el costo</span>
+                <span className="text-[9px] text-slate-500 font-bold">Aplica plus de valor sobre el lote</span>
               </div>
             </label>
             {inputs.ownDesign && (
               <Field id="design-bonus" label="Plus por diseño" value={inputs.designBonus} onChange={(v) => set("designBonus", v)} suffix="%" step={5} />
             )}
+          </div>
+
+          {/* Defaults */}
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={handleSaveDefaults}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-black uppercase tracking-wider rounded-xl transition-colors"
+            >
+              <Settings2 size={12} aria-hidden /> Guardar defaults
+            </button>
+            <button
+              onClick={handleRestoreDefaults}
+              title="Restaurar predeterminados de fábrica"
+              className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-xl transition-colors"
+            >
+              <RotateCcw size={12} aria-hidden />
+            </button>
           </div>
         </SectionCard>
       </div>
@@ -423,15 +795,25 @@ export const Print3DCalculator = () => {
       {/* PANEL DE RESULTADOS */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-        {/* PRECIO FINAL — número grande */}
+        {/* PRECIO FINAL */}
         <div className="lg:col-span-1 bg-violet-600 rounded-3xl p-8 text-center shadow-xl shadow-violet-600/30 flex flex-col items-center justify-center gap-3">
-          <p className="text-[10px] font-black text-violet-200 uppercase tracking-[0.3em]">Precio de Venta Final</p>
-          <p className="text-5xl font-black text-white leading-none" aria-live="polite">
-            {fmt(bd.priceWithIva)}
+          <p className="text-[10px] font-black text-violet-200 uppercase tracking-[0.3em]">
+            Total del lote ({Math.max(1, inputs.quantity || 1)} piezas)
           </p>
-          <p className="text-violet-200 text-xs font-bold">incluye IVA ({inputs.iva}%)</p>
+          <p className="text-5xl font-black text-white leading-none" aria-live="polite">
+            {fmt(bd.roundedTotal, inputs.rounding === "999" ? 3 : 2)}
+          </p>
+          <p className="text-violet-200 text-xs font-bold">
+            incluye IVA ({inputs.iva}%) · {ROUNDING_LABELS[inputs.rounding].toLowerCase()}
+          </p>
+          <div className="pt-2 border-t border-violet-500/40 w-full flex items-center justify-center gap-2">
+            <Layers size={14} className="text-violet-200" aria-hidden />
+            <p className="text-violet-200 text-xs font-bold">
+              Por unidad: <span className="text-white font-black">{fmt(bd.roundedUnit, inputs.rounding === "999" ? 3 : 2)}</span>
+            </p>
+          </div>
           <p className="text-violet-300 text-xs font-bold">
-            Sin IVA: <span className="text-white font-black">{fmt(bd.priceWithMargin)}</span>
+            Sin IVA total: <span className="text-white font-black">{fmt(bd.priceWithMarginTotal)}</span>
           </p>
         </div>
 
@@ -440,12 +822,12 @@ export const Print3DCalculator = () => {
           <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em] mb-5">Desglose del Cálculo</h2>
 
           <div className="space-y-0">
-            {/* Fórmulas */}
             {[
-              { label: "Costo de Material (Cm)",       value: bd.cm,            color: "text-violet-400",  formula: `${inputs.pieceWeight}g × $${(inputs.rollWeight > 0 ? inputs.rollPrice / inputs.rollWeight : 0).toFixed(3)}/g × ${(1 + inputs.wasteFactor / 100).toFixed(2)} (desp.)` },
-              { label: "Costo Máquina (Ch)",            value: bd.ch,            color: "text-amber-400",   formula: `${inputs.printTime}h × ($${bd.chElec.toFixed(3)}/h elec. + $${inputs.amortizationPerHour}/h amort. + $${inputs.maintenancePerHour}/h mant.)` },
-              { label: "Mano de Obra (Cmo)",            value: bd.cmo,           color: "text-emerald-400", formula: `(${inputs.prepTime}h prep + ${inputs.postTime}h post) × $${inputs.laborRate}/h` },
-              { label: "Costos Fijos Prorrateados",     value: bd.fixedProrated, color: "text-blue-400",    formula: `$${inputs.fixedCostMonthly} × ${inputs.fixedCostPercent}%` },
+              { label: "Costo Material (Cm) / pieza",       value: bd.cm,            color: "text-violet-400",  formula: `${inputs.pieceWeight}g × $${(inputs.rollWeight > 0 ? inputs.rollPrice / inputs.rollWeight : 0).toFixed(3)}/g × ${(1 + inputs.wasteFactor / 100).toFixed(2)} (desp.)` },
+              { label: "Costo Máquina (Ch) / pieza",        value: bd.ch,            color: "text-amber-400",   formula: `${inputs.printTime}h × ($${bd.chElec.toFixed(3)}/h elec. + $${inputs.amortizationPerHour}/h amort. + $${inputs.maintenancePerHour}/h mant.)` },
+              { label: "Mano de Obra (Cmo) / pieza",        value: bd.cmo,           color: "text-emerald-400", formula: `(${inputs.prepTime}h prep + ${inputs.postTime}h post) × $${inputs.laborRate}/h` },
+              { label: `Costo Producción del lote (×${Math.max(1, inputs.quantity || 1)})`, value: bd.cpTotal, color: "text-white", formula: `${fmt(bd.cp)} × ${Math.max(1, inputs.quantity || 1)} piezas` },
+              { label: "Costos Fijos Prorrateados",         value: bd.fixedProrated, color: "text-blue-400",    formula: `$${inputs.fixedCostMonthly} × ${inputs.fixedCostPercent}%` },
             ].map((row) => (
               <div key={row.label} className="py-3 border-b border-slate-800/60">
                 <div className="flex justify-between items-start gap-2">
@@ -458,11 +840,10 @@ export const Print3DCalculator = () => {
               </div>
             ))}
 
-            {/* CP */}
             <div className="py-3 border-b border-slate-700">
               <div className="flex justify-between items-center">
-                <p className="text-xs font-black text-white">Costo de Producción (CP = Cm + Ch + Cmo)</p>
-                <span className="text-base font-black text-white">{fmt(bd.cp)}</span>
+                <p className="text-xs font-black text-white">Base total del lote</p>
+                <span className="text-base font-black text-white">{fmt(bd.basePriceTotal)}</span>
               </div>
             </div>
 
@@ -480,35 +861,43 @@ export const Print3DCalculator = () => {
 
             <div className="py-3 border-b border-slate-800/60">
               <div className="flex justify-between items-center">
-                <p className="text-xs font-black text-slate-400">Base antes de margen</p>
-                <span className="text-sm font-black text-slate-300">{fmt(bd.basePrice)}</span>
+                <p className="text-xs font-black text-indigo-300">Con margen de beneficio ({inputs.profitMargin}%)</p>
+                <span className="text-sm font-black text-indigo-400">{fmt(bd.priceWithMarginTotal)}</span>
               </div>
             </div>
 
             <div className="py-3 border-b border-slate-800/60">
               <div className="flex justify-between items-center">
-                <p className="text-xs font-black text-indigo-300">Con margen de beneficio ({inputs.profitMargin}%)</p>
-                <span className="text-sm font-black text-indigo-400">{fmt(bd.priceWithMargin)}</span>
+                <p className="text-xs font-black text-violet-300">Precio total con IVA ({inputs.iva}%)</p>
+                <span className="text-sm font-black text-violet-300">{fmt(bd.priceWithIvaTotal)}</span>
               </div>
             </div>
 
             <div className="py-3">
               <div className="flex justify-between items-center">
-                <p className="text-xs font-black text-violet-300">Precio final con IVA ({inputs.iva}%)</p>
-                <span className="text-base font-black text-violet-300">{fmt(bd.priceWithIva)}</span>
+                <p className="text-xs font-black text-emerald-400">{ROUNDING_LABELS[inputs.rounding]}</p>
+                <span className="text-base font-black text-emerald-400">{fmt(bd.roundedTotal, inputs.rounding === "999" ? 3 : 2)}</span>
               </div>
             </div>
           </div>
 
           {/* Acciones */}
-          <div className="flex gap-3 pt-4 border-t border-slate-800 mt-2">
+          <div className="flex gap-3 pt-4 border-t border-slate-800 mt-2 flex-wrap">
+            <button
+              id="btn-export-3d"
+              onClick={handleExportPDF}
+              className="flex-1 flex items-center justify-center gap-2 py-3 bg-slate-800 hover:bg-slate-700 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-colors min-w-40"
+            >
+              <FileDown size={14} aria-hidden />
+              Exportar PDF
+            </button>
             <button
               id="btn-save-3d"
               onClick={handleSave}
-              className="flex-1 flex items-center justify-center gap-2 py-3 bg-violet-600 hover:bg-violet-500 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 py-3 bg-violet-600 hover:bg-violet-500 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-colors min-w-40"
             >
               <Save size={14} aria-hidden />
-              Guardar
+              {editingId ? "Actualizar" : "Guardar"}
             </button>
             <button
               id="btn-reset-3d"
@@ -552,19 +941,19 @@ export const Print3DCalculator = () => {
                       {job.name}
                     </p>
                     <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
-                      {new Date(job.savedAt).toLocaleDateString("es-AR")} · {job.inputs.pieceWeight}g · {job.inputs.printTime}h impresión
+                      {new Date(job.savedAt).toLocaleDateString("es-AR")} · {job.inputs.quantity || 1}× {job.inputs.pieceWeight}g · {job.inputs.printTime}h impresión · {PRINTERS.find((p) => p.id === job.inputs.printerModel)?.name ?? "personalizada"}
                     </p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-sm font-black text-violet-400">{fmt(job.finalPrice)}</p>
-                    <p className="text-[10px] text-slate-500 font-bold">precio c/ IVA</p>
+                    <p className="text-sm font-black text-violet-400">{fmt(job.finalPriceTotal, job.inputs.rounding === "999" ? 3 : 2)}</p>
+                    <p className="text-[10px] text-slate-500 font-bold">total c/ IVA</p>
                   </div>
                   <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                     <button
                       onClick={() => handleLoad(job)}
-                      className="px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/40 text-violet-400 text-[10px] font-black uppercase tracking-wider rounded-lg transition-colors"
+                      className="flex items-center gap-1 px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/40 text-violet-400 text-[10px] font-black uppercase tracking-wider rounded-lg transition-colors"
                     >
-                      Cargar
+                      <Pencil size={10} aria-hidden /> Editar
                     </button>
                     <button
                       onClick={() => handleDelete(job.id)}
