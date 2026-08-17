@@ -62,14 +62,23 @@ export interface Projection {
   confidence: 'high' | 'medium' | 'low';
 }
 
+export interface DayActivity {
+  income: number;
+  expenses: number;
+  transactions: number;
+  orders: number;
+}
+
 interface FinanceState {
   metrics: FinanceMetrics;
   monthlyTrend: MonthlyData[];
   categoryBreakdown: CategoryBreakdown[];
   businessUnitBreakdown: BusinessUnitBreakdown[];
   agingReceivables: AgingBucket[];
+  agingPayables: AgingBucket[];
   orderPipeline: OrderPipeline;
   projections: Projection[];
+  todayActivity: DayActivity;
   isLoading: boolean;
   fetchAll: () => Promise<void>;
 }
@@ -85,8 +94,10 @@ export const useFinanceStore = create<FinanceState>((set) => ({
   categoryBreakdown: [],
   businessUnitBreakdown: [],
   agingReceivables: [],
+  agingPayables: [],
   orderPipeline: { totalPending: 0, countPending: 0, totalDelivered: 0, countDelivered: 0, totalCancelled: 0, advancePayments: 0, conversionRate: 0 },
   projections: [],
+  todayActivity: { income: 0, expenses: 0, transactions: 0, orders: 0 },
   isLoading: false,
 
   fetchAll: async () => {
@@ -104,15 +115,32 @@ export const useFinanceStore = create<FinanceState>((set) => ({
         supabase.from('supplier_debts').select('id, amount, paid_amount, due_date, status, supplier_id').eq('company_id', companyId),
       ]);
 
-      // ===== TREASURY =====
       const txs = (treasuryRes.data || []) as any[];
+      const orders = (ordersRes.data || []) as any[];
+      const custs = (customersRes.data || []) as any[];
+      const prods = (productsRes.data || []) as any[];
+      const inv = (inventoryRes.data || []) as any[];
+      const debts = (debtsRes.data || []) as any[];
+
+      // ===== TODAY ACTIVITY =====
+      const today = new Date().toISOString().slice(0, 10);
+      const todayTxs = txs.filter(tx => tx.date?.startsWith(today));
+      const todayOrders = orders.filter(o => o.created_at?.startsWith(today));
+      const todayActivity: DayActivity = {
+        income: todayTxs.filter(t => t.type === 'INCOME').reduce((s, t) => s + Number(t.amount || 0), 0),
+        expenses: todayTxs.filter(t => t.type === 'EXPENSE').reduce((s, t) => s + Number(t.amount || 0), 0),
+        transactions: todayTxs.length,
+        orders: todayOrders.length,
+      };
+
+      // ===== TREASURY =====
       let income = 0, expenses = 0;
       txs.forEach(tx => {
         if (tx.type === 'INCOME') income += Number(tx.amount || 0);
         if (tx.type === 'EXPENSE') expenses += Number(tx.amount || 0);
       });
 
-      // ===== MONTHLY TREND (12 months) =====
+      // ===== MONTHLY TREND =====
       const monthlyMap = new Map<string, { income: number; expenses: number }>();
       for (let i = 11; i >= 0; i--) {
         const d = new Date(); d.setMonth(d.getMonth() - i);
@@ -156,7 +184,6 @@ export const useFinanceStore = create<FinanceState>((set) => ({
         if (tx.type === 'INCOME') entry.income += Number(tx.amount || 0);
         if (tx.type === 'EXPENSE') entry.expense += Number(tx.amount || 0);
       });
-      const orders = (ordersRes.data || []) as any[];
       orders.forEach(o => {
         const bu = o.business_unit || 'GENERAL';
         if (!buMap.has(bu)) buMap.set(bu, { income: 0, expense: 0, orders: 0, revenue: 0 });
@@ -169,15 +196,12 @@ export const useFinanceStore = create<FinanceState>((set) => ({
         .sort((a, b) => b.revenue - a.revenue);
 
       // ===== MONEY IN STREET =====
-      const custs = (customersRes.data || []) as any[];
       const moneyInStreet = custs.reduce((acc, c) => {
         const b = Number(c.balance || 0);
         return b > 0 ? acc + b : acc;
       }, 0);
 
       // ===== STOCK METRICS =====
-      const inv = (inventoryRes.data || []) as any[];
-      const prods = (productsRes.data || []) as any[];
       const productMap = new Map(prods.map((p: any) => [p.id, p]));
       let stockCost = 0, stockValue = 0;
       inv.forEach((v: any) => {
@@ -216,7 +240,7 @@ export const useFinanceStore = create<FinanceState>((set) => ({
 
       // ===== AGING RECEIVABLES =====
       const now = new Date();
-      const agingBuckets: AgingBucket[] = [
+      const agingReceivables: AgingBucket[] = [
         { label: '0-30 días', minDays: 0, maxDays: 30, amount: 0, count: 0 },
         { label: '31-60 días', minDays: 31, maxDays: 60, amount: 0, count: 0 },
         { label: '61-90 días', minDays: 61, maxDays: 90, amount: 0, count: 0 },
@@ -227,21 +251,33 @@ export const useFinanceStore = create<FinanceState>((set) => ({
         const days = Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
         const balance = Number(o.total_amount || 0) - Number(o.advance_payment || 0);
         if (balance <= 0) return;
-        const bucket = agingBuckets.find(b => days >= b.minDays && (b.maxDays === null || days <= b.maxDays));
+        const bucket = agingReceivables.find(b => days >= b.minDays && (b.maxDays === null || days <= b.maxDays));
         if (bucket) { bucket.amount += balance; bucket.count += 1; }
       });
 
-      // ===== SUPPLIER DEBTS (PENDING) =====
-      const debts = (debtsRes.data || []) as any[];
-      const pendingPayables = debts
-        .filter((d: any) => d.status !== 'PAGADA')
-        .reduce((s: number, d: any) => s + ((Number(d.amount || 0)) - (Number(d.paid_amount || 0))), 0);
+      // ===== AGING PAYABLES =====
+      const agingPayables: AgingBucket[] = [
+        { label: '0-30 días', minDays: 0, maxDays: 30, amount: 0, count: 0 },
+        { label: '31-60 días', minDays: 31, maxDays: 60, amount: 0, count: 0 },
+        { label: '61-90 días', minDays: 61, maxDays: 90, amount: 0, count: 0 },
+        { label: '90+ días', minDays: 91, maxDays: null, amount: 0, count: 0 },
+      ];
+      const pendingDebts = debts.filter((d: any) => d.status !== 'PAGADA');
+      const pendingPayables = pendingDebts.reduce((s: number, d: any) => s + ((Number(d.amount || 0)) - (Number(d.paid_amount || 0))), 0);
+      pendingDebts.forEach((d: any) => {
+        const due = d.due_date ? new Date(d.due_date) : now;
+        const days = Math.floor((now.getTime() - due.getTime()) / (1000 * 60 * 60 * 24));
+        const outstanding = Number(d.amount || 0) - Number(d.paid_amount || 0);
+        if (outstanding <= 0) return;
+        const bucket = agingPayables.find(b => days >= b.minDays && (b.maxDays === null || days <= b.maxDays));
+        if (bucket) { bucket.amount += outstanding; bucket.count += 1; }
+      });
 
       // ===== PATRIMONIO =====
       const balance = income - expenses;
       const patrimonio = balance + moneyInStreet + stockCost;
 
-      // ===== PROJECTIONS (simple) =====
+      // ===== PROJECTIONS =====
       const last3Months = monthlyTrend.slice(-3);
       const avgIncome = last3Months.reduce((s, m) => s + m.income, 0) / 3;
       const avgExpenses = last3Months.reduce((s, m) => s + m.expenses, 0) / 3;
@@ -255,7 +291,7 @@ export const useFinanceStore = create<FinanceState>((set) => ({
 
       set({
         metrics: { totalIncome: income, totalExpenses: expenses, balance, pendingPayables, pendingReceivables, stockCost, stockValue, projectedProfit, avgMargin, moneyInStreet, patrimonio },
-        monthlyTrend, categoryBreakdown, businessUnitBreakdown, agingReceivables: agingBuckets, orderPipeline, projections,
+        monthlyTrend, categoryBreakdown, businessUnitBreakdown, agingReceivables, agingPayables, orderPipeline, projections, todayActivity,
         isLoading: false,
       });
     } catch (error) {
