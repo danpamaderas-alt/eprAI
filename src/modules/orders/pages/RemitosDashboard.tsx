@@ -550,34 +550,38 @@ const RemitosContent = memo(() => {
               <div id="printable-a4" className="bg-white text-black p-8 shadow-2xl print-expand" style={{ minWidth: '210mm', maxWidth: '210mm', minHeight: '297mm' }}>
 
                 {/* Header */}
-                <div className="border-2 border-slate-800 rounded-xl mb-6 relative">
-                  <div className="absolute left-1/2 top-0 -translate-x-1/2 bg-white px-5 py-2 border-x-2 border-b-2 border-slate-800 rounded-b-xl flex flex-col items-center">
-                    <span className="text-4xl font-black text-slate-900 leading-none">X</span>
-                    <span className="text-[8px] font-bold mt-1 text-slate-500">INTERNO</span>
-                  </div>
-                  <div className="flex justify-between p-6">
-                    <div className="w-5/12 pt-2">
-                      <div className="flex items-center gap-3 mb-2">
-                        <img src="/logo.png" alt="Logo" className="h-10 object-contain" onError={(e) => e.currentTarget.style.display = 'none'} />
-                        <h1 className="text-4xl font-extrabold tracking-widest text-slate-900">RAÍCES</h1>
+                <div className="border-2 border-slate-800 rounded-xl mb-6 overflow-hidden">
+                  <div className="flex items-center justify-between p-5 pb-3">
+                    <div className="flex items-center gap-4">
+                      <img src="/logo.png" alt="Logo" className="h-14 w-14 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
+                      <div className="hidden flex flex-col items-center justify-center">
+                        <div className="w-14 h-14 rounded-xl bg-slate-800 flex items-center justify-center">
+                          <span className="text-2xl font-black text-white leading-none">R</span>
+                        </div>
                       </div>
-                      <p className="text-[11px] font-bold text-slate-600 tracking-widest uppercase">Soluciones Textiles Integrales</p>
-                      <div className="mt-4 text-xs font-medium text-slate-700 space-y-0.5">
-                        <p>Berisso, Buenos Aires</p>
-                        <p>raices.textil@gmail.com</p>
+                      <div>
+                        <h1 className="text-3xl font-extrabold tracking-widest text-slate-900 leading-none">RAÍCES</h1>
+                        <p className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mt-1">Soluciones Textiles Integrales</p>
                       </div>
                     </div>
-                    <div className="w-5/12 text-right pt-2">
-                      <h2 className="text-2xl font-bold text-slate-900 uppercase tracking-tighter">
-                        {viewType === 'PENDING' ? 'Control de Saldos' : viewType === 'VALUED' ? 'Hoja Valorada' : 'Orden Interna'}
-                      </h2>
-                      <p className="text-base font-semibold text-slate-700 mt-1">
-                        Nº: <span className="font-bold">{remitoNumber}</span>
-                      </p>
-                      <p className="text-xs font-bold text-slate-600 mt-3">
-                        Fecha: <span className="font-normal">{new Date().toLocaleDateString('es-AR')}</span>
-                      </p>
-                      <p className="text-[9px] text-slate-400 mt-6 font-bold tracking-widest uppercase">Documento interno no válido como factura</p>
+                    <div className="text-right">
+                      <div className="inline-flex flex-col items-center border-2 border-slate-800 rounded-lg px-4 py-2 mb-2">
+                        <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Documento</span>
+                        <span className="text-lg font-black text-slate-900 leading-none mt-0.5">
+                          {viewType === 'PENDING' ? 'SALDOS' : viewType === 'VALUED' ? 'VALORADO' : 'INTERNO'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between bg-slate-800 text-white px-5 py-2.5">
+                    <div className="text-xs font-bold">
+                      <span className="text-slate-300">Nº:</span> <span className="font-black">{remitoNumber}</span>
+                    </div>
+                    <div className="text-xs font-bold">
+                      <span className="text-slate-300">Fecha:</span> <span className="font-black">{new Date().toLocaleDateString('es-AR')}</span>
+                    </div>
+                    <div className="text-[9px] text-slate-400 font-bold tracking-widest uppercase">
+                      {viewType === 'PENDING' ? 'Control de Saldos' : viewType === 'VALUED' ? 'Hoja Valorada' : 'Orden Interna'} — Berisso, Buenos Aires
                     </div>
                   </div>
                 </div>
