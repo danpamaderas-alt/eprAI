@@ -7,7 +7,7 @@ import { ARS } from '../../../shared/utils/format';
 import {
   FileText, Plus, Search, Download, Printer, Copy, Trash2,
   ChevronDown, ChevronUp, Send, CheckCircle, XCircle,
-  AlertTriangle, Calendar, Filter, Eye, WhatsApp,
+  AlertTriangle, Calendar, Filter, Eye,
 } from 'lucide-react';
 
 interface Client {
