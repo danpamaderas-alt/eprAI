@@ -83,7 +83,7 @@ interface CatalogState {
   updateProductComplete: (productId: string, updates: Partial<Product>) => Promise<void>;
   updateStock: (productId: string, sizeId: string, colorId: string, quantity: number) => Promise<void>;
   transformToFinished: (variantId: string, quantityToTransform: number) => Promise<void>; 
-  processSale: (customerId: string, cart: CartItem[], total: number) => Promise<void>;
+  processSale: (customerId: string | null, cart: CartItem[], total: number, payments?: { method_id: string; amount: number }[]) => Promise<void>;
   
   addService: (data: Omit<Service, 'id' | 'company_id'>) => Promise<Service>;
   addCustomer: (data: Omit<Customer, 'id' | 'balance' | 'company_id'>) => Promise<Customer>;
@@ -205,7 +205,7 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
     await get().fetchAllCatalogs();
   },
 
-  processSale: async (customerId, cart, total) => {
+  processSale: async (customerId, cart, total, payments) => {
     const cartItems = cart.map(item => ({
       variantId: item.variantId,
       qty: item.qty
@@ -214,7 +214,8 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
     const { error } = await supabase.rpc('process_sale_atomic', {
       customer_id_param: customerId,
       cart_items: cartItems,
-      total_amount_param: total
+      total_amount_param: total,
+      ...(payments && payments.length > 0 ? { payments_param: payments } : {}),
     });
     if (error) throw error;
     await get().fetchAllCatalogs();

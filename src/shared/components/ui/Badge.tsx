@@ -1,58 +1,76 @@
-import { type ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import { cn } from '../../utils/cn';
 
-type BadgeVariant = 'default' | 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'muted';
+type BadgeVariant = 'default' | 'success' | 'warning' | 'danger' | 'info';
+type BadgeSize = 'sm' | 'md';
 
 interface BadgeProps {
-  children: ReactNode;
   variant?: BadgeVariant;
+  size?: BadgeSize;
+  children: ReactNode;
   className?: string;
 }
 
 const variantStyles: Record<BadgeVariant, string> = {
-  default: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
-  primary: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  success: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-  warning: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-  danger: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
-  info: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
-  muted: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
+  default: 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300',
+  success: 'bg-success-600/10 text-success-600 dark:bg-success-600/20 dark:text-success-500',
+  warning: 'bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400',
+  danger: 'bg-danger-600/10 text-danger-600 dark:bg-danger-600/20 dark:text-danger-500',
+  info: 'bg-brand-600/10 text-brand-600 dark:bg-brand-600/20 dark:text-brand-500',
 };
 
-export function Badge({ children, variant = 'default', className }: BadgeProps) {
+const sizeStyles: Record<BadgeSize, string> = {
+  sm: 'px-2 py-0.5 text-[10px]',
+  md: 'px-3 py-1 text-[10px]',
+};
+
+export const Badge = memo(function Badge({
+  variant = 'default',
+  size = 'md',
+  children,
+  className,
+}: BadgeProps) {
   return (
     <span
       className={cn(
-        'inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest',
+        'inline-flex items-center rounded-full font-black uppercase tracking-widest',
         variantStyles[variant],
+        sizeStyles[size],
         className,
       )}
     >
       {children}
     </span>
   );
-}
+});
 
 interface StatusBadgeProps {
   status: string;
-  colorMap: Record<string, string>;
-  labels?: Record<string, string>;
   className?: string;
 }
 
-export function StatusBadge({ status, colorMap, labels, className }: StatusBadgeProps) {
-  const colorClasses = colorMap[status] ?? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300';
-  const displayLabel = labels?.[status] ?? status;
+const STATUS_MAP: Record<string, BadgeVariant> = {
+  pending: 'warning',
+  activo: 'success',
+  active: 'success',
+  completed: 'success',
+  delivered: 'success',
+  paid: 'success',
+  cancelled: 'danger',
+  cancelled店内: 'danger',
+  failed: 'danger',
+  overdue: 'danger',
+  draft: 'default',
+  in_progress: 'info',
+  processing: 'info',
+  sent: 'info',
+};
 
+export const StatusBadge = memo(function StatusBadge({ status, className }: StatusBadgeProps) {
+  const variant = STATUS_MAP[status?.toLowerCase()] || 'default';
   return (
-    <span
-      className={cn(
-        'inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest',
-        colorClasses,
-        className,
-      )}
-    >
-      {displayLabel}
-    </span>
+    <Badge variant={variant} size="sm" className={className}>
+      {status}
+    </Badge>
   );
-}
+});

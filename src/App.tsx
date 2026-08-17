@@ -1,10 +1,12 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useState, useCallback } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import { useAuthStore } from "./store/useAuthStore";
 import { ProtectedRoute } from "./shared/components/layout/ProtectedRoute";
 import { DashboardLayout } from "./layouts/DashboardLayout";
 import { ErrorBoundary } from "./shared/components/ui/ErrorBoundary";
+import { ToastContainer } from "./shared/components/ui/Toast";
+import { CommandPalette } from "./shared/components/command-palette/CommandPalette";
 
 const LoginPage = lazy(() => import("./modules/auth/LoginPage").then(m => ({ default: m.LoginPage })));
 const CustomerCRM = lazy(() => import("./modules/customers/CustomerCRM").then(m => ({ default: m.CustomerCRM })));
@@ -29,22 +31,44 @@ const Print3DCalculator = lazy(() => import("./modules/finances/pages/Print3DCal
 const StockEntry = lazy(() => import("./modules/inventory/pages/StockEntry").then(m => ({ default: m.StockEntry })));
 const StockWithdrawal = lazy(() => import("./modules/inventory/pages/StockWithdrawal").then(m => ({ default: m.StockWithdrawal })));
 const StockHistory = lazy(() => import("./modules/inventory/pages/StockHistory").then(m => ({ default: m.StockHistory })));
+const SettingsPage = lazy(() => import("./modules/settings/SettingsPage").then(m => ({ default: m.SettingsPage })));
+const ProfilePage = lazy(() => import("./modules/settings/ProfilePage").then(m => ({ default: m.ProfilePage })));
+
+import { Spinner } from "./shared/components/ui/Spinner";
 
 const LoadingFallback = () => (
   <div className="h-full flex items-center justify-center">
-    <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+    <Spinner size="lg" className="text-blue-500" />
   </div>
 );
 
 export default function App() {
   const initializeAuth = useAuthStore((state) => state.initialize);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 
   useEffect(() => {
     return initializeAuth();
   }, [initializeAuth]);
 
+  const handleCommandPaletteKeyDown = useCallback((e: KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      setIsCommandPaletteOpen((v) => !v);
+    }
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleCommandPaletteKeyDown);
+    return () => document.removeEventListener('keydown', handleCommandPaletteKeyDown);
+  }, [handleCommandPaletteKeyDown]);
+
   return (
     <BrowserRouter>
+      <ToastContainer />
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+      />
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
@@ -81,6 +105,8 @@ export default function App() {
             <Route path="historial-stock" element={<StockHistory />} />
             <Route path="calculadora" element={<CostCalculator />} />
             <Route path="calculadora-3d" element={<Print3DCalculator />} />
+            <Route path="settings" element={<SettingsPage />} />
+            <Route path="perfil" element={<ProfilePage />} />
             <Route path="" element={<Navigate to="/inicio" replace />} />
             <Route
               path="*"

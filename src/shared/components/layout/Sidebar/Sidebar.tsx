@@ -24,13 +24,16 @@ import {
   Plus,
   Sprout,
   Pencil,
+  Settings,
   type LucideIcon,
 } from 'lucide-react';
 
 import { supabase } from '../../../../lib/supabase';
 import { useThemeStore } from '../../../../store/useThemeStore';
 import { useTenantStore } from '../../../../store/useTenantStore';
+import { useAuthStore } from '../../../../store/useAuthStore';
 import { CompanyFormModal } from '../../ui/CompanyFormModal';
+import { NotificationBell } from '../../notifications/NotificationBell';
 
 interface NavRoute {
   readonly path: string;
@@ -66,7 +69,7 @@ type SidebarItemProps = NavRoute;
 
 const SidebarItem = memo(({ path, label, icon: Icon, highlight }: SidebarItemProps) => {
   const getClasses = (isActive: boolean) => {
-    const base = "flex items-center gap-3 px-4 py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all focus:outline-none focus:ring-2 focus:ring-blue-500";
+    const base = "flex items-center gap-3 px-4 py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2";
     if (!isActive) return `${base} text-slate-400 hover:bg-slate-800 hover:text-slate-200`;
 
     switch (highlight) {
@@ -86,6 +89,36 @@ const SidebarItem = memo(({ path, label, icon: Icon, highlight }: SidebarItemPro
 });
 
 SidebarItem.displayName = 'SidebarItem';
+
+const SidebarUserFooter = memo(() => {
+  const user = useAuthStore((state) => state.user);
+  const navigate = useNavigate();
+  const fullName = user?.user_metadata?.full_name || user?.email || 'Operador';
+  const initials = fullName
+    .split(' ')
+    .map((w: string) => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
+  return (
+    <button
+      type="button"
+      onClick={() => navigate('/perfil')}
+      className="flex items-center gap-3 px-2 mb-3 w-full text-left rounded-xl hover:bg-slate-800 transition-colors focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 cursor-pointer"
+    >
+      <div className="w-8 h-8 rounded-xl bg-success-600 flex items-center justify-center text-white font-bold text-xs shrink-0">
+        {initials}
+      </div>
+      <div className="overflow-hidden">
+        <p className="text-xs font-bold text-white truncate">{fullName}</p>
+        <p className="text-[9px] text-success-400 font-bold uppercase tracking-widest truncate">Administrador</p>
+      </div>
+    </button>
+  );
+});
+
+SidebarUserFooter.displayName = 'SidebarUserFooter';
 
 export const Sidebar = memo(() => {
   const { isDarkMode, toggleDarkMode } = useThemeStore();
@@ -163,13 +196,16 @@ export const Sidebar = memo(() => {
               <span className="text-[9px] font-bold text-brand-400 uppercase tracking-[0.3em]">Holding ERP</span>
             </div>
           </div>
-          <button 
-            onClick={toggleDarkMode} 
-            aria-label={isDarkMode ? 'Activar modo claro' : 'Activar modo oscuro'}
-            className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center transition-colors text-slate-400 hover:text-white"
-          >
-            {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
+          <div className="flex items-center gap-1">
+            <NotificationBell />
+            <button 
+              onClick={toggleDarkMode} 
+              aria-label={isDarkMode ? 'Activar modo claro' : 'Activar modo oscuro'}
+              className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center transition-colors text-slate-400 hover:text-white focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+            >
+              {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+          </div>
         </div>
 
         {/* TENANT SELECTOR */}
@@ -181,14 +217,14 @@ export const Sidebar = memo(() => {
             <div className="flex items-center gap-2">
               <button
                 onClick={handleEditCompany}
-                className="flex items-center gap-1 text-[9px] font-bold text-slate-400 hover:text-white uppercase tracking-widest transition-colors"
+                className="flex items-center gap-1 text-[9px] font-bold text-slate-400 hover:text-white uppercase tracking-widest transition-colors focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
                 title="Editar empresa actual"
               >
                 <Pencil className="w-3 h-3" />
               </button>
               <button
                 onClick={() => { setEditingCompany(null); setIsCompanyModalOpen(true); }}
-                className="flex items-center gap-1 text-[9px] font-bold text-blue-400 hover:text-blue-300 uppercase tracking-widest transition-colors"
+                className="flex items-center gap-1 text-[9px] font-bold text-blue-400 hover:text-blue-300 uppercase tracking-widest transition-colors focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
               >
                 <Plus className="w-3 h-3" />
                 Nueva
@@ -202,7 +238,7 @@ export const Sidebar = memo(() => {
               setActiveCompany(e.target.value);
               navigate('/');
             }}
-            className="w-full p-2 bg-slate-950 border border-slate-700 text-white font-bold text-xs rounded-xl outline-none focus:border-blue-500 cursor-pointer transition-colors"
+            className="w-full p-2 bg-slate-950 border border-slate-700 text-white font-bold text-xs rounded-xl outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 cursor-pointer transition-colors"
           >
             {companies.map((c) => (
               <option key={c.id} value={c.id}>
@@ -226,22 +262,18 @@ export const Sidebar = memo(() => {
               <SidebarItem key={route.path} {...route} />
             ))}
           </div>
+
+          <div className="pt-3 mt-3 border-t border-slate-800">
+            <SidebarItem path="/settings" label="Configuración" icon={Settings} />
+          </div>
         </nav>
 
         {/* FOOTER */}
         <div className="p-4 border-t border-slate-800 shrink-0">
-          <div className="flex items-center gap-3 px-2 mb-3">
-             <div className="w-8 h-8 rounded-xl bg-success-600 flex items-center justify-center text-white font-bold text-xs shrink-0">
-               J
-             </div>
-             <div className="overflow-hidden">
-               <p className="text-xs font-bold text-white truncate">Jorge</p>
-               <p className="text-[9px] text-success-400 font-bold uppercase tracking-widest truncate">Administrador</p>
-             </div>
-          </div>
+          <SidebarUserFooter />
           <button 
             onClick={handleSignOut} 
-            className="w-full flex justify-center items-center gap-2 py-2.5 bg-slate-950 hover:bg-rose-900/50 text-rose-200 hover:text-rose-400 border border-slate-800 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-colors"
+            className="w-full flex justify-center items-center gap-2 py-2.5 bg-slate-950 hover:bg-rose-900/50 text-rose-200 hover:text-rose-400 border border-slate-800 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-colors focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
           >
             <LogOut className="w-3.5 h-3.5" />
             Cerrar Sesión

@@ -1,9 +1,10 @@
-﻿import { useState, useEffect, memo } from 'react';
+﻿import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useCrmStore, type CustomerBalance } from '../crm/store/useCrmStore';
 import { useTenantStore } from '../../store/useTenantStore';
 import { ClientFormModal } from '../crm/pages/ClientFormModal';
-import { Star, Gift, TrendingUp, ArrowDownLeft, ArrowUpRight, Search, Pencil, Trash2 } from 'lucide-react';
+import { Badge, ExportButton, Avatar } from '../../shared/components/ui';
+import { Star, Gift, TrendingUp, ArrowDownLeft, ArrowUpRight, Search, Pencil, Trash2, FileText, ShoppingCart, StickyNote, Users, Store, Building2 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 interface Movement {
@@ -21,25 +22,71 @@ interface LoyaltyEntry {
   reason: string;
 }
 
+interface OrderHistory {
+  id: string;
+  created_at: string | null;
+  total_amount: number | null;
+  status: string | null;
+  customer_name: string;
+}
+
+const TYPE_FILTERS = [
+  { key: 'all', label: 'Todos', icon: Users },
+  { key: 'minorista', label: 'Minorista', icon: Store },
+  { key: 'mayorista', label: 'Mayorista', icon: TrendingUp },
+  { key: 'revendedor', label: 'Revendedor', icon: Building2 },
+  { key: 'institucion', label: 'Institución', icon: Building2 },
+] as const;
+
 export const CustomerCRM = memo(() => {
   const { balances: customers, fetchBalances, updateCustomer, deleteCustomer, awardLoyaltyPoints, redeemLoyaltyPoints } = useCrmStore();
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerBalance | null>(null);
   const [history, setHistory] = useState<Movement[]>([]);
   const [loyaltyHistory, setLoyaltyHistory] = useState<LoyaltyEntry[]>([]);
+  const [orderHistory, setOrderHistory] = useState<OrderHistory[]>([]);
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editData, setEditData] = useState({ name: '', phone: '', email: '', address: '', cuit: '' });
-  const [activeTab, setActiveTab] = useState<'movimientos' | 'puntos'>('movimientos');
+  const [editData, setEditData] = useState({ name: '', phone: '', email: '', address: '', cuit: '', notes: '' });
+  const [activeTab, setActiveTab] = useState<'movimientos' | 'puntos' | 'pedidos' | 'notas'>('movimientos');
   const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [notesValue, setNotesValue] = useState('');
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [pointsInput, setPointsInput] = useState('');
   const [pointsReason, setPointsReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => { fetchBalances(searchTerm); }, [fetchBalances, searchTerm]);
 
+  const filteredCustomers = useMemo(() => {
+    if (typeFilter === 'all') return customers;
+    return customers.filter(c => c.type?.toLowerCase() === typeFilter);
+  }, [customers, typeFilter]);
+
+  const stats = useMemo(() => ({
+    total: customers.length,
+    minorista: customers.filter(c => c.type?.toLowerCase() === 'minorista').length,
+    mayorista: customers.filter(c => c.type?.toLowerCase() === 'mayorista').length,
+    revendedor: customers.filter(c => c.type?.toLowerCase() === 'revendedor').length,
+    institucion: customers.filter(c => c.type?.toLowerCase() === 'institucion').length,
+  }), [customers]);
+
+  const exportCSV = useCallback(() => {
+    const header = 'Nombre,Email,Teléfono,Tipo,Ciudad';
+    const rows = filteredCustomers.map(c =>
+      [c.name, c.email ?? '', c.phone ?? '', c.type, c.address ?? ''].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
+    );
+    const blob = new Blob([header + '\n' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `clientes_${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  }, [filteredCustomers]);
+
   const loadCustomerData = async (customer: CustomerBalance) => {
     setSelectedCustomer(customer);
     setActiveTab('movimientos');
+    setNotesValue(customer.notes ?? '');
 
     const companyId = useTenantStore.getState().activeCompanyId;
     if (!companyId) return;
@@ -58,6 +105,15 @@ export const CustomerCRM = memo(() => {
       .eq('customer_id', customer.id)
       .order('created_at', { ascending: false });
     setLoyaltyHistory((loyaltyData as LoyaltyEntry[]) || []);
+
+    const { data: ordersData } = await supabase
+      .from('orders')
+      .select('id, created_at, total_amount, status, customer_name')
+      .eq('customer_id', customer.id)
+      .eq('company_id', companyId)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    setOrderHistory((ordersData as OrderHistory[]) || []);
   };
 
   const handleEdit = (customer: CustomerBalance) => {
@@ -67,8 +123,24 @@ export const CustomerCRM = memo(() => {
       email: customer.email ?? '',
       address: customer.address ?? '',
       cuit: customer.cuit ?? '',
+      notes: customer.notes ?? '',
     });
     setIsEditModalOpen(true);
+  };
+
+  const handleSaveNotes = async () => {
+    if (!selectedCustomer) return;
+    setIsSavingNotes(true);
+    try {
+      await updateCustomer(selectedCustomer.id, { notes: notesValue || null });
+      const updated = useCrmStore.getState().balances.find(c => c.id === selectedCustomer.id);
+      if (updated) setSelectedCustomer(updated);
+      Swal.fire({ icon: 'success', title: 'Notas guardadas', timer: 1200, showConfirmButton: false, background: '#0f172a', color: '#fff' });
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'Error', text: err instanceof Error ? err.message : 'No se pudieron guardar las notas', background: '#0f172a', color: '#fff' });
+    } finally {
+      setIsSavingNotes(false);
+    }
   };
 
   const handleSaveEdit = async () => {
@@ -81,6 +153,7 @@ export const CustomerCRM = memo(() => {
         email: editData.email || null,
         address: editData.address || null,
         cuit: editData.cuit || null,
+        notes: editData.notes || null,
       });
       const updated = useCrmStore.getState().balances.find(c => c.id === selectedCustomer.id);
       if (updated) setSelectedCustomer(updated);
@@ -163,27 +236,53 @@ export const CustomerCRM = memo(() => {
     <div className="flex flex-col md:flex-row h-auto md:h-[calc(100vh-120px)] gap-4 md:gap-6 p-4">
       {/* Lista de Clientes */}
       <div className="w-full md:w-1/3 min-h-[300px] md:min-h-0 bg-white dark:bg-slate-800 rounded-4xl border dark:border-slate-700 shadow-xl overflow-hidden flex flex-col">
-        <div className="p-5 border-b dark:border-slate-700 flex justify-between items-center gap-3">
-          <h2 className="font-black uppercase tracking-tighter italic dark:text-white whitespace-nowrap">Clientes</h2>
-          <div className="relative flex-1">
+        <div className="p-5 border-b dark:border-slate-700 space-y-3">
+          <div className="flex justify-between items-center gap-3">
+            <h2 className="font-black uppercase tracking-tighter italic dark:text-white whitespace-nowrap">Clientes</h2>
+            <button
+              onClick={() => setIsNewModalOpen(true)}
+              className="w-8 h-8 shrink-0 bg-blue-600 text-white rounded-full font-bold shadow-lg hover:bg-blue-700 transition-colors"
+            >
+              +
+            </button>
+          </div>
+          <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
             <input
               type="text"
-              placeholder="Buscar..."
+              placeholder="Buscar nombre, teléfono, CUIT o email..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl bg-slate-100 dark:bg-slate-700 dark:text-white border-none outline-none"
             />
           </div>
-          <button
-            onClick={() => setIsNewModalOpen(true)}
-            className="w-8 h-8 shrink-0 bg-blue-600 text-white rounded-full font-bold shadow-lg hover:bg-blue-700 transition-colors"
-          >
-            +
-          </button>
+          {/* Quick Stats */}
+          <div className="flex items-center gap-3 text-[9px] font-black uppercase text-slate-400 dark:text-slate-500">
+            <span>{stats.total} total</span>
+            <span className="text-purple-400">{stats.mayorista} may.</span>
+            <span className="text-blue-400">{stats.minorista} min.</span>
+            <span className="text-emerald-400">{stats.revendedor} rev.</span>
+          </div>
+          {/* Type Filter Tabs */}
+          <div className="flex gap-1 flex-wrap">
+            {TYPE_FILTERS.map(f => (
+              <button
+                key={f.key}
+                onClick={() => setTypeFilter(f.key)}
+                className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase transition-all ${
+                  typeFilter === f.key
+                    ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
+                    : 'bg-slate-100 dark:bg-slate-700 text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <ExportButton onExportCSV={exportCSV} label="Exportar CSV" />
         </div>
         <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
-          {customers.map(c => (
+          {filteredCustomers.map(c => (
             <div
               key={c.id}
               onClick={() => loadCustomerData(c)}
@@ -194,8 +293,14 @@ export const CustomerCRM = memo(() => {
               }`}
             >
               <div className="flex justify-between items-start">
-                <p className="font-black text-xs uppercase truncate flex-1">{c.name}</p>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <Avatar name={c.name} size="sm" />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-black text-xs uppercase truncate">{c.name}</p>
+                    {c.phone && <p className="text-[9px] opacity-40 truncate">{c.phone}</p>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
                   {(c.loyalty_points ?? 0) > 0 && (
                     <span className="flex items-center gap-0.5 text-[9px] font-black text-amber-400 whitespace-nowrap">
                       <Star className="w-2.5 h-2.5 fill-amber-400" />
@@ -218,18 +323,16 @@ export const CustomerCRM = memo(() => {
                   </button>
                 </div>
               </div>
-              <div className="flex gap-3 mt-0.5">
+              <div className="flex gap-3 mt-0.5 ml-10">
                 <p className="text-[10px] opacity-60">Saldo: ${(c.balance ?? 0).toLocaleString('es-AR')}</p>
-                <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full ${
-                  c.type === 'mayorista' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-700'
-                }`}>{c.type}</span>
+                <Badge variant={c.type === 'mayorista' ? 'info' : c.type === 'revendedor' ? 'warning' : 'default'} size="sm">{c.type}</Badge>
               </div>
               {c.email && (
-                <p className="text-[9px] opacity-40 truncate mt-0.5">{c.email}</p>
+                <p className="text-[9px] opacity-40 truncate mt-0.5 ml-10">{c.email}</p>
               )}
             </div>
           ))}
-          {customers.length === 0 && (
+          {filteredCustomers.length === 0 && (
             <p className="text-center text-xs text-slate-400 dark:text-slate-500 mt-10 italic">Sin resultados</p>
           )}
         </div>
@@ -290,7 +393,7 @@ export const CustomerCRM = memo(() => {
               </div>
 
               {/* Tabs */}
-              <div className="flex gap-2 mt-4">
+              <div className="flex gap-2 mt-4 flex-wrap">
                 <button
                   onClick={() => setActiveTab('movimientos')}
                   className={`px-4 py-1.5 rounded-full text-xs font-black uppercase transition-all ${activeTab === 'movimientos' ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
@@ -298,16 +401,28 @@ export const CustomerCRM = memo(() => {
                   Movimientos
                 </button>
                 <button
+                  onClick={() => setActiveTab('pedidos')}
+                  className={`px-4 py-1.5 rounded-full text-xs font-black uppercase transition-all flex items-center gap-1 ${activeTab === 'pedidos' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-blue-600'}`}
+                >
+                  <ShoppingCart className="w-3 h-3" /> Pedidos
+                </button>
+                <button
                   onClick={() => setActiveTab('puntos')}
                   className={`px-4 py-1.5 rounded-full text-xs font-black uppercase transition-all flex items-center gap-1 ${activeTab === 'puntos' ? 'bg-amber-400 text-slate-900' : 'text-slate-500 hover:text-amber-400'}`}
                 >
                   <Star className="w-3 h-3" /> Fidelización
                 </button>
+                <button
+                  onClick={() => setActiveTab('notas')}
+                  className={`px-4 py-1.5 rounded-full text-xs font-black uppercase transition-all flex items-center gap-1 ${activeTab === 'notas' ? 'bg-emerald-500 text-white' : 'text-slate-500 hover:text-emerald-500'}`}
+                >
+                  <StickyNote className="w-3 h-3" /> Notas
+                </button>
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
-              {activeTab === 'movimientos' ? (
+              {activeTab === 'movimientos' && (
                 <div className="space-y-2">
                   {history.length === 0 && (
                     <p className="text-slate-600 text-center text-xs uppercase font-black italic mt-10">Sin movimientos registrados</p>
@@ -334,7 +449,36 @@ export const CustomerCRM = memo(() => {
                     </div>
                   ))}
                 </div>
-              ) : (
+              )}
+
+              {activeTab === 'pedidos' && (
+                <div className="space-y-2">
+                  {orderHistory.length === 0 && (
+                    <p className="text-slate-600 text-center text-xs uppercase font-black italic mt-10">Sin pedidos registrados</p>
+                  )}
+                  {orderHistory.map(o => (
+                    <div key={o.id} className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700/50 flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-blue-500/10">
+                          <ShoppingCart className="w-4 h-4 text-blue-400" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-500 uppercase font-black">
+                            {o.created_at ? new Date(o.created_at).toLocaleDateString('es-AR') : '-'}
+                          </p>
+                          <p className="text-slate-900 dark:text-white font-bold text-sm">{o.customer_name}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-black text-base text-blue-400">${(o.total_amount ?? 0).toLocaleString('es-AR')}</p>
+                        <Badge variant={o.status === 'entregado' ? 'success' : o.status === 'cancelado' ? 'danger' : 'warning'} size="sm">{o.status ?? 'pendiente'}</Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activeTab === 'puntos' && (
                 <div className="space-y-5">
                   {/* Panel de gestión de puntos */}
                   <div className="bg-amber-50 dark:bg-slate-800/60 rounded-2xl p-5 border border-amber-200 dark:border-amber-500/10 space-y-4">
@@ -411,6 +555,30 @@ export const CustomerCRM = memo(() => {
                   </div>
                 </div>
               )}
+
+              {activeTab === 'notas' && (
+                <div className="space-y-4">
+                  <div className="bg-emerald-50 dark:bg-slate-800/60 rounded-2xl p-5 border border-emerald-200 dark:border-emerald-500/10 space-y-3">
+                    <h4 className="text-emerald-500 font-black uppercase text-sm flex items-center gap-2">
+                      <FileText className="w-4 h-4" /> Notas del Cliente
+                    </h4>
+                    <textarea
+                      value={notesValue}
+                      onChange={e => setNotesValue(e.target.value)}
+                      placeholder="Agregar notas sobre este cliente..."
+                      rows={8}
+                      className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-emerald-400 border border-slate-200 dark:border-slate-700 resize-none"
+                    />
+                    <button
+                      onClick={handleSaveNotes}
+                      disabled={isSavingNotes}
+                      className="flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-white font-black text-xs uppercase py-2.5 px-6 rounded-xl transition-colors"
+                    >
+                      {isSavingNotes ? 'Guardando...' : 'Guardar Notas'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </>
         ) : (
@@ -472,6 +640,16 @@ export const CustomerCRM = memo(() => {
                     className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white outline-none"
                     value={editData.address}
                     onChange={e => setEditData({ ...editData, address: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Notas</label>
+                  <textarea
+                    className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white outline-none resize-none"
+                    rows={3}
+                    value={editData.notes}
+                    onChange={e => setEditData({ ...editData, notes: e.target.value })}
+                    placeholder="Notas sobre el cliente..."
                   />
                 </div>
                 <div className="flex gap-3">

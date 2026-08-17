@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, memo } from "react";
 import { useCrmStore } from "../crm/store/useCrmStore";
 import Swal from "sweetalert2";
-import { X, Loader2, Search } from "lucide-react";
+import { X, Search } from "lucide-react";
 import { ARS } from '../../shared/utils/format';
+import { Spinner } from '../../shared/components/ui/Spinner';
 
 export const CurrentAccounts = memo(() => {
   const { balances, isLoading, fetchBalances, addMovement } = useCrmStore();
@@ -218,7 +219,7 @@ export const CurrentAccounts = memo(() => {
                 className={`w-full bg-blue-600 text-white py-5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all ${isSubmitting ? "opacity-50" : "hover:bg-blue-700 active:scale-95"}`}
               >
                 {isSubmitting ? (
-                  <Loader2 className="animate-spin mx-auto w-4 h-4" />
+                  <Spinner size="sm" className="text-white mx-auto" />
                 ) : (
                   "Confirmar Operación 💾"
                 )}

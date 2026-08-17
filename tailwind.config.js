@@ -35,6 +35,20 @@ export default {
           600: '#e11d48',
           DEFAULT: '#e11d48',
         },
+        warning: {
+          50:  '#fffbeb',
+          100: '#fef3c7',
+          500: '#f59e0b',
+          600: '#d97706',
+          DEFAULT: '#d97706',
+        },
+        info: {
+          50:  '#f0f9ff',
+          100: '#e0f2fe',
+          500: '#0ea5e9',
+          600: '#0284c7',
+          DEFAULT: '#0284c7',
+        },
         surface: {
           light: '#f8fafc',
           dark:  '#0f172a',

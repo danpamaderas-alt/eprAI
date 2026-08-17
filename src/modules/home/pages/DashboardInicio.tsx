@@ -222,12 +222,12 @@ const DashboardContent = memo(() => {
   const modules = [
     { name: 'POS', path: '/ventas', icon: <ShoppingCart className="w-5 h-5" />, color: 'from-emerald-500 to-emerald-600', shadow: 'shadow-emerald-500/30' },
     { name: 'Inventario', path: '/inventario', icon: <Package className="w-5 h-5" />, color: 'from-blue-500 to-blue-600', shadow: 'shadow-blue-500/30' },
-    { name: 'Cotizar', path: '/cotizar', icon: <FileText className="w-5 h-5" />, color: 'from-violet-500 to-violet-600', shadow: 'shadow-violet-500/30' },
-    { name: 'CRM', path: '/crm', icon: <Users className="w-5 h-5" />, color: 'from-rose-500 to-rose-600', shadow: 'shadow-rose-500/30' },
-    { name: 'Logistica', path: '/logistica', icon: <Truck className="w-5 h-5" />, color: 'from-amber-500 to-amber-600', shadow: 'shadow-amber-500/30' },
+    { name: 'Cotizar', path: '/cotizador', icon: <FileText className="w-5 h-5" />, color: 'from-violet-500 to-violet-600', shadow: 'shadow-violet-500/30' },
+    { name: 'CRM', path: '/clientes', icon: <Users className="w-5 h-5" />, color: 'from-rose-500 to-rose-600', shadow: 'shadow-rose-500/30' },
+    { name: 'Logistica', path: '/remitos', icon: <Truck className="w-5 h-5" />, color: 'from-amber-500 to-amber-600', shadow: 'shadow-amber-500/30' },
     { name: 'Tesoreria', path: '/tesoreria', icon: <CircleDollarSign className="w-5 h-5" />, color: 'from-cyan-500 to-cyan-600', shadow: 'shadow-cyan-500/30' },
     { name: 'Pedidos', path: '/pedidos', icon: <Route className="w-5 h-5" />, color: 'from-indigo-500 to-indigo-600', shadow: 'shadow-indigo-500/30' },
-    { name: 'Reportes', path: '/reportes', icon: <BarChart3 className="w-5 h-5" />, color: 'from-slate-500 to-slate-600', shadow: 'shadow-slate-500/30' },
+    { name: 'Reportes', path: '/finanzas', icon: <BarChart3 className="w-5 h-5" />, color: 'from-slate-500 to-slate-600', shadow: 'shadow-slate-500/30' },
   ];
 
   return (

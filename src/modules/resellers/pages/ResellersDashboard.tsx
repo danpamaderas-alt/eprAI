@@ -4,6 +4,7 @@ import { useResellerStore } from '../store/useResellerStore';
 import { useTreasuryStore } from '../../inventory/treasury/store/useTreasuryStore';
 import Swal from 'sweetalert2';
 import { ARS } from '../../../shared/utils/format';
+import { Spinner } from '../../../shared/components/ui/Spinner';
 
 // Tipos para los formularios
 interface NewResellerFields { name: string; phone: string; }
@@ -111,7 +112,7 @@ export const ResellersDashboard = () => {
 
           <div className="flex-1 overflow-y-auto scrollbar-thin">
             {isLoading ? (
-              <div className="p-10 flex justify-center"><div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div></div>
+              <div className="p-10 flex justify-center"><Spinner className="text-blue-500" /></div>
             ) : (
               <div className="divide-y divide-slate-50">
                 {resellers.map(r => (

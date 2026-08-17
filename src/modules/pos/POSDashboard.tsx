@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useCatalogStore, type Customer } from '../../store/useCatalogStore';
 import { useCrmStore } from '../crm/store/useCrmStore';
 import { ARS } from '../../shared/utils/format';
@@ -9,6 +9,7 @@ import {
   Search, ShoppingCart, Plus, Minus, Trash2, X,
   Clock, Printer, Tag, Package, AlertTriangle, PackageX,
   User, Star, Percent, DollarSign, History, Lock,
+  CreditCard, CircleDollarSign,
 } from 'lucide-react';
 
 interface CartItem {
@@ -35,7 +36,10 @@ interface RecentSale {
   paymentMethod: string;
 }
 
-const CATEGORIES = ['Todos', 'Remeras', 'Buzos', 'Pantalones', 'Camperas', 'Accesorios'] as const;
+interface PaymentEntry {
+  method_id: string;
+  amount: number;
+}
 
 const STOCK_THRESHOLDS = { low: 5, critical: 2 } as const;
 
@@ -83,15 +87,18 @@ function saveRecentSale(sale: RecentSale) {
 }
 
 export const POSDashboard = () => {
-  const { products, inventory, customers, fetchAllCatalogs, processSale, isLoading } = useCatalogStore();
+  const { products, inventory, customers, paymentMethods, fetchAllCatalogs, processSale, isLoading } = useCatalogStore();
   const { addMovement } = useCrmStore();
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
   const [selectedCustomer, setSelectedCustomer] = useState<string>('');
   const [customerSearch, setCustomerSearch] = useState('');
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('EFECTIVO');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
+  const [payments, setPayments] = useState<PaymentEntry[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [discountType, setDiscountType] = useState<'none' | 'percent' | 'fixed'>('none');
@@ -105,6 +112,78 @@ export const POSDashboard = () => {
     setCart(loadHeldCart());
     setRecentSales(loadRecentSales());
   }, [fetchAllCatalogs]);
+
+  useEffect(() => {
+    if (paymentMethods.length > 0 && !selectedPaymentMethod) {
+      setSelectedPaymentMethod(paymentMethods[0].id);
+    }
+  }, [paymentMethods, selectedPaymentMethod]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+
+      if (e.key === 'F2') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (isInput) {
+          (e.target as HTMLElement).blur();
+        }
+        setSearchTerm('');
+        setShowCustomerDropdown(false);
+        setShowRecentSales(false);
+        return;
+      }
+
+      if (e.key === 'F9') {
+        e.preventDefault();
+        handleCheckout();
+        return;
+      }
+
+      if (!isInput && cart.length > 0) {
+        const lastItem = cart[cart.length - 1];
+        if (e.key === '+' || e.key === '=') {
+          e.preventDefault();
+          updateCartQty(lastItem.variantId, 1);
+        } else if (e.key === '-' || e.key === '_') {
+          e.preventDefault();
+          updateCartQty(lastItem.variantId, -1);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  });
+
+  const totalPaid = useMemo(() => payments.reduce((sum, p) => sum + p.amount, 0), [payments]);
+  const remainingBalance = useMemo(() => Math.max(0, grandTotal - totalPaid), [grandTotal, totalPaid]);
+  const isFullyPaid = remainingBalance <= 0.01;
+
+  const addPayment = useCallback(() => {
+    if (!selectedPaymentMethod || grandTotal <= 0) return;
+    const method = paymentMethods.find(m => m.id === selectedPaymentMethod);
+    if (!method) return;
+    const amount = Math.min(remainingBalance, grandTotal);
+    if (amount <= 0) return;
+    setPayments(prev => [...prev, { method_id: selectedPaymentMethod, amount }]);
+  }, [selectedPaymentMethod, grandTotal, remainingBalance, paymentMethods]);
+
+  const removePayment = useCallback((index: number) => {
+    setPayments(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const updatePaymentAmount = useCallback((index: number, amount: number) => {
+    setPayments(prev => prev.map((p, i) => i === index ? { ...p, amount: Math.max(0, amount) } : p));
+  }, []);
 
   const addToast = useCallback((message: string, type: 'success' | 'error' | 'warning' = 'success') => {
     const id = Date.now();
@@ -124,6 +203,11 @@ export const POSDashboard = () => {
   const selectedCustomerData = useMemo(
     () => customers.find(c => c.id === selectedCustomer) || null,
     [customers, selectedCustomer]
+  );
+
+  const categories = useMemo(
+    () => ['Todos', ...Array.from(new Set(products.map(p => p.category).filter(Boolean))) as string[]],
+    [products]
   );
 
   const availableVariants = useMemo(() => {
@@ -149,7 +233,7 @@ export const POSDashboard = () => {
       .filter(v => {
         if (selectedCategory !== 'Todos' && v.category?.toLowerCase() !== selectedCategory.toLowerCase()) return false;
         if (!safeSearch) return true;
-        return v.name?.toLowerCase().includes(safeSearch) || v.sku?.toLowerCase().includes(safeSearch);
+        return v.name?.toLowerCase().includes(safeSearch) || v.sku?.toLowerCase().includes(safeSearch) || v.size?.toLowerCase().includes(safeSearch) || v.color?.toLowerCase().includes(safeSearch);
       });
   }, [inventory, products, searchTerm, selectedCategory]);
 
@@ -231,6 +315,7 @@ export const POSDashboard = () => {
     saveHeldCart([]);
     setDiscountType('none');
     setDiscountValue(0);
+    setPayments([]);
     addToast('Carrito limpiado', 'warning');
   }, [addToast]);
 
@@ -240,27 +325,42 @@ export const POSDashboard = () => {
   }, [cart, addToast]);
 
   const handleCheckout = async () => {
-    if (paymentMethod !== 'CTA_CTE' && paymentMethod !== 'CUENTA_CORRIENTE' && cart.length === 0) return;
-    if (paymentMethod === 'CTA_CTE' || paymentMethod === 'CUENTA_CORRIENTE') {
-      if (!selectedCustomer) {
-        addToast('Seleccioná un cliente para cuenta corriente', 'warning');
-        return;
-      }
-    }
     if (cart.length === 0) {
       addToast('El carrito está vacío', 'warning');
       return;
     }
 
+    const hasCtaCtePayment = payments.some(p => {
+      const m = paymentMethods.find(pm => pm.id === p.method_id);
+      return m && (m.name.toLowerCase().includes('cuenta') || m.name.toLowerCase().includes('ctacte') || m.name.toLowerCase().includes('corriente'));
+    });
+
+    if (hasCtaCtePayment && !selectedCustomer) {
+      addToast('Seleccioná un cliente para cuenta corriente', 'warning');
+      return;
+    }
+
+    if (payments.length === 0) {
+      addToast('Agregá al menos un medio de pago', 'warning');
+      return;
+    }
+
+    if (!isFullyPaid) {
+      addToast(`Falta pagar ${ARS.format(remainingBalance)}`, 'warning');
+      return;
+    }
+
     const cliente = customers.find(c => c.id === selectedCustomer);
-    const confirmLabel = paymentMethod === 'CTA_CTE' || paymentMethod === 'CUENTA_CORRIENTE'
-      ? '¿Confirmar venta a cuenta corriente?'
-      : `¿Confirmar venta por ${paymentMethod.replace('_', ' ')}?`;
+    const methodNames = payments.map(p => {
+      const m = paymentMethods.find(pm => pm.id === p.method_id);
+      return m?.name || p.method_id;
+    });
+    const methodSummary = methodNames.length === 1 ? methodNames[0] : methodNames.join(' + ');
 
     const { default: Swal } = await import('sweetalert2');
     const result = await Swal.fire({
-      title: confirmLabel,
-      html: `<b>${cart.length} artículos</b> por <b>${ARS.format(grandTotal)}</b>${cliente ? ` para <b>${cliente.name}</b>` : ''}`,
+      title: `¿Confirmar venta?`,
+      html: `<b>${cart.length} artículos</b> por <b>${ARS.format(grandTotal)}</b>${cliente ? ` para <b>${cliente.name}</b>` : ''}<br/><small class="text-slate-500">${methodSummary}</small>`,
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#059669',
@@ -272,14 +372,24 @@ export const POSDashboard = () => {
 
     setIsProcessing(true);
     try {
-      await processSale(selectedCustomer || '00000000-0000-0000-0000-000000000000', cart, grandTotal);
+      await processSale(selectedCustomer || null, cart, grandTotal, payments);
 
-      const normalizedMethod = paymentMethod === 'CTA_CTE' ? 'CUENTA_CORRIENTE' : paymentMethod;
-      if (normalizedMethod === 'CUENTA_CORRIENTE') {
+      const hasCtaCte = payments.some(p => {
+        const m = paymentMethods.find(pm => pm.id === p.method_id);
+        return m && (m.name.toLowerCase().includes('cuenta') || m.name.toLowerCase().includes('ctacte') || m.name.toLowerCase().includes('corriente'));
+      });
+      if (hasCtaCte && selectedCustomer) {
+        const ctaCteAmount = payments.reduce((sum, p) => {
+          const m = paymentMethods.find(pm => pm.id === p.method_id);
+          if (m && (m.name.toLowerCase().includes('cuenta') || m.name.toLowerCase().includes('ctacte') || m.name.toLowerCase().includes('corriente'))) {
+            return sum + p.amount;
+          }
+          return sum;
+        }, 0);
         const success = await addMovement({
           customer_id: selectedCustomer,
           movement_type: 'CARGO',
-          amount: grandTotal,
+          amount: ctaCteAmount,
           description: `Venta POS - ${cart.length} artículos`,
           date: new Date().toISOString(),
         });
@@ -292,7 +402,7 @@ export const POSDashboard = () => {
         total: grandTotal,
         itemCount: cartCount,
         customer: cliente?.name || 'Consumidor Final',
-        paymentMethod,
+        paymentMethod: methodSummary,
       };
       saveRecentSale(sale);
       setRecentSales(prev => [sale, ...prev].slice(0, 10));
@@ -303,6 +413,8 @@ export const POSDashboard = () => {
       setCustomerSearch('');
       setDiscountType('none');
       setDiscountValue(0);
+      setPayments([]);
+      setSelectedPaymentMethod(paymentMethods[0]?.id || '');
       addToast('¡Venta registrada exitosamente!', 'success');
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Error al procesar la venta';
@@ -334,7 +446,11 @@ export const POSDashboard = () => {
       <div class="item"><span>IVA (21%):</span><span>${ARS.format(iva)}</span></div>
       <div class="total">TOTAL: ${ARS.format(grandTotal)}</div>
       <div class="divider"></div>
-      <div class="item"><span>Medio de pago:</span><span>${paymentMethod.replace('_', ' ')}</span></div>
+      ${payments.map(p => {
+        const m = paymentMethods.find(pm => pm.id === p.method_id);
+        return `<div class="item"><span>${m?.name || p.method_id}:</span><span>${ARS.format(p.amount)}</span></div>`;
+      }).join('')}
+      ${payments.length === 0 ? `<div class="item"><span>Medio de pago:</span><span>Sin definir</span></div>` : ''}
       ${selectedCustomerData ? `<div class="item"><span>Cliente:</span><span>${selectedCustomerData.name}</span></div>` : ''}
       <div class="footer">¡Gracias por tu compra!<br/>EPR Raíces - Moda Consciente</div>
       </body></html>`;
@@ -392,8 +508,9 @@ export const POSDashboard = () => {
           <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
+              ref={searchInputRef}
               type="text"
-              placeholder="Buscar por nombre o SKU..."
+              placeholder="Buscar por nombre, SKU, talle o color... (F2)"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-700 dark:text-white outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 transition-all"
@@ -402,7 +519,7 @@ export const POSDashboard = () => {
 
           {/* Category tabs */}
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-            {CATEGORIES.map(cat => (
+            {categories.map(cat => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
@@ -621,7 +738,10 @@ export const POSDashboard = () => {
               )}
             </div>
             {/* Quick-sale indicator */}
-            {!selectedCustomer && (paymentMethod !== 'CTA_CTE' && paymentMethod !== 'CUENTA_CORRIENTE') && (
+            {!selectedCustomer && payments.every(p => {
+              const m = paymentMethods.find(pm => pm.id === p.method_id);
+              return !(m && (m.name.toLowerCase().includes('cuenta') || m.name.toLowerCase().includes('ctacte') || m.name.toLowerCase().includes('corriente')));
+            }) && (
               <p className="text-[9px] text-success font-medium mt-1.5 flex items-center gap-1">
                 <DollarSign className="w-3 h-3" /> Venta rápida (sin cliente asignado)
               </p>
@@ -701,7 +821,58 @@ export const POSDashboard = () => {
             </div>
 
             {/* Payment Method */}
-            <PaymentSelector value={paymentMethod} onChange={setPaymentMethod} />
+            <PaymentSelector methods={paymentMethods} value={selectedPaymentMethod} onChange={setSelectedPaymentMethod} />
+
+            {/* Add payment button */}
+            {grandTotal > 0 && selectedPaymentMethod && remainingBalance > 0.01 && (
+              <button
+                onClick={addPayment}
+                className="w-full py-2 rounded-xl border-2 border-dashed border-brand/30 text-brand text-[10px] font-black uppercase tracking-wider hover:bg-brand/5 hover:border-brand/50 transition-all active:scale-[0.97] flex items-center justify-center gap-1.5"
+              >
+                <Plus className="w-3 h-3" /> Agregar pago
+              </button>
+            )}
+
+            {/* Split payments list */}
+            {payments.length > 0 && (
+              <div className="space-y-1.5">
+                {payments.map((p, i) => {
+                  const m = paymentMethods.find(pm => pm.id === p.method_id);
+                  return (
+                    <div key={i} className="flex items-center gap-2 bg-white dark:bg-slate-950 rounded-lg px-2.5 py-1.5 border border-slate-200 dark:border-slate-700">
+                      <CreditCard className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                      <span className="text-[9px] font-bold text-slate-500 uppercase flex-shrink-0">{m?.name || '?'}</span>
+                      <div className="flex-1" />
+                      <input
+                        type="number"
+                        min={0}
+                        max={remainingBalance + p.amount}
+                        value={p.amount}
+                        onChange={e => updatePaymentAmount(i, Number(e.target.value))}
+                        className="w-24 text-right text-[11px] font-bold text-slate-900 dark:text-white bg-transparent outline-none tabular-nums"
+                      />
+                      <button
+                        onClick={() => removePayment(i)}
+                        className="p-1 text-slate-400 hover:text-danger transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+                {remainingBalance > 0.01 && (
+                  <div className="flex items-center justify-between text-[10px] font-bold px-1">
+                    <span className="text-slate-400 uppercase tracking-wider">Restante</span>
+                    <span className="text-amber-600 dark:text-amber-400 tabular-nums">{ARS.format(remainingBalance)}</span>
+                  </div>
+                )}
+                {isFullyPaid && (
+                  <div className="flex items-center justify-center text-[10px] font-black text-success gap-1 py-1">
+                    <CircleDollarSign className="w-3 h-3" /> Pago completo
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Totals */}
             <div className="space-y-1 text-xs">

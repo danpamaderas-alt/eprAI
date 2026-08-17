@@ -53,7 +53,7 @@ export const useCrmStore = create<CrmState>((set, get) => ({
         .eq('company_id', companyId);
 
       if (searchTerm) {
-        query = query.ilike('name', `%${searchTerm}%`);
+        query = query.or(`name.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%,cuit.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`);
       }
 
       const { data, error } = await query.order('balance', { ascending: false });
