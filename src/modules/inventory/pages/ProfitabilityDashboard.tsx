@@ -1,14 +1,12 @@
-import { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useCatalogStore } from '../../../store/useCatalogStore';
-import { useCrmStore } from '../../crm/store/useCrmStore';
 import { useTreasuryStore } from '../treasury/store/useTreasuryStore';
 import { useOrderStore } from '../../orders/store/useOrderStore';
 import { ARS } from '../../../shared/utils/format';
 import {
-  TrendingUp, TrendingDown, Package, Target, DollarSign,
-  Crown, Skull, Activity, Download, AlertTriangle, Clock,
-  BarChart3, Zap, Eye, ChevronDown, ChevronUp, Printer,
-  Calendar, Layers, ArrowRight,
+  TrendingUp, Package, Target, Crown, Skull, Activity,
+  Download, AlertTriangle, BarChart3, ChevronDown, ChevronUp,
+  Printer, Calendar, Layers,
 } from 'lucide-react';
 
 type Tab = 'overview' | 'products' | 'categories' | 'units' | 'channels' | 'treasury';
@@ -54,9 +52,8 @@ interface ChannelProfit {
   margin: number;
 }
 
-export const ProfitabilityDashboard = memo(() => {
+export function ProfitabilityDashboard() {
   const { products, inventory, fetchAllCatalogs } = useCatalogStore();
-  const { balances, fetchBalances } = useCrmStore();
   const { transactions, fetchTransactions } = useTreasuryStore();
   const { orders, fetchOrders } = useOrderStore();
 
@@ -65,21 +62,29 @@ export const ProfitabilityDashboard = memo(() => {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [showAllProducts, setShowAllProducts] = useState(false);
   const [dateRange, setDateRange] = useState<'all' | 'thisMonth' | 'quarter' | 'year'>('all');
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchAllCatalogs();
-    fetchBalances();
-    fetchTransactions();
-    fetchOrders();
-  }, [fetchAllCatalogs, fetchBalances, fetchTransactions, fetchOrders]);
+    let cancelled = false;
+    const load = async () => {
+      setIsLoading(true);
+      await Promise.allSettled([
+        fetchAllCatalogs(),
+        fetchTransactions(),
+        fetchOrders(),
+      ]);
+      if (!cancelled) setIsLoading(false);
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [fetchAllCatalogs, fetchTransactions, fetchOrders]);
 
-  // ===== Stock metrics =====
   const stockData = useMemo(() => {
     const productMap = new Map(products.map(p => [p.id, p]));
     const result: ProductProfit[] = [];
     const catMap = new Map<string, { totalValue: number; totalCost: number; products: number; stock: number }>();
 
-    inventory.forEach((v: any) => {
+    inventory.forEach(v => {
       const product = productMap.get(v.product_id) || v.products;
       if (!product) return;
       const qty = v.stock_quantity || 0;
@@ -89,7 +94,7 @@ export const ProfitabilityDashboard = memo(() => {
       const totalCost = cost * qty;
       const margin = totalValue - totalCost;
       const marginPct = totalCost > 0 ? (margin / totalCost) * 100 : price > 0 ? 100 : 0;
-      const roi = totalCost > 0 ? ((margin / totalCost) * 100) : 0;
+      const roi = cost > 0 ? ((price - cost) / cost) * 100 : 0;
 
       result.push({
         id: product.id, name: product.name, category: product.category || 'SIN CATEGORÍA',
@@ -118,7 +123,6 @@ export const ProfitabilityDashboard = memo(() => {
     return { products: result, categories, totalStockValue, totalStockCost, totalStockMargin, avgMarginPct };
   }, [inventory, products]);
 
-  // ===== Date-filtered transactions =====
   const filteredTxs = useMemo(() => {
     const now = new Date();
     return transactions.filter(tx => {
@@ -130,7 +134,6 @@ export const ProfitabilityDashboard = memo(() => {
     });
   }, [transactions, dateRange]);
 
-  // ===== Treasury profit =====
   const treasuryProfit = useMemo(() => {
     let income = 0, expenses = 0;
     filteredTxs.forEach(tx => {
@@ -140,7 +143,6 @@ export const ProfitabilityDashboard = memo(() => {
     return { income, expenses, profit: income - expenses, marginPct: income > 0 ? ((income - expenses) / income) * 100 : 0 };
   }, [filteredTxs]);
 
-  // ===== Today profit =====
   const todayProfit = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
     const todayTxs = filteredTxs.filter(tx => tx.date?.startsWith(today));
@@ -149,7 +151,6 @@ export const ProfitabilityDashboard = memo(() => {
     return { income: inc, expenses: exp, profit: inc - exp };
   }, [filteredTxs]);
 
-  // ===== Monthly profit trend =====
   const monthlyTrend = useMemo(() => {
     const map = new Map<string, { income: number; expenses: number; profit: number }>();
     for (let i = 11; i >= 0; i--) {
@@ -174,7 +175,6 @@ export const ProfitabilityDashboard = memo(() => {
   }, [transactions]);
   const maxMonthly = useMemo(() => Math.max(...monthlyTrend.map(m => Math.max(m.income, m.expenses, Math.abs(m.profit))), 1), [monthlyTrend]);
 
-  // ===== Treasury category breakdown =====
   const treasuryByCategory = useMemo(() => {
     const map = new Map<string, { income: number; expense: number }>();
     filteredTxs.forEach(tx => {
@@ -184,14 +184,15 @@ export const ProfitabilityDashboard = memo(() => {
       if (tx.type === 'INCOME') entry.income += Number(tx.amount || 0);
       if (tx.type === 'EXPENSE') entry.expense += Number(tx.amount || 0);
     });
-    return Array.from(map.entries()).map(([name, data]) => ({ name, ...data, net: data.income - data.expense, marginPct: data.income > 0 ? ((data.income - data.expense) / data.income) * 100 : 0 }))
-      .sort((a, b) => Math.abs(b.net) - Math.abs(a.net));
+    return Array.from(map.entries()).map(([name, data]) => ({
+      name, ...data, net: data.income - data.expense,
+      marginPct: data.income > 0 ? ((data.income - data.expense) / data.income) * 100 : 0,
+    })).sort((a, b) => Math.abs(b.net) - Math.abs(a.net));
   }, [filteredTxs]);
 
-  // ===== Business unit profit =====
   const unitData = useMemo(() => {
     const buMap = new Map<string, { revenue: number; cost: number; orders: number }>();
-    orders.forEach((o: any) => {
+    orders.forEach(o => {
       const bu = o.business_unit || 'GENERAL';
       if (!buMap.has(bu)) buMap.set(bu, { revenue: 0, cost: 0, orders: 0 });
       const entry = buMap.get(bu)!;
@@ -205,10 +206,9 @@ export const ProfitabilityDashboard = memo(() => {
     })).sort((a, b) => b.margin - a.margin);
   }, [orders]);
 
-  // ===== Channel analysis =====
   const channelData = useMemo(() => {
     const chMap = new Map<string, { revenue: number; orders: number }>();
-    orders.forEach((o: any) => {
+    orders.forEach(o => {
       let channel = 'DIRECTO';
       const name = (o.customer_name || '').toLowerCase();
       if (name.includes('revendedor') || name.includes('mayorista')) channel = 'MAYORISTA';
@@ -227,7 +227,6 @@ export const ProfitabilityDashboard = memo(() => {
     })).sort((a, b) => b.revenue - a.revenue);
   }, [orders]);
 
-  // ===== Alerts =====
   const alerts = useMemo(() => {
     const list: { type: 'warning' | 'danger' | 'info'; message: string }[] = [];
     const lowMargin = stockData.products.filter(p => p.marginPct < 10 && p.stock > 0);
@@ -239,7 +238,6 @@ export const ProfitabilityDashboard = memo(() => {
     return list;
   }, [stockData, treasuryProfit, todayProfit]);
 
-  // ===== Sorted products =====
   const sortedProducts = useMemo(() => {
     const sorted = [...stockData.products].sort((a, b) => {
       const mul = sortDir === 'asc' ? 1 : -1;
@@ -253,26 +251,29 @@ export const ProfitabilityDashboard = memo(() => {
     else { setSortField(field); setSortDir('desc'); }
   };
 
-  // ===== Export =====
   const handleExport = useCallback(() => {
-    const rows: string[][] = [['RENTABILIDAD', '', '', '', '', ''], ['Fecha', new Date().toISOString().slice(0, 10), '', '', '', ''], ['']];
-    rows.push(['TESORERÍA', '', '', '', '', '']);
-    rows.push(['Ingresos', String(treasuryProfit.income), '', '', '', '']);
-    rows.push(['Egresos', String(treasuryProfit.expenses), '', '', '', '']);
-    rows.push(['Profit', String(treasuryProfit.profit), '', '', '', '']);
-    rows.push(['Margen', `${treasuryProfit.marginPct.toFixed(1)}%`, '', '', '', '']);
-    rows.push(['', '', '', '', '', '']);
-    rows.push(['STOCK', '', '', '', '', '']);
-    rows.push(['Valor Total', String(stockData.totalStockValue), '', '', '', '']);
-    rows.push(['Costo Total', String(stockData.totalStockCost), '', '', '', '']);
-    rows.push(['Margen Total', String(stockData.totalStockMargin), '', '', '', '']);
-    rows.push(['Margen Promedio', `${stockData.avgMarginPct.toFixed(1)}%`, '', '', '', '']);
-    rows.push(['', '', '', '', '', '']);
-    rows.push(['PRODUCTOS POR CATEGORÍA', '', 'Valor Venta', 'Costo', 'Margen', 'Margen %']);
-    stockData.categories.forEach(c => rows.push([c.name, '', String(c.totalValue), String(c.totalCost), String(c.margin), `${c.marginPct.toFixed(1)}%`]));
-    rows.push(['', '', '', '', '', '']);
-    rows.push(['UNIDADES DE NEGOCIO', '', 'Facturación', 'Costo', 'Ganancia', 'Margen %']);
-    unitData.forEach(u => rows.push([u.unit, '', String(u.revenue), String(u.cost), String(u.margin), `${u.marginPct.toFixed(1)}%`]));
+    const rows: string[][] = [
+      ['RENTABILIDAD', '', '', '', '', ''],
+      ['Fecha', new Date().toISOString().slice(0, 10), '', '', '', ''],
+      [''],
+      ['TESORERÍA', '', '', '', '', ''],
+      ['Ingresos', String(treasuryProfit.income), '', '', '', ''],
+      ['Egresos', String(treasuryProfit.expenses), '', '', '', ''],
+      ['Profit', String(treasuryProfit.profit), '', '', '', ''],
+      ['Margen', `${treasuryProfit.marginPct.toFixed(1)}%`, '', '', '', ''],
+      [''],
+      ['STOCK', '', '', '', '', ''],
+      ['Valor Total', String(stockData.totalStockValue), '', '', '', ''],
+      ['Costo Total', String(stockData.totalStockCost), '', '', '', ''],
+      ['Margen Total', String(stockData.totalStockMargin), '', '', '', ''],
+      ['Margen Promedio', `${stockData.avgMarginPct.toFixed(1)}%`, '', '', '', ''],
+      [''],
+      ['PRODUCTOS POR CATEGORÍA', '', 'Valor Venta', 'Costo', 'Margen', 'Margen %'],
+      ...stockData.categories.map(c => [c.name, '', String(c.totalValue), String(c.totalCost), String(c.margin), `${c.marginPct.toFixed(1)}%`]),
+      [''],
+      ['UNIDADES DE NEGOCIO', '', 'Facturación', 'Señas', 'Ganancia', 'Margen %'],
+      ...unitData.map(u => [u.unit, '', String(u.revenue), String(u.cost), String(u.margin), `${u.marginPct.toFixed(1)}%`]),
+    ];
     const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -289,7 +290,7 @@ export const ProfitabilityDashboard = memo(() => {
 
   const dateLabel = { all: 'Todo', thisMonth: 'Este Mes', quarter: 'Trimestre', year: 'Este Año' }[dateRange];
 
-  if (stockData.products.length === 0 && orders.length === 0) {
+  if (isLoading) {
     return (
       <div className="p-6 space-y-5 animate-pulse">
         <div className="h-12 bg-slate-200 dark:bg-slate-800 rounded-2xl w-64" />
@@ -646,7 +647,7 @@ export const ProfitabilityDashboard = memo(() => {
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-slate-50 dark:bg-slate-900 text-[9px] font-black uppercase text-slate-400 tracking-wider">
-                <tr><th className="p-3">Unidad</th><th className="p-3 text-center">Pedidos</th><th className="p-3 text-right">Facturación</th><th className="p-3 text-right">Costo (Señas)</th><th className="p-3 text-right">Ganancia</th><th className="p-3 text-right">Margen</th></tr>
+                <tr><th className="p-3">Unidad</th><th className="p-3 text-center">Pedidos</th><th className="p-3 text-right">Facturación</th><th className="p-3 text-right">Señas</th><th className="p-3 text-right">Ganancia</th><th className="p-3 text-right">Margen</th></tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                 {unitData.map(u => (
@@ -704,6 +705,9 @@ export const ProfitabilityDashboard = memo(() => {
               </div>
             </div>
           ))}
+          {channelData.length === 0 && (
+            <div className="col-span-2 text-center py-8 text-slate-400 text-xs font-bold">Sin datos de pedidos</div>
+          )}
         </div>
       )}
 
@@ -747,12 +751,15 @@ export const ProfitabilityDashboard = memo(() => {
                   </div>
                 );
               })}
+              {treasuryByCategory.length === 0 && (
+                <div className="text-center py-4 text-slate-400 text-xs font-bold">Sin transacciones</div>
+              )}
             </div>
           </div>
         </div>
       )}
     </div>
   );
-});
+}
 
 ProfitabilityDashboard.displayName = 'ProfitabilityDashboard';
