@@ -19,14 +19,17 @@ export interface QuoteData {
   };
 }
 
-export const generateQuotePDF = (quote: QuoteData, items: QuoteItem[]) => {
+/**
+ * Genera un PDF de cotización y lo devuelve como Blob.
+ */
+export const getQuotePDFBlob = (quote: QuoteData, items: QuoteItem[]): Blob => {
   const doc = new jsPDF();
   const primaryColor: [number, number, number] = [37, 99, 235]; 
 
   doc.setFontSize(26);
   doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
   doc.text('RAÍCES', 14, 25);
-  
+   
   doc.setFontSize(10);
   doc.setTextColor(100);
   doc.text('Indumentaria Institucional y de Trabajo', 14, 32);
@@ -46,7 +49,7 @@ export const generateQuotePDF = (quote: QuoteData, items: QuoteItem[]) => {
   doc.setFontSize(12);
   doc.setTextColor(0);
   doc.text(`Cliente / Institución: ${quote.clients?.name || 'Consumidor Final'}`, 14, 50);
-  
+   
   if (quote.clients?.document_id) {
     doc.setFontSize(10);
     doc.setTextColor(100);
@@ -77,7 +80,7 @@ export const generateQuotePDF = (quote: QuoteData, items: QuoteItem[]) => {
 
   // 🚀 FIX: Tipado seguro para la propiedad inyectada por autoTable
   const finalY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || 65;
-  
+   
   doc.setFontSize(16);
   doc.setTextColor(0);
   doc.setFillColor(240, 248, 255);
@@ -98,10 +101,15 @@ export const generateQuotePDF = (quote: QuoteData, items: QuoteItem[]) => {
   doc.setTextColor(150);
   doc.text('Validez del presupuesto: 15 días. Precios sujetos a modificación sin previo aviso.', 14, 280);
 
-  // VANGUARDIA (UX Móvil / Tablet): 
-  // En Puntos de Venta, descargar un archivo "a ciegas" molesta al vendedor.
-  // Generamos un Blob y lo abrimos en una pestaña nueva para poder imprimirlo o compartirlo fácil.
-  const pdfBlob = doc.output('blob');
+  // Devolver como Blob
+  return doc.output('blob') as Blob;
+};
+
+/**
+ * Genera un PDF de cotización y lo abre en una nueva pestaña (comportamiento original).
+ */
+export const generateQuotePDF = (quote: QuoteData, items: QuoteItem[]) => {
+  const pdfBlob = getQuotePDFBlob(quote, items);
   const blobUrl = URL.createObjectURL(pdfBlob);
   window.open(blobUrl, '_blank');
 };
