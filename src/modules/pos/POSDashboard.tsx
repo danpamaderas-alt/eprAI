@@ -6,7 +6,7 @@ import { cn } from '../../shared/utils/cn';
 import { CartItemCard } from './components/CartItemCard';
 import { PaymentSelector } from './components/PaymentSelector';
 import {
-  Search, ShoppingCart, Plus, Minus, Trash2, X, Menu,
+  Search, ShoppingCart, Plus, Minus, Trash2, X,
   Clock, Printer, Tag, Package, AlertTriangle, PackageX,
   User, Star, Percent, DollarSign, History, Lock,
 } from 'lucide-react';
@@ -94,7 +94,6 @@ export const POSDashboard = () => {
   const [paymentMethod, setPaymentMethod] = useState('EFECTIVO');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [cartOpen, setCartOpen] = useState(false);
   const [discountType, setDiscountType] = useState<'none' | 'percent' | 'fixed'>('none');
   const [discountValue, setDiscountValue] = useState(0);
   const [recentSales, setRecentSales] = useState<RecentSale[]>([]);
@@ -386,17 +385,6 @@ export const POSDashboard = () => {
               >
                 <Lock className="w-4 h-4" />
               </button>
-              <button
-                onClick={() => setCartOpen(!cartOpen)}
-                className="lg:hidden p-2 rounded-xl bg-brand text-white relative"
-              >
-                <ShoppingCart className="w-5 h-5" />
-                {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-danger text-white text-[9px] font-black rounded-full flex items-center justify-center">
-                    {cartCount}
-                  </span>
-                )}
-              </button>
             </div>
           </div>
 
@@ -501,19 +489,18 @@ export const POSDashboard = () => {
                     {/* Color gradient header */}
                     <div className={cn('h-20 bg-gradient-to-br flex items-center justify-center relative', getCategoryGradient(v.category))}>
                       <Package className="w-8 h-8 text-white/60" />
-                      {v.finished_qty <= STOCK_THRESHOLDS.low && (
-                        <div className={cn('absolute top-2 right-2 px-1.5 py-0.5 rounded text-[8px] font-black uppercase flex items-center gap-0.5', stock.bg, stock.text)}>
-                          {v.finished_qty <= STOCK_THRESHOLDS.critical && <AlertTriangle className="w-2.5 h-2.5" />}
-                          {v.finished_qty}
-                        </div>
-                      )}
+                      <div className={cn('absolute top-2 right-2 px-1.5 py-0.5 rounded text-[8px] font-black uppercase flex items-center gap-0.5', stock.bg, stock.text)}>
+                        {v.finished_qty <= STOCK_THRESHOLDS.critical && <AlertTriangle className="w-2.5 h-2.5" />}
+                        {v.finished_qty} Disp.
+                      </div>
                     </div>
 
                     <div className="p-3">
-                      <div className="flex items-start justify-between mb-1">
+                      <div className="flex items-center justify-between mb-1">
                         <span className="text-[8px] font-black bg-brand/10 text-brand px-1.5 py-0.5 rounded uppercase">{v.sku}</span>
+                        <span className="text-[8px] font-bold text-slate-400">{v.category}</span>
                       </div>
-                      <h3 className="font-bold text-xs text-slate-900 dark:text-white leading-tight mb-1.5 line-clamp-2 min-h-[2rem]">
+                      <h3 className="font-bold text-xs text-slate-900 dark:text-white leading-tight mb-1.5">
                         {v.name}
                       </h3>
                       <div className="flex gap-1 mb-2">
@@ -562,16 +549,8 @@ export const POSDashboard = () => {
       </div>
 
       {/* ===== PANEL 2: CART ===== */}
-      <div className={cn(
-        'fixed inset-0 z-50 lg:relative lg:z-auto lg:flex lg:flex-col lg:w-96 lg:flex-shrink-0 transition-transform duration-300',
-        cartOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
-      )}>
-        {/* Mobile overlay */}
-        <div
-          className={cn('absolute inset-0 bg-black/50 lg:hidden', cartOpen ? 'block' : 'hidden')}
-          onClick={() => setCartOpen(false)}
-        />
-        <div className="relative z-10 flex flex-col h-full lg:h-auto bg-white dark:bg-slate-900 lg:rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden">
+      <div className="flex flex-col lg:w-[420px] lg:flex-shrink-0">
+        <div className="flex flex-col h-full lg:h-auto bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden">
           {/* Cart Header */}
           <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
             <div className="flex items-center justify-between">
@@ -591,9 +570,6 @@ export const POSDashboard = () => {
                     Limpiar
                   </button>
                 )}
-                <button onClick={() => setCartOpen(false)} className="lg:hidden p-1 text-slate-400 hover:text-slate-600">
-                  <X className="w-5 h-5" />
-                </button>
               </div>
             </div>
           </div>

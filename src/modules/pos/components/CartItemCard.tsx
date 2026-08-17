@@ -21,7 +21,7 @@ export const CartItemCard = memo(({ item, onRemove, onUpdateQty }: CartItemCardP
   <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700 hover:border-slate-200 dark:hover:border-slate-600 transition-all group">
     <div className="flex items-start justify-between gap-2">
       <div className="flex-1 min-w-0">
-        <p className="text-[11px] font-black text-slate-800 dark:text-white uppercase leading-tight truncate">
+        <p className="text-[11px] font-black text-slate-800 dark:text-white uppercase leading-tight">
           {item.name}
         </p>
         <div className="flex gap-1.5 mt-1.5">
@@ -30,6 +30,9 @@ export const CartItemCard = memo(({ item, onRemove, onUpdateQty }: CartItemCardP
           </span>
           <span className="text-[8px] font-black bg-brand/10 text-brand px-1.5 py-0.5 rounded uppercase">
             {item.color}
+          </span>
+          <span className="text-[8px] font-black bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded uppercase">
+            ${item.price.toLocaleString('es-AR')}
           </span>
         </div>
       </div>
