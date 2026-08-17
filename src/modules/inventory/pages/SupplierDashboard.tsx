@@ -54,6 +54,7 @@ export const SupplierDashboard = () => {
   }, [addSupplier, reset]);
 
   return (
+    <>
     <div className="p-8 max-w-7xl mx-auto animate-in fade-in duration-500">
       {/* CABECERA */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center bg-slate-900 border border-slate-800 p-8 rounded-[2rem] shadow-xl mb-8 gap-6">
