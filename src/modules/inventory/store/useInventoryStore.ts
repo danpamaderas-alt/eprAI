@@ -3,21 +3,23 @@ import { supabase } from '../../../lib/supabase';
 import { useTenantStore } from '../../../store/useTenantStore';
 import Swal from 'sweetalert2';
 
-export interface Product {
+export interface ProductVariant {
   id: string;
-  name: string;
-  base_stock_qty: number;
-  reserved_stock_qty: number; 
-  finished_stock_qty: number;
-  company_id: string;
+  product_id: string;
+  size_id: string | null;
+  color_id: string | null;
+  stock_quantity: number;
+  base_quantity: number;
+  finished_quantity: number;
+  product_name?: string;
 }
 
 interface InventoryStore {
-  products: Product[];
+  products: ProductVariant[];
   isLoading: boolean;
   fetchProducts: () => Promise<void>;
-  reserveStock: (productId: string, quantity: number) => Promise<boolean>;
-  processPersonalization: (productId: string, quantity: number) => Promise<boolean>;
+  reserveStock: (variantId: string, quantity: number) => Promise<boolean>;
+  processPersonalization: (variantId: string, quantity: number) => Promise<boolean>;
 }
 
 export const useInventoryStore = create<InventoryStore>((set, get) => ({
@@ -30,47 +32,51 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     set({ isLoading: true });
     try {
       const { data, error } = await supabase
-        .from('inventory') 
-        .select('id, name, base_stock_qty, reserved_stock_qty, finished_stock_qty, company_id')
-        .eq('company_id', tenantId)
-        .order('name', { ascending: true });
+        .from('product_variants')
+        .select('id, product_id, size_id, color_id, stock_quantity, base_quantity, finished_quantity, products!inner(id, company_id, name)')
+        .eq('products.company_id', tenantId)
+        .order('id', { ascending: true });
       if (error) throw error;
-      set({ products: (data as Product[]) || [] });
+      const mapped = (data || []).map((v: any) => ({
+        ...v,
+        product_name: v.products?.name,
+      }));
+      set({ products: mapped as ProductVariant[] });
     } catch (error) {
-      console.error("❌ Error fetchProducts:", error);
+      console.error("Error fetchProducts:", error);
     } finally {
       set({ isLoading: false });
     }
   },
 
-  reserveStock: async (productId, quantity) => {
-    const product = get().products.find(p => p.id === productId);
-    if (!product || product.base_stock_qty < quantity) {
-      Swal.fire('Atención', 'No hay stock liso suficiente.', 'warning');
+  reserveStock: async (variantId, quantity) => {
+    try {
+      const { error } = await supabase.rpc('update_product_stock_atomic', {
+        p_variant_id: variantId,
+        p_field: 'finished_quantity',
+        p_delta: -quantity,
+      });
+      if (error) throw error;
+      await get().fetchProducts();
+      return true;
+    } catch (err: any) {
+      Swal.fire('Atención', err?.message || 'No se pudo reservar stock.', 'warning');
       return false;
     }
-    try {
-      const { error } = await supabase.from('inventory').update({
-        base_stock_qty: product.base_stock_qty - quantity,
-        reserved_stock_qty: (product.reserved_stock_qty || 0) + quantity
-      }).eq('id', productId);
-      if (error) throw error;
-      await get().fetchProducts();
-      return true;
-    } catch { return false; }
   },
 
-  processPersonalization: async (productId, quantity) => {
-    const product = get().products.find(p => p.id === productId);
-    if (!product || (product.reserved_stock_qty || 0) < quantity) return false;
+  processPersonalization: async (variantId, quantity) => {
     try {
-      const { error } = await supabase.from('inventory').update({
-        reserved_stock_qty: product.reserved_stock_qty - quantity,
-        finished_stock_qty: (product.finished_stock_qty || 0) + quantity
-      }).eq('id', productId);
+      const { error } = await supabase.rpc('transform_to_finished', {
+        p_variant_id: variantId,
+        p_quantity: quantity,
+      });
       if (error) throw error;
       await get().fetchProducts();
       return true;
-    } catch { return false; }
-  }
+    } catch (err: any) {
+      Swal.fire('Atención', err?.message || 'No se pudo procesar.', 'warning');
+      return false;
+    }
+  },
 }));

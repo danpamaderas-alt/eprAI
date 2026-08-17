@@ -41,8 +41,8 @@ export const useWorkerStore = create<WorkerStore>((set, get) => ({
     const tenantId = useTenantStore.getState().activeCompanyId;
     
     const [workersData, tasksData] = await Promise.all([
-      supabase.from('workers').select('*').eq('company_id', tenantId).order('name'),
-      supabase.from('worker_tasks').select('*, workers(name, role)').eq('company_id', tenantId).order('created_at', { ascending: false })
+      supabase.from('workers').select('id, name, role, phone').eq('company_id', tenantId).order('name'),
+      supabase.from('worker_tasks').select('id, worker_id, description, quantity, price_per_unit, status, workers(name, role)').eq('company_id', tenantId).order('created_at', { ascending: false })
     ]);
 
     set({ 

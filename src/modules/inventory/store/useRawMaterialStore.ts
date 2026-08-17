@@ -8,9 +8,7 @@ export interface RawMaterial {
   name: string;
   category: string;
   color?: string;
-  brand?: string;
-  supplier_code?: string;
-  image_url?: string;
+  composition?: string;
   unit_measure: string;
   stock_quantity: number;
   min_stock_alert: number;
@@ -35,7 +33,7 @@ export const useRawMaterialStore = create<RawMaterialStore>((set, get) => ({
     const tenantId = useTenantStore.getState().activeCompanyId;
     const { data, error } = await supabase
       .from('raw_materials')
-      .select('*')
+      .select('id, name, category, color, composition, unit_measure, stock_quantity, min_stock_alert')
       .eq('company_id', tenantId)
       .order('created_at', { ascending: false });
 

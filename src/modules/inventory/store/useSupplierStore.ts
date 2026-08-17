@@ -5,16 +5,16 @@ import { useTenantStore } from '../../../store/useTenantStore';
 export interface Supplier {
   id: string;
   name: string;
-  contact: string | null;
+  contact_person: string | null;
   phone: string | null;
-  balance: number;
+  category: string | null;
 }
 
 interface SupplierState {
   suppliers: Supplier[];
   isLoading: boolean;
   fetchSuppliers: () => Promise<void>;
-  addSupplier: (data: Omit<Supplier, 'id' | 'balance'>) => Promise<void>;
+  addSupplier: (data: Omit<Supplier, 'id'>) => Promise<void>;
 }
 
 export const useSupplierStore = create<SupplierState>((set, get) => ({
@@ -29,7 +29,7 @@ export const useSupplierStore = create<SupplierState>((set, get) => ({
     try {
       const { data, error } = await supabase
         .from('suppliers')
-        .select('id, name, contact, phone, balance')
+        .select('id, name, contact_person, phone, category')
         .eq('company_id', companyId)
         .order('name');
       if (error) throw error;
@@ -44,8 +44,8 @@ export const useSupplierStore = create<SupplierState>((set, get) => ({
   addSupplier: async (data) => {
     const companyId = useTenantStore.getState().activeCompanyId;
     if (!companyId) throw new Error('No hay company_id activo');
-    const { error } = await supabase.from('suppliers').insert([{ ...data, balance: 0, company_id: companyId }]);
+    const { error } = await supabase.from('suppliers').insert([{ ...data, company_id: companyId }]);
     if (error) throw error;
     await get().fetchSuppliers();
-  }
+  },
 }));

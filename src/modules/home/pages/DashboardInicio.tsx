@@ -154,7 +154,7 @@ const DashboardContent = memo(() => {
           }));
         };
 
-        const [ordersCount, weeklySales, orders, salesData] = await Promise.all([
+        const [ordersCount, weeklySales, , , , recentOrders, recentSales] = await Promise.all([
           fetchOrdersCount(),
           fetchWeeklySales(),
           fetchAllCatalogs(),
@@ -167,7 +167,7 @@ const DashboardContent = memo(() => {
         setPedidosPendientes(ordersCount);
         setChartData(weeklySales);
 
-        const allActivity = [...(orders || []), ...(salesData || [])]
+        const allActivity = [...(recentOrders || []), ...(recentSales || [])]
           .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
           .slice(0, 8);
         setRecentActivity(allActivity);

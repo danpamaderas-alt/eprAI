@@ -61,7 +61,7 @@ export const POSDashboard = () => {
       });
   }, [inventory, products, searchTerm]);
 
-  const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  const cartTotal = useMemo(() => cart.reduce((sum, item) => sum + (item.price * item.qty), 0), [cart]);
 
   const addToCart = (variant: any) => {
     setCart(prev => {
@@ -159,7 +159,7 @@ export const POSDashboard = () => {
   };
 
   return (
-    <div className="h-[calc(100vh-6rem)] flex gap-6 animate-in fade-in duration-500">
+    <div className="h-auto lg:h-[calc(100vh-6rem)] flex flex-col lg:flex-row gap-6 animate-in fade-in duration-500">
       
       {/* PANEL IZQUIERDO: CATÁLOGO TERMINADO */}
       <div className="flex-1 flex flex-col bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
@@ -209,7 +209,7 @@ export const POSDashboard = () => {
       </div>
 
       {/* PANEL DERECHO: COMANDA B2B */}
-      <div className="w-96 flex flex-col bg-slate-100 dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden text-slate-900 dark:text-white flex-shrink-0">
+      <div className="w-full lg:w-96 flex flex-col bg-slate-100 dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden text-slate-900 dark:text-white lg:flex-shrink-0">
         <div className="p-6 border-b border-slate-200 dark:border-slate-800">
           <h2 className="text-lg font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-4">Comanda B2B</h2>
           <select 

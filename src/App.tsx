@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "./store/useAuthStore";
 import { ProtectedRoute } from "./shared/components/layout/ProtectedRoute";
 import { DashboardLayout } from "./layouts/DashboardLayout";
+import { ErrorBoundary } from "./shared/components/ui/ErrorBoundary";
 
 const LoginPage = lazy(() => import("./modules/auth/LoginPage").then(m => ({ default: m.LoginPage })));
 const CustomerCRM = lazy(() => import("./modules/customers/CustomerCRM").then(m => ({ default: m.CustomerCRM })));
@@ -52,7 +53,9 @@ export default function App() {
             path="/*"
             element={
               <ProtectedRoute>
-                <DashboardLayout />
+                <ErrorBoundary>
+                  <DashboardLayout />
+                </ErrorBoundary>
               </ProtectedRoute>
             }
           >

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Printer, Plus, Trash2, FileText, User, MessageCircle, MapPin, CheckSquare, DollarSign } from 'lucide-react';
 import Swal from 'sweetalert2';
 
@@ -113,7 +113,7 @@ export const RemitosDashboard = () => {
 
   const handleQuickProductSelect = (productId: string) => {
     setQuickProductId(productId);
-    const prod = products.find(p => p.id === productId);
+    const prod = productMap.get(productId);
     if (prod) {
       setNewItem({ 
         ...newItem, 
@@ -135,7 +135,9 @@ export const RemitosDashboard = () => {
     setNewItem(prev => ({ ...prev, details: text }));
   };
 
-  const totalGeneral = items.reduce((acc, item) => acc + (item.qtyOrdered * item.unitPrice), 0);
+  const totalGeneral = useMemo(() => items.reduce((acc, item) => acc + (item.qtyOrdered * item.unitPrice), 0), [items]);
+
+  const productMap = useMemo(() => new Map(products.map(p => [p.id, p])), [products]);
 
   return (
     // 1. ROOT CONTAINER: Flex-col en móviles, flex-row en pantallas grandes (xl). Altura máxima controlada.

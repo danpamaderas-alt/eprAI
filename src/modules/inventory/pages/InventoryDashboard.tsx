@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback, memo } from 'react';
-import { useInventoryStore } from '../store/useInventoryStore';
+import { useInventoryStore, type ProductVariant } from '../store/useInventoryStore';
 import Swal from 'sweetalert2';
 
 export const InventoryDashboard = memo(() => {
@@ -9,7 +9,9 @@ export const InventoryDashboard = memo(() => {
   useEffect(() => { fetchProducts(); }, [fetchProducts]);
 
   const filteredProducts = useMemo(() => {
-    return products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    return products.filter(p =>
+      (p.product_name || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
   }, [products, searchTerm]);
 
   const handleReserve = useCallback(async (pId: string) => {
@@ -33,8 +35,8 @@ export const InventoryDashboard = memo(() => {
         <table className="w-full text-left">
           <thead className="bg-slate-50 dark:bg-slate-950 text-[10px] font-black uppercase text-slate-400">
             <tr>
-              <th className="p-6">Artículo</th>
-              <th className="p-6 text-center">Básico</th>
+              <th className="p-6">Articulo</th>
+              <th className="p-6 text-center">Basico</th>
               <th className="p-6 text-center text-amber-500">En Taller</th>
               <th className="p-6 text-center text-emerald-500">Listo</th>
               <th className="p-6 text-right">Acciones</th>
@@ -43,10 +45,10 @@ export const InventoryDashboard = memo(() => {
           <tbody className="divide-y dark:divide-slate-800">
             {filteredProducts.map(p => (
               <tr key={p.id} className="dark:text-white">
-                <td className="p-6 font-bold uppercase text-xs">{p.name}</td>
-                <td className="p-6 text-center">{p.base_stock_qty}</td>
-                <td className="p-6 text-center text-amber-500 font-bold">{p.reserved_stock_qty || 0}</td>
-                <td className="p-6 text-center text-emerald-500 font-bold">{p.finished_stock_qty || 0}</td>
+                <td className="p-6 font-bold uppercase text-xs">{p.product_name || 'Sin nombre'}</td>
+                <td className="p-6 text-center">{p.stock_quantity || 0}</td>
+                <td className="p-6 text-center text-amber-500 font-bold">{p.base_quantity || 0}</td>
+                <td className="p-6 text-center text-emerald-500 font-bold">{p.finished_quantity || 0}</td>
                 <td className="p-6 text-right flex justify-end gap-2">
                   <button onClick={() => handleReserve(p.id)} className="bg-amber-500/10 text-amber-500 px-3 py-1 rounded-lg text-[10px] font-black uppercase">Reserva</button>
                   <button onClick={() => handleFinish(p.id)} className="bg-emerald-500/10 text-emerald-500 px-3 py-1 rounded-lg text-[10px] font-black uppercase">Terminar</button>

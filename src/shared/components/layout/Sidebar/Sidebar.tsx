@@ -30,7 +30,7 @@ import {
 import { supabase } from '../../../../lib/supabase';
 import { useThemeStore } from '../../../../store/useThemeStore';
 import { useTenantStore } from '../../../../store/useTenantStore';
-import { CompanyFormModal } from '../ui/CompanyFormModal';
+import { CompanyFormModal } from '../../ui/CompanyFormModal';
 
 interface NavRoute {
   readonly path: string;
@@ -70,10 +70,10 @@ const SidebarItem = memo(({ path, label, icon: Icon, highlight }: SidebarItemPro
     if (!isActive) return `${base} text-slate-400 hover:bg-slate-800 hover:text-slate-200`;
 
     switch (highlight) {
-      case 'indigo': return `${base} bg-indigo-600 text-white shadow-lg`;
-      case 'rose': return `${base} bg-rose-600 text-white shadow-lg shadow-rose-600/30`;
-      case 'emerald': return `${base} bg-emerald-600 text-white shadow-lg shadow-emerald-600/20`;
-      default: return `${base} bg-blue-600 text-white shadow-lg shadow-blue-600/20`;
+      case 'indigo': return `${base} bg-brand-600 text-white shadow-lg`;
+      case 'rose': return `${base} bg-danger-600 text-white shadow-lg shadow-danger-600/30`;
+      case 'emerald': return `${base} bg-success-600 text-white shadow-lg shadow-success-600/20`;
+      default: return `${base} bg-brand-600 text-white shadow-lg shadow-brand-600/20`;
     }
   };
 
@@ -92,10 +92,7 @@ export const Sidebar = memo(() => {
   const { activeCompanyId, setActiveCompany } = useTenantStore();
   const navigate = useNavigate();
 
-  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([
-    { id: "11111111-1111-1111-1111-111111111111", name: "Raíces (Principal)" },
-    { id: "22222222-2222-2222-2222-222222222222", name: "Rojo Showroom (Secundaria)" }
-  ]);
+  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
   const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<{ id: string; name: string } | null>(null);
 
@@ -108,11 +105,14 @@ export const Sidebar = memo(() => {
       if (error) throw error;
       if (data && data.length > 0) {
         setCompanies(data);
+        if (!activeCompanyId) {
+          setActiveCompany(data[0].id);
+        }
       }
     } catch (err) {
       console.error("Error fetching companies:", err);
     }
-  }, []);
+  }, [activeCompanyId, setActiveCompany]);
 
   useEffect(() => {
     fetchCompanies();
@@ -153,14 +153,14 @@ export const Sidebar = memo(() => {
         {/* HEADER */}
         <div className="h-20 flex items-center justify-between px-6 border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-success-600 flex items-center justify-center shrink-0">
               <Sprout className="w-5 h-5 text-white" />
             </div>
             <div>
               <h1 className="text-lg font-black text-white tracking-tight uppercase leading-none">
                 Raíces
               </h1>
-              <span className="text-[9px] font-bold text-blue-400 uppercase tracking-[0.3em]">Holding ERP</span>
+              <span className="text-[9px] font-bold text-brand-400 uppercase tracking-[0.3em]">Holding ERP</span>
             </div>
           </div>
           <button 
@@ -231,17 +231,17 @@ export const Sidebar = memo(() => {
         {/* FOOTER */}
         <div className="p-4 border-t border-slate-800 shrink-0">
           <div className="flex items-center gap-3 px-2 mb-3">
-             <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold text-xs shrink-0">
+             <div className="w-8 h-8 rounded-xl bg-success-600 flex items-center justify-center text-white font-bold text-xs shrink-0">
                J
              </div>
              <div className="overflow-hidden">
                <p className="text-xs font-bold text-white truncate">Jorge</p>
-               <p className="text-[9px] text-emerald-400 font-bold uppercase tracking-widest truncate">Administrador</p>
+               <p className="text-[9px] text-success-400 font-bold uppercase tracking-widest truncate">Administrador</p>
              </div>
           </div>
           <button 
             onClick={handleSignOut} 
-            className="w-full flex justify-center items-center gap-2 py-2.5 bg-slate-950 hover:bg-rose-900/50 text-slate-400 hover:text-rose-400 border border-slate-800 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-colors"
+            className="w-full flex justify-center items-center gap-2 py-2.5 bg-slate-950 hover:bg-rose-900/50 text-rose-200 hover:text-rose-400 border border-slate-800 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-colors"
           >
             <LogOut className="w-3.5 h-3.5" />
             Cerrar Sesión

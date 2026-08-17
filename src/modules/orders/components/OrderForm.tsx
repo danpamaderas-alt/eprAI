@@ -373,22 +373,23 @@ export const OrderForm = memo(
           </div>
         </div>
 
-        {activeMatrixIndex !== null && (
-          <OrderMatrixModal
-            product={
-              products.find(
-                (p) => p.name === watchItems[activeMatrixIndex]?.productName,
-              )!
-            }
-            currentVariations={(watchItems[activeMatrixIndex]?.variations as never) || []}
-            onSave={(newVariations) => {
-              setValue(`items.${activeMatrixIndex}.variations`, newVariations as never);
-              setActiveMatrixIndex(null);
-            }}
-            onClose={() => setActiveMatrixIndex(null)}
-            onRequestNewVariant={() => {}}
-          />
-        )}
+        {activeMatrixIndex !== null && (() => {
+          const foundProduct = products.find(
+            (p) => p.name === watchItems[activeMatrixIndex]?.productName,
+          );
+          return foundProduct ? (
+            <OrderMatrixModal
+              product={foundProduct}
+              currentVariations={(watchItems[activeMatrixIndex]?.variations as never) || []}
+              onSave={(newVariations) => {
+                setValue(`items.${activeMatrixIndex}.variations`, newVariations as never);
+                setActiveMatrixIndex(null);
+              }}
+              onClose={() => setActiveMatrixIndex(null)}
+              onRequestNewVariant={() => {}}
+            />
+          ) : null;
+        })()}
       </>
     );
   },

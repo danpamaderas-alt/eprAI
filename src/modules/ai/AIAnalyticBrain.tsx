@@ -126,7 +126,7 @@ export const AIAnalyticBrain = () => {
           <button
             onClick={handleAnalyze}
             disabled={isAnalyzing}
-            className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-500 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-indigo-600/20 active:scale-95 transition-all flex items-center gap-2"
+            className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-indigo-100 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-indigo-600/20 active:scale-95 transition-all flex items-center gap-2"
           >
             {isAnalyzing ? "PROCESANDO VARIABLES..." : "SOLICITAR DIAGNÓSTICO"}
           </button>

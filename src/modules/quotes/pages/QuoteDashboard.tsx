@@ -49,7 +49,7 @@ export const QuoteDashboard = () => {
       // 1. Cargamos los clientes para el buscador
       const { data: clientsData, error: clientsError } = await supabase
         .from('customers')
-        .select('*')
+        .select('id, name, cuit')
         .eq('company_id', companyId)
         .order('name');
         
@@ -105,7 +105,7 @@ export const QuoteDashboard = () => {
   // --- PDF ---
   const handleDownloadPDF = async (quote: any) => {
     try {
-      const { data: items, error } = await supabase.from('quote_items').select('*').eq('quote_id', quote.id);
+      const { data: items, error } = await supabase.from('quote_items').select('id, product_id, description, quantity, unit_price, subtotal').eq('quote_id', quote.id);
       if (error) throw error;
       
       const quoteForPdf = {

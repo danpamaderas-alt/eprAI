@@ -9,8 +9,7 @@ interface TenantState {
 export const useTenantStore = create<TenantState>()(
   persist(
     (set) => ({
-      // Por defecto, iniciamos sesión en tu empresa "Raíces"
-      activeCompanyId: '11111111-1111-1111-1111-111111111111', 
+      activeCompanyId: '',
       setActiveCompany: (id) => set({ activeCompanyId: id }),
     }),
     { name: 'tenant-storage' } 

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { 
   createColumnHelper, 
   flexRender, 
@@ -6,9 +6,13 @@ import {
   useReactTable 
 } from '@tanstack/react-table';
 import { type Transaction } from '../schemas/transactionSchema';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod/v4';
+import { zodResolver } from '@hookform/resolvers/zod';
 import Swal from 'sweetalert2';
 import { useTreasuryStore } from '../store/useTreasuryStore';
 import { ARS } from '../../../../shared/utils/format';
+import { Modal, FormField } from '../../../../shared/components/ui/Modal';
 
 interface TransactionTableProps {
   data: Transaction[];
@@ -16,67 +20,42 @@ interface TransactionTableProps {
   onUpdateStatus: (id: string, status: 'PENDING' | 'COMPLETED') => void;
 }
 
+const resolveSchema = z.object({
+  amount: z.number().min(0.01, "Monto invalido"),
+  method: z.enum(["EFECTIVO", "MERCADO_PAGO", "BANCO"]),
+});
+type ResolveForm = z.infer<typeof resolveSchema>;
+
 const columnHelper = createColumnHelper<Transaction>();
 
 export const TransactionTable = ({ data, onDelete, onUpdateStatus }: TransactionTableProps) => {
   const resolvePayment = useTreasuryStore(state => state.resolvePayment);
+  const [resolveModal, setResolveModal] = useState<Transaction | null>(null);
 
-  const handleStatusClick = async (tx: Transaction) => {
+  const resolveForm = useForm<ResolveForm>({
+    resolver: zodResolver(resolveSchema),
+  });
+
+  const handleStatusClick = useCallback((tx: Transaction) => {
     const isPending = tx.status === 'PENDING';
     if (!isPending) {
       onUpdateStatus(tx.id, 'PENDING');
       return;
     }
+    resolveForm.reset({ amount: tx.amount, method: (tx.paymentMethod || "EFECTIVO") as ResolveForm['method'] });
+    setResolveModal(tx);
+  }, [onUpdateStatus, resolveForm]);
 
-    const { value: formValues } = await Swal.fire({
-      title: tx.type === 'INCOME' ? 'Registrar Cobro' : 'Registrar Pago',
-      // Agregamos clases de modo oscuro a SweetAlert2 mediante HTML
-      html: `
-        <div class="text-left space-y-4">
-          <div class="bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 p-3 rounded-lg text-sm mb-4 border border-blue-200 dark:border-blue-800">
-            Total pendiente: <strong class="text-lg font-black tabular-nums">$${tx.amount}</strong>
-          </div>
-          <div>
-            <label class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Monto de la operación ($)</label>
-            <input id="partial-amount" type="number" class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-blue-500 font-black text-lg text-slate-800 dark:text-white" value="${tx.amount}" max="${tx.amount}">
-          </div>
-          <div>
-            <label class="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Destino / Origen</label>
-            <select id="partial-method" class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:border-blue-500 font-bold text-slate-700 dark:text-slate-200">
-              <option value="EFECTIVO" ${tx.paymentMethod === 'EFECTIVO' ? 'selected' : ''}>💵 EFECTIVO</option>
-              <option value="MERCADO_PAGO" ${tx.paymentMethod === 'MERCADO_PAGO' ? 'selected' : ''}>📱 MERCADO PAGO</option>
-              <option value="BANCO" ${tx.paymentMethod === 'BANCO' ? 'selected' : ''}>🏦 BANCO / TRANSF.</option>
-            </select>
-          </div>
-        </div>
-      `,
-      showCancelButton: true,
-      confirmButtonText: 'Confirmar',
-      cancelButtonText: 'Cancelar',
-      // Estilos para el popup de Swal
-      customClass: {
-        popup: 'dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-3xl'
-      },
-      preConfirm: () => {
-        const amount = (document.getElementById('partial-amount') as HTMLInputElement).value;
-        const method = (document.getElementById('partial-method') as HTMLSelectElement).value;
-        if (!amount || Number(amount) <= 0) {
-          Swal.showValidationMessage('Ingresá un monto válido');
-          return false;
-        }
-        return { amount: Number(amount), method };
-      }
-    });
-
-    if (formValues) {
-      try {
-        await resolvePayment(tx.id, formValues.amount, formValues.method);
-        Swal.fire({ icon: 'success', title: '¡Registrado!', timer: 1500, showConfirmButton: false });
-      } catch {
-        Swal.fire('Error', 'No se pudo actualizar', 'error');
-      }
+  const onSubmitResolve = useCallback(async (formData: ResolveForm) => {
+    if (!resolveModal) return;
+    try {
+      await resolvePayment(resolveModal.id, formData.amount, formData.method);
+      setResolveModal(null);
+      Swal.fire({ icon: 'success', title: 'Registrado!', timer: 1500, showConfirmButton: false });
+    } catch {
+      Swal.fire('Error', 'No se pudo actualizar', 'error');
     }
-  };
+  }, [resolveModal, resolvePayment]);
 
   const columns = useMemo(() => [
     columnHelper.accessor('date', {
@@ -191,6 +170,34 @@ export const TransactionTable = ({ data, onDelete, onUpdateStatus }: Transaction
           </tbody>
         </table>
       </div>
+
+      <Modal
+        isOpen={!!resolveModal}
+        onClose={() => setResolveModal(null)}
+        title={resolveModal?.type === 'INCOME' ? 'REGISTRAR COBRO' : 'REGISTRAR PAGO'}
+        onSubmit={resolveForm.handleSubmit(onSubmitResolve)}
+        submitLabel="CONFIRMAR"
+        submitColor="bg-blue-600 hover:bg-blue-500"
+      >
+        {resolveModal && (
+          <>
+            <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 p-4 rounded-xl text-sm mb-2 border border-blue-200 dark:border-blue-800">
+              Total pendiente: <strong className="text-lg font-black tabular-nums">{ARS.format(resolveModal.amount)}</strong>
+            </div>
+            <FormField label="Monto de la operacion ($)">
+              <input type="number" step="0.01" max={resolveModal.amount} {...resolveForm.register("amount", { valueAsNumber: true })} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-black text-lg outline-none focus:ring-2 focus:ring-blue-500 dark:text-white" />
+              {resolveForm.formState.errors.amount && <p className="text-rose-500 text-[10px] font-bold mt-1">{resolveForm.formState.errors.amount.message}</p>}
+            </FormField>
+            <FormField label="Destino / Origen">
+              <select {...resolveForm.register("method")} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold outline-none focus:ring-2 focus:ring-blue-500 dark:text-white">
+                <option value="EFECTIVO">EFECTIVO</option>
+                <option value="MERCADO_PAGO">MERCADO PAGO</option>
+                <option value="BANCO">BANCO / TRANSF.</option>
+              </select>
+            </FormField>
+          </>
+        )}
+      </Modal>
     </div>
   );
 };

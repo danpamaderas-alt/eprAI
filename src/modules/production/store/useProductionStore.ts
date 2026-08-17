@@ -18,7 +18,7 @@ export const useProductionStore = create<ProductionStore>((set) => ({
     // Solo traemos pedidos que NO estén completados ni cancelados
     const { data, error } = await supabase
       .from('orders')
-      .select('*')
+      .select('id, status, customer_name, items')
       .eq('company_id', tenantId)
       .neq('status', 'COMPLETED')
       .neq('status', 'CANCELLED');

@@ -160,9 +160,9 @@ export const CustomerCRM = memo(() => {
   const pointsToDiscount = (points: number) => `$${points.toLocaleString('es-AR')}`;
 
   return (
-    <div className="flex h-[calc(100vh-120px)] gap-6 p-4">
+    <div className="flex flex-col md:flex-row h-auto md:h-[calc(100vh-120px)] gap-4 md:gap-6 p-4">
       {/* Lista de Clientes */}
-      <div className="w-1/3 bg-white dark:bg-slate-800 rounded-4xl border dark:border-slate-700 shadow-xl overflow-hidden flex flex-col">
+      <div className="w-full md:w-1/3 min-h-[300px] md:min-h-0 bg-white dark:bg-slate-800 rounded-4xl border dark:border-slate-700 shadow-xl overflow-hidden flex flex-col">
         <div className="p-5 border-b dark:border-slate-700 flex justify-between items-center gap-3">
           <h2 className="font-black uppercase tracking-tighter italic dark:text-white whitespace-nowrap">Clientes</h2>
           <div className="relative flex-1">

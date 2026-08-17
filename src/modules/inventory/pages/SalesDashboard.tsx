@@ -184,40 +184,14 @@ const SalesContent = memo(() => {
     if (!confirm.isConfirmed) return;
     setIsProcessing(true);
     try {
-      await processSale(selectedCustomerId || '', cart, totals.total);
-      const cliente = balances.find((c) => c.id === selectedCustomerId);
-
-      await supabase.from('sales').insert([
-        {
-          company_id: activeCompanyId,
-          customer_id: selectedCustomerId,
-          total_amount: totals.total,
-          payment_method: paymentMethod,
-          items: cart,
-          status: paymentMethod === 'CTA_CTE' ? 'DEUDA' : 'COBRADO',
-        },
-      ]);
-
-      if (paymentMethod === 'CTA_CTE' && selectedCustomerId) {
-        await addMovement({
-          customer_id: selectedCustomerId,
-          amount: totals.total,
-          movement_type: 'CARGO',
-          description: `Venta POS: ${cart.length} prendas`,
-          date: new Date().toISOString(),
-        });
-      } else {
-        await addTransaction({
-          date: new Date().toISOString(),
-          description: `VENTA POS: ${cliente?.name || 'CONSUMIDOR FINAL'}`,
-          category: 'VENTA_CATALOGO',
-          type: 'INCOME',
-          business_unit: 'RAICES',
-          payment_method: paymentMethod as any,
-          amount: totals.total,
-          status: 'COMPLETED',
-        });
-      }
+      const { error } = await supabase.rpc('process_pos_sale_atomic', {
+        p_customer_id: selectedCustomerId || null,
+        p_cart: cart as any,
+        p_total: totals.total,
+        p_payment_method: paymentMethod,
+        p_company_id: activeCompanyId,
+      });
+      if (error) throw error;
 
       Swal.fire({ title: 'VENTA EXITOSA', icon: 'success', timer: 2000, showConfirmButton: false });
       setCart([]);
@@ -225,7 +199,7 @@ const SalesContent = memo(() => {
       setPaymentMethod(null);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error desconocido';
-      Swal.fire({ title: 'FALLO CRÍTICO', text: msg, icon: 'error' });
+      Swal.fire({ title: 'FALLO CRITICO', text: msg, icon: 'error' });
     } finally {
       setIsProcessing(false);
     }

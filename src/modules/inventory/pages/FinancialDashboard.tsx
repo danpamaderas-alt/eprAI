@@ -8,7 +8,18 @@ import { Breadcrumbs } from '../../../shared/components/ui/Breadcrumbs';
 import { ErrorBoundary } from '../../../shared/components/ui/ErrorBoundary';
 import { ExportButton } from '../../../shared/components/ui/ExportButton';
 import { KpiSkeleton } from '../../../shared/components/ui/Skeleton';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod/v4';
+import { zodResolver } from '@hookform/resolvers/zod';
 import Swal from 'sweetalert2';
+import { Modal, FormField } from '../../../shared/components/ui/Modal';
+
+const expenseSchema = z.object({
+  amount: z.number().min(0.01, "El monto debe ser mayor a 0"),
+  description: z.string().min(1, "La descripcion es obligatoria"),
+  category: z.enum(["INSUMOS", "SERVICIOS", "MAQUINARIA", "OTROS"]),
+});
+type ExpenseForm = z.infer<typeof expenseSchema>;
 
 const FinancialContent = memo(() => {
   const { products, inventory, fetchAllCatalogs } = useCatalogStore();
@@ -16,6 +27,12 @@ const FinancialContent = memo(() => {
   const [treasuryMetrics, setTreasuryMetrics] = useState({ income: 0, expenses: 0, net: 0 });
   const [moneyInStreet, setMoneyInStreet] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+
+  const expenseForm = useForm<ExpenseForm>({
+    resolver: zodResolver(expenseSchema),
+    defaultValues: { category: "INSUMOS" },
+  });
 
   const fetchRealTimeFinances = useCallback(async () => {
     setIsLoading(true);
@@ -93,75 +110,28 @@ const FinancialContent = memo(() => {
     return { stockCost: cost, stockValue: sale, projectedProfit: profit, avgMargin: margin.toFixed(1) };
   }, [inventory, products]);
 
-  const handleAddExpense = useCallback(async () => {
-    const { value: formValues } = await Swal.fire({
-      title: 'REGISTRAR GASTO OPERATIVO',
-      html: `
-        <div class="text-left space-y-4 p-2">
-          <div>
-            <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Monto del Egreso ($)</label>
-            <input id="ex-amount" type="number" class="swal2-input !w-full !m-0 !mt-1 !bg-slate-50 dark:!bg-slate-950 !border-slate-200 dark:!border-slate-800 !text-rose-500 !text-2xl !font-black !rounded-2xl" placeholder="0.00">
-          </div>
-          <div>
-            <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Concepto / Detalle</label>
-            <input id="ex-desc" class="swal2-input !w-full !m-0 !mt-1 !bg-slate-50 dark:!bg-slate-950 !border-slate-200 dark:!border-slate-800 !text-slate-900 dark:!text-white !text-sm !font-bold !rounded-2xl" placeholder="Ej: Pago hilos / Factura luz">
-          </div>
-          <div>
-            <label class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Categoría de Gasto</label>
-            <select id="ex-cat" class="swal2-input !w-full !m-0 !mt-1 !bg-slate-50 dark:!bg-slate-950 !border-slate-200 dark:!border-slate-800 !text-slate-900 dark:!text-white !text-sm !font-black !rounded-2xl">
-              <option value="INSUMOS">Materia Prima / Insumos</option>
-              <option value="SERVICIOS">Servicios (Luz, Internet)</option>
-              <option value="MAQUINARIA">Mantenimiento / Maquinaria</option>
-              <option value="OTROS">Varios / Otros</option>
-            </select>
-          </div>
-        </div>
-      `,
-      showCancelButton: true,
-      confirmButtonText: 'DESCONTAR DE CAJA',
-      cancelButtonText: 'CANCELAR',
-      buttonsStyling: false,
-      customClass: {
-        popup: 'dark:!bg-slate-900 !rounded-[2.5rem] border border-slate-200 dark:border-slate-800',
-        confirmButton: 'bg-rose-600 hover:bg-rose-500 text-white font-black px-6 py-4 rounded-2xl uppercase text-xs tracking-[0.2em] w-full mb-3 shadow-lg active:scale-95 transition-all',
-        cancelButton: 'bg-slate-100 dark:bg-slate-800 text-slate-500 font-black px-6 py-4 rounded-2xl uppercase text-xs tracking-widest w-full'
-      },
-      preConfirm: () => {
-        const amount = Number.parseFloat((document.getElementById('ex-amount') as HTMLInputElement).value);
-        const description = (document.getElementById('ex-desc') as HTMLInputElement).value.trim();
-        const category = (document.getElementById('ex-cat') as HTMLSelectElement).value;
-        if (!amount || amount <= 0 || !description) {
-          Swal.showValidationMessage('Completá monto válido y descripción');
-          return false;
-        }
-        return { amount, description, category };
-      }
-    });
+  const onSubmitExpense = useCallback(async (data: ExpenseForm) => {
+    try {
+      const companyId = useTenantStore.getState().activeCompanyId;
+      if (!companyId) throw new Error('No hay company_id activo');
 
-    if (formValues) {
-      try {
-        const companyId = useTenantStore.getState().activeCompanyId;
-        if (!companyId) throw new Error('No hay company_id activo');
-
-        const { error } = await supabase.from('treasury').insert([{
-          amount: formValues.amount,
-          description: formValues.description.toUpperCase(),
-          category: formValues.category,
-          type: 'EXPENSE',
-          date: new Date().toISOString(),
-          company_id: companyId
-        }]);
-        if (error) throw error;
-        await fetchRealTimeFinances();
-        Swal.fire({
-          toast: true, position: 'top-end', icon: 'success',
-          title: 'Gasto registrado', showConfirmButton: false, timer: 2000
-        });
-      } catch {
-        Swal.fire('Error', 'No se pudo procesar el gasto.', 'error');
-      }
+      const { error } = await supabase.from('treasury').insert([{
+        amount: data.amount,
+        description: data.description.toUpperCase(),
+        category: data.category,
+        type: 'EXPENSE',
+        date: new Date().toISOString(),
+        company_id: companyId
+      }]);
+      if (error) throw error;
+      await fetchRealTimeFinances();
+      setIsExpenseModalOpen(false);
+      expenseForm.reset();
+      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Gasto registrado', showConfirmButton: false, timer: 2000 });
+    } catch {
+      Swal.fire('Error', 'No se pudo procesar el gasto.', 'error');
     }
-  }, [fetchRealTimeFinances]);
+  }, [fetchRealTimeFinances, expenseForm]);
 
   const totalPatrimonio = useMemo(
     () => treasuryMetrics.net + moneyInStreet + stockMetrics.stockCost,
@@ -218,7 +188,7 @@ const FinancialContent = memo(() => {
           <ExportButton onExportCSV={handleExportCSV} />
           <button
             type="button"
-            onClick={handleAddExpense}
+            onClick={() => { expenseForm.reset({ category: "INSUMOS" }); setIsExpenseModalOpen(true); }}
             className="bg-rose-600 hover:bg-rose-500 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-rose-600/20 active:scale-95 transition-all"
           >
             - Registrar Gasto
@@ -279,6 +249,32 @@ const FinancialContent = memo(() => {
           </div>
         </div>
       </section>
+
+      <Modal
+        isOpen={isExpenseModalOpen}
+        onClose={() => setIsExpenseModalOpen(false)}
+        title="REGISTRAR GASTO OPERATIVO"
+        onSubmit={expenseForm.handleSubmit(onSubmitExpense)}
+        submitLabel="DESCONTAR DE CAJA"
+        submitColor="bg-rose-600 hover:bg-rose-500"
+      >
+        <FormField label="Monto del Egreso ($)">
+          <input type="number" step="0.01" {...expenseForm.register("amount", { valueAsNumber: true })} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-black text-2xl text-rose-500 outline-none focus:ring-2 focus:ring-rose-500 dark:text-white" placeholder="0.00" />
+          {expenseForm.formState.errors.amount && <p className="text-rose-500 text-[10px] font-bold mt-1">{expenseForm.formState.errors.amount.message}</p>}
+        </FormField>
+        <FormField label="Concepto / Detalle">
+          <input {...expenseForm.register("description")} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-sm outline-none focus:ring-2 focus:ring-rose-500 dark:text-white" placeholder="Ej: Pago hilos / Factura luz" />
+          {expenseForm.formState.errors.description && <p className="text-rose-500 text-[10px] font-bold mt-1">{expenseForm.formState.errors.description.message}</p>}
+        </FormField>
+        <FormField label="Categoria de Gasto">
+          <select {...expenseForm.register("category")} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-black text-sm outline-none focus:ring-2 focus:ring-rose-500 dark:text-white">
+            <option value="INSUMOS">Materia Prima / Insumos</option>
+            <option value="SERVICIOS">Servicios (Luz, Internet)</option>
+            <option value="MAQUINARIA">Mantenimiento / Maquinaria</option>
+            <option value="OTROS">Varios / Otros</option>
+          </select>
+        </FormField>
+      </Modal>
     </div>
   );
 });

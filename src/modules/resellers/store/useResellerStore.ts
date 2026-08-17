@@ -39,8 +39,8 @@ export const useResellerStore = create<ResellerState>((set) => ({
     if (!companyId) { set({ isLoading: false }); return; }
 
     const [resData, txData] = await Promise.all([
-      supabase.from('resellers').select('*').eq('company_id', companyId).order('name', { ascending: true }),
-      supabase.from('reseller_transactions').select('*').order('date', { ascending: false })
+      supabase.from('resellers').select('id, name, phone, created_at').eq('company_id', companyId).order('name', { ascending: true }),
+      supabase.from('reseller_transactions').select('id, resellerId, type, description, amount, date').order('date', { ascending: false })
     ]);
 
     set({ 

@@ -1,106 +1,89 @@
-import React, { useEffect, useMemo } from 'react';
-import { useWorkerStore, type Worker } from '../../quotes/store/useWorkerStore'; // <-- Chequeá que el path sea este
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { useWorkerStore, type Worker } from '../../quotes/store/useWorkerStore';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod/v4';
+import { zodResolver } from '@hookform/resolvers/zod';
 import Swal from 'sweetalert2';
+import { Modal, FormField } from '../../../shared/components/ui/Modal';
+
+const workerSchema = z.object({
+  name: z.string().min(1, "El nombre es obligatorio"),
+  role: z.enum(["COSTURA", "CORTE", "ESTAMPADO", "BORDADO", "OTROS"]),
+  phone: z.string().optional(),
+});
+type WorkerForm = z.infer<typeof workerSchema>;
+
+const taskSchema = z.object({
+  description: z.string().min(1, "La descripcion es obligatoria"),
+  quantity: z.number().min(1, "Minimo 1 unidad"),
+  price_per_unit: z.number().min(0, "Precio invalido"),
+});
+type TaskForm = z.infer<typeof taskSchema>;
 
 export const WorkerDashboard = () => {
   const { workers, tasks, isLoading, fetchWorkersData, addWorker, addTask, updateTaskStatus, deleteTask } = useWorkerStore();
 
+  const [isWorkerModalOpen, setIsWorkerModalOpen] = useState(false);
+  const [taskModal, setTaskModal] = useState<{ workerId: string; workerName: string } | null>(null);
+
+  const workerForm = useForm<WorkerForm>({
+    resolver: zodResolver(workerSchema),
+    defaultValues: { role: "COSTURA" },
+  });
+
+  const taskForm = useForm<TaskForm>({
+    resolver: zodResolver(taskSchema),
+    defaultValues: { quantity: 1, price_per_unit: 0 },
+  });
+
   useEffect(() => { fetchWorkersData(); }, [fetchWorkersData]);
 
-  // 🧠 CÁLCULO DE DEUDA A LIQUIDAR POR TALLERISTA
   const payroll = useMemo(() => {
     return workers.map(worker => {
       const workerTasks = tasks.filter(t => t.worker_id === worker.id);
-      
-      // Plata que ya se ganaron (Terminado pero no pagado)
       const toPay = workerTasks
         .filter(t => t.status === 'COMPLETADO')
         .reduce((sum, t) => sum + (t.quantity * t.price_per_unit), 0);
-        
-      // Plata que está en proceso (Pendiente)
       const inProgress = workerTasks
         .filter(t => t.status === 'PENDIENTE')
         .reduce((sum, t) => sum + (t.quantity * t.price_per_unit), 0);
-
       return { ...worker, toPay, inProgress };
     });
   }, [workers, tasks]);
 
-  const handleAddWorker = async () => {
-    const { value: formValues } = await Swal.fire({
-      title: 'NUEVO TALLERISTA',
-      html: `
-        <div class="space-y-4 mt-2">
-          <input id="w-name" class="swal2-input !w-full !m-0 !bg-slate-950 !border-slate-800 !text-white !rounded-xl" placeholder="Nombre completo">
-          <select id="w-role" class="swal2-input !w-full !m-0 !bg-slate-950 !border-slate-800 !text-white !rounded-xl">
-            <option value="COSTURA">Costura / Confección</option>
-            <option value="CORTE">Corte de Tela</option>
-            <option value="ESTAMPADO">Estampado / DTF</option>
-            <option value="BORDADO">Bordado</option>
-            <option value="OTROS">Otros</option>
-          </select>
-          <input id="w-phone" class="swal2-input !w-full !m-0 !bg-slate-950 !border-slate-800 !text-white !rounded-xl" placeholder="Teléfono / WhatsApp">
-        </div>
-      `,
-      showCancelButton: true, confirmButtonText: 'AGREGAR',
-      customClass: { popup: '!bg-slate-900 !border-slate-800 !rounded-[2rem]', confirmButton: 'w-full bg-indigo-600 text-white font-black py-4 rounded-xl uppercase text-xs' }
-    });
+  const onSubmitWorker = useCallback(async (data: WorkerForm) => {
+    await addWorker(data);
+    setIsWorkerModalOpen(false);
+    workerForm.reset();
+  }, [addWorker, workerForm]);
 
-    if (formValues) {
-      const name = (document.getElementById('w-name') as HTMLInputElement).value;
-      const role = (document.getElementById('w-role') as HTMLSelectElement).value;
-      const phone = (document.getElementById('w-phone') as HTMLInputElement).value;
-      if (name) await addWorker({ name, role, phone });
-    }
-  };
+  const onSubmitTask = useCallback(async (data: TaskForm) => {
+    if (!taskModal) return;
+    await addTask({ worker_id: taskModal.workerId, description: data.description, quantity: data.quantity, price_per_unit: data.price_per_unit, status: 'PENDIENTE' });
+    setTaskModal(null);
+    taskForm.reset();
+  }, [addTask, taskModal, taskForm]);
 
-  const handleAssignTask = async (workerId: string, workerName: string) => {
-    const { value: formValues } = await Swal.fire({
-      title: `ASIGNAR TRABAJO`,
-      html: `
-        <div class="text-left space-y-4 mt-2">
-          <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center mb-4">Para: <span class="text-indigo-400">${workerName}</span></p>
-          <input id="t-desc" class="swal2-input !w-full !m-0 !bg-slate-950 !border-slate-800 !text-white !rounded-xl" placeholder="Ej: Cerrar Chombas Talle L">
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="text-[10px] font-black text-slate-500 uppercase ml-1">Cantidad (Un.)</label>
-              <input id="t-qty" type="number" class="swal2-input !w-full !m-0 !mt-1 !bg-slate-950 !border-slate-800 !text-white !rounded-xl !text-center !font-black text-xl" placeholder="0">
-            </div>
-            <div>
-              <label class="text-[10px] font-black text-slate-500 uppercase ml-1">Precio x Unidad ($)</label>
-              <input id="t-price" type="number" class="swal2-input !w-full !m-0 !mt-1 !bg-slate-950 !border-slate-800 !text-emerald-400 !rounded-xl !text-center !font-black text-xl" placeholder="0">
-            </div>
-          </div>
-        </div>
-      `,
-      showCancelButton: true, confirmButtonText: 'ASIGNAR TRABAJO',
-      customClass: { popup: '!bg-slate-900 !border-slate-800 !rounded-[2rem]', confirmButton: 'w-full bg-emerald-600 text-white font-black py-4 rounded-xl uppercase text-xs' }
-    });
-
-    if (formValues) {
-      const description = (document.getElementById('t-desc') as HTMLInputElement).value;
-      const quantity = Number((document.getElementById('t-qty') as HTMLInputElement).value);
-      const price_per_unit = Number((document.getElementById('t-price') as HTMLInputElement).value);
-      if (description && quantity > 0) await addTask({ worker_id: workerId, description, quantity, price_per_unit, status: 'PENDIENTE' });
-    }
-  };
+  const openTaskModal = useCallback((workerId: string, workerName: string) => {
+    taskForm.reset({ description: '', quantity: 1, price_per_unit: 0 });
+    setTaskModal({ workerId, workerName });
+  }, [taskForm]);
 
   if (isLoading) return <div className="p-8 text-slate-400 font-black animate-pulse uppercase">Cargando Taller...</div>;
 
   return (
     <div className="p-8 max-w-7xl mx-auto animate-in fade-in duration-500 space-y-10">
-      
+
       <header className="flex justify-between items-center bg-slate-900 border border-slate-800 p-8 rounded-[2rem] shadow-xl">
         <div>
-          <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">✂️ Taller y <span className="text-emerald-500">Destajo</span></h1>
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-2">Control de personal, asignación de corte/costura y liquidaciones.</p>
+          <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">Taller y <span className="text-emerald-500">Destajo</span></h1>
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-2">Control de personal, asignacion de corte/costura y liquidaciones.</p>
         </div>
-        <button onClick={handleAddWorker} className="bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-emerald-500/20 active:scale-95 transition-all">
+        <button onClick={() => { workerForm.reset({ role: "COSTURA" }); setIsWorkerModalOpen(true); }} className="bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-emerald-500/20 active:scale-95 transition-all">
           + Nuevo Tallerista
         </button>
       </header>
 
-      {/* SECCIÓN 1: EL EQUIPO Y LA LIQUIDACIÓN */}
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {payroll.map(worker => (
           <div key={worker.id} className="bg-slate-900 border border-slate-800 rounded-[2rem] p-6 shadow-xl relative overflow-hidden group">
@@ -109,7 +92,7 @@ export const WorkerDashboard = () => {
                 <h3 className="text-xl font-black text-white uppercase tracking-tighter">{worker.name}</h3>
                 <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">{worker.role}</span>
               </div>
-              <button onClick={() => handleAssignTask(worker.id, worker.name)} className="bg-slate-800 hover:bg-indigo-600 text-white w-10 h-10 rounded-xl flex items-center justify-center font-black transition-colors" title="Asignar Tarea">+</button>
+              <button onClick={() => openTaskModal(worker.id, worker.name)} className="bg-slate-800 hover:bg-indigo-600 text-white w-10 h-10 rounded-xl flex items-center justify-center font-black transition-colors" title="Asignar Tarea">+</button>
             </div>
 
             <div className="flex gap-4 pt-4 border-t border-slate-800">
@@ -126,7 +109,6 @@ export const WorkerDashboard = () => {
         ))}
       </section>
 
-      {/* SECCIÓN 2: TABLERO DE TAREAS ACTIVAS */}
       <section>
         <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-4">Trabajos en Curso y Pendientes de Pago</h2>
         <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 shadow-xl">
@@ -136,7 +118,6 @@ export const WorkerDashboard = () => {
             <div className="space-y-3">
               {tasks.filter(t => t.status !== 'PAGADO').map(task => (
                 <div key={task.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-slate-950 border border-slate-800/50 rounded-2xl gap-4 hover:border-indigo-500/30 transition-colors">
-                  
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-1">
                       <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md ${task.status === 'PENDIENTE' ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
@@ -152,19 +133,16 @@ export const WorkerDashboard = () => {
                       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">{task.quantity} un. x ${task.price_per_unit}</p>
                       <p className="text-xl font-black text-emerald-400 tracking-tighter">${(task.quantity * task.price_per_unit).toLocaleString()}</p>
                     </div>
-
-                    {/* BOTONERA DE ACCIONES */}
                     <div className="flex gap-2">
                       {task.status === 'PENDIENTE' && (
-                        <button onClick={() => updateTaskStatus(task.id, 'COMPLETADO')} title="Marcar como Terminado" className="p-3 bg-slate-800 hover:bg-emerald-600 text-slate-400 hover:text-white rounded-xl transition-colors">✔️</button>
+                        <button onClick={() => updateTaskStatus(task.id, 'COMPLETADO')} title="Marcar como Terminado" className="p-3 bg-slate-800 hover:bg-emerald-600 text-emerald-100 hover:text-white rounded-xl transition-colors">✔</button>
                       )}
                       {task.status === 'COMPLETADO' && (
                         <button onClick={() => updateTaskStatus(task.id, 'PAGADO')} title="Marcar como Pagado" className="px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg transition-colors">Liquidar</button>
                       )}
-                      <button onClick={() => deleteTask(task.id)} title="Borrar Tarea" className="p-3 bg-slate-800 hover:bg-rose-600 text-slate-500 hover:text-white rounded-xl transition-colors">🗑️</button>
+                      <button onClick={() => deleteTask(task.id)} title="Borrar Tarea" className="p-3 bg-slate-800 hover:bg-rose-600 text-rose-100 hover:text-white rounded-xl transition-colors">X</button>
                     </div>
                   </div>
-
                 </div>
               ))}
             </div>
@@ -172,6 +150,60 @@ export const WorkerDashboard = () => {
         </div>
       </section>
 
+      <Modal
+        isOpen={isWorkerModalOpen}
+        onClose={() => setIsWorkerModalOpen(false)}
+        title="NUEVO TALLERISTA"
+        onSubmit={workerForm.handleSubmit(onSubmitWorker)}
+        submitLabel="AGREGAR"
+        submitColor="bg-indigo-600 hover:bg-indigo-500"
+      >
+        <FormField label="Nombre completo">
+          <input {...workerForm.register("name")} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" placeholder="Nombre completo" />
+          {workerForm.formState.errors.name && <p className="text-rose-500 text-[10px] font-bold mt-1">{workerForm.formState.errors.name.message}</p>}
+        </FormField>
+        <FormField label="Especialidad">
+          <select {...workerForm.register("role")} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white">
+            <option value="COSTURA">Costura / Confeccion</option>
+            <option value="CORTE">Corte de Tela</option>
+            <option value="ESTAMPADO">Estampado / DTF</option>
+            <option value="BORDADO">Bordado</option>
+            <option value="OTROS">Otros</option>
+          </select>
+        </FormField>
+        <FormField label="Telefono / WhatsApp">
+          <input {...workerForm.register("phone")} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" placeholder="Telefono" />
+        </FormField>
+      </Modal>
+
+      <Modal
+        isOpen={!!taskModal}
+        onClose={() => setTaskModal(null)}
+        title={`ASIGNAR TRABAJO`}
+        onSubmit={taskForm.handleSubmit(onSubmitTask)}
+        submitLabel="ASIGNAR TRABAJO"
+        submitColor="bg-emerald-600 hover:bg-emerald-500"
+      >
+        {taskModal && (
+          <>
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center mb-2">Para: <span className="text-indigo-400">{taskModal.workerName}</span></p>
+            <FormField label="Descripcion del trabajo">
+              <input {...taskForm.register("description")} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" placeholder="Ej: Cerrar Chombas Talle L" />
+              {taskForm.formState.errors.description && <p className="text-rose-500 text-[10px] font-bold mt-1">{taskForm.formState.errors.description.message}</p>}
+            </FormField>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField label="Cantidad (Un.)">
+                <input type="number" {...taskForm.register("quantity", { valueAsNumber: true })} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-black text-xl text-center outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" />
+                {taskForm.formState.errors.quantity && <p className="text-rose-500 text-[10px] font-bold mt-1">{taskForm.formState.errors.quantity.message}</p>}
+              </FormField>
+              <FormField label="Precio x Unidad ($)">
+                <input type="number" step="0.01" {...taskForm.register("price_per_unit", { valueAsNumber: true })} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-black text-xl text-center text-emerald-500 outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" />
+                {taskForm.formState.errors.price_per_unit && <p className="text-rose-500 text-[10px] font-bold mt-1">{taskForm.formState.errors.price_per_unit.message}</p>}
+              </FormField>
+            </div>
+          </>
+        )}
+      </Modal>
     </div>
   );
 };

@@ -10,12 +10,12 @@ export interface QuoteItem {
 
 export interface Quote {
   id: string;
-  customer_name: string;
-  customer_contact?: string;
-  items: QuoteItem[];
-  total_amount: number;
+  quote_number: string;
+  customer_id: string;
+  total: number;
+  notes?: string;
   status: string;
-  valid_until?: string;
+  company_id: string;
   created_at: string;
 }
 
@@ -37,7 +37,7 @@ export const useQuoteStore = create<QuoteStore>((set, get) => ({
     const tenantId = useTenantStore.getState().activeCompanyId;
     const { data, error } = await supabase
       .from('quotes')
-      .select('*')
+      .select('id, quote_number, customer_id, total, notes, status, company_id, created_at')
       .eq('company_id', tenantId)
       .order('created_at', { ascending: false });
 
