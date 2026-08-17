@@ -551,23 +551,24 @@ const RemitosContent = memo(() => {
 
                 {/* Header */}
                 <div className="border-2 border-slate-800 rounded-xl mb-6 overflow-hidden">
-                  <div className="flex items-center justify-between p-5 pb-3">
-                    <div className="flex items-center gap-4">
-                      <img src="/logo.png" alt="Logo" className="h-14 w-14 object-contain" onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.classList.remove('hidden'); }} />
-                      <div className="hidden flex flex-col items-center justify-center">
-                        <div className="w-14 h-14 rounded-xl bg-slate-800 flex items-center justify-center">
-                          <span className="text-2xl font-black text-white leading-none">R</span>
-                        </div>
+                  <div className="flex items-start justify-between p-5 pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-16 h-16 rounded-xl bg-slate-800 flex items-center justify-center flex-shrink-0">
+                        <span className="text-3xl font-black text-white leading-none">R</span>
                       </div>
                       <div>
                         <h1 className="text-3xl font-extrabold tracking-widest text-slate-900 leading-none">RAÍCES</h1>
-                        <p className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mt-1">Soluciones Textiles Integrales</p>
+                        <p className="text-[10px] font-bold text-slate-500 tracking-widest uppercase mt-1.5">Soluciones Textiles Integrales</p>
+                        <div className="mt-2 text-[10px] font-medium text-slate-500 space-y-0.5">
+                          <p>Berisso, Buenos Aires</p>
+                          <p>raices.textil@gmail.com</p>
+                        </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="inline-flex flex-col items-center border-2 border-slate-800 rounded-lg px-4 py-2 mb-2">
-                        <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Documento</span>
-                        <span className="text-lg font-black text-slate-900 leading-none mt-0.5">
+                    <div className="text-right flex-shrink-0">
+                      <div className="inline-flex flex-col items-center border-2 border-slate-800 rounded-lg px-5 py-2">
+                        <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Tipo</span>
+                        <span className="text-xl font-black text-slate-900 leading-none mt-1">
                           {viewType === 'PENDING' ? 'SALDOS' : viewType === 'VALUED' ? 'VALORADO' : 'INTERNO'}
                         </span>
                       </div>
@@ -575,13 +576,13 @@ const RemitosContent = memo(() => {
                   </div>
                   <div className="flex items-center justify-between bg-slate-800 text-white px-5 py-2.5">
                     <div className="text-xs font-bold">
-                      <span className="text-slate-300">Nº:</span> <span className="font-black">{remitoNumber}</span>
+                      <span className="text-slate-400">Nº:</span> <span className="font-black">{remitoNumber}</span>
                     </div>
                     <div className="text-xs font-bold">
-                      <span className="text-slate-300">Fecha:</span> <span className="font-black">{new Date().toLocaleDateString('es-AR')}</span>
+                      <span className="text-slate-400">Fecha:</span> <span className="font-black">{new Date().toLocaleDateString('es-AR')}</span>
                     </div>
                     <div className="text-[9px] text-slate-400 font-bold tracking-widest uppercase">
-                      {viewType === 'PENDING' ? 'Control de Saldos' : viewType === 'VALUED' ? 'Hoja Valorada' : 'Orden Interna'} — Berisso, Buenos Aires
+                      Documento interno no válido como factura
                     </div>
                   </div>
                 </div>
