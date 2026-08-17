@@ -31,20 +31,61 @@ export interface ProductVariant {
   color_name?: string | null;
 }
 
+interface NewProductData {
+  name: string;
+  category?: string;
+  price?: number;
+  cost_price?: number;
+  sku?: string;
+}
+
+interface NewVariantData {
+  product_id: string;
+  size_id?: string | null;
+  color_id?: string | null;
+  stock_quantity: number;
+}
+
 interface InventoryStore {
   products: ProductVariant[];
+  sizes: { id: string; name: string }[];
+  colors: { id: string; name: string; hex_code?: string }[];
   isLoading: boolean;
   fetchProducts: () => Promise<void>;
+  fetchCatalogs: () => Promise<void>;
   reserveStock: (variantId: string, quantity: number) => Promise<boolean>;
   processPersonalization: (variantId: string, quantity: number) => Promise<boolean>;
   adjustStock: (variantId: string, quantity: number, reason: string) => Promise<boolean>;
+  createProduct: (data: NewProductData) => Promise<string>;
+  createVariant: (data: NewVariantData) => Promise<boolean>;
+  createSize: (name: string) => Promise<string>;
+  createColor: (name: string, hex?: string) => Promise<string>;
+  deleteVariant: (variantId: string) => Promise<boolean>;
+  updateProduct: (productId: string, updates: Partial<NewProductData>) => Promise<boolean>;
   getStockMovements: () => StockMovement[];
   logStockMovement: (movement: Omit<StockMovement, 'id' | 'timestamp'>) => void;
 }
 
 export const useInventoryStore = create<InventoryStore>((set, get) => ({
   products: [],
+  sizes: [],
+  colors: [],
   isLoading: false,
+
+  fetchCatalogs: async () => {
+    try {
+      const [sizesRes, colorsRes] = await Promise.all([
+        supabase.from('sizes').select('id, name').order('name'),
+        supabase.from('colors').select('id, name, hex_code').order('name'),
+      ]);
+      set({
+        sizes: (sizesRes.data || []) as { id: string; name: string }[],
+        colors: (colorsRes.data || []) as { id: string; name: string; hex_code?: string }[],
+      });
+    } catch (e) {
+      console.error('Error fetching catalogs:', e);
+    }
+  },
 
   fetchProducts: async () => {
     const tenantId = useTenantStore.getState().activeCompanyId;
@@ -162,5 +203,82 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
   getStockMovements: () => {
     const key = 'inventory_stock_movements';
     return JSON.parse(localStorage.getItem(key) || '[]');
+  },
+
+  createProduct: async (data) => {
+    const companyId = useTenantStore.getState().activeCompanyId;
+    if (!companyId) throw new Error('No hay compañía activa.');
+    const { data: product, error } = await supabase
+      .from('products')
+      .insert([{
+        name: data.name.toUpperCase(),
+        category: data.category || null,
+        price: data.price || null,
+        cost_price: data.cost_price || null,
+        sku: data.sku || null,
+        company_id: companyId,
+      }])
+      .select('id')
+      .single();
+    if (error) throw error;
+    return product.id;
+  },
+
+  createVariant: async (data) => {
+    const { error } = await supabase
+      .from('product_variants')
+      .insert([{
+        product_id: data.product_id,
+        size_id: data.size_id || null,
+        color_id: data.color_id || null,
+        stock_quantity: data.stock_quantity,
+        base_quantity: 0,
+        finished_quantity: 0,
+      }]);
+    if (error) throw error;
+    await get().fetchProducts();
+    return true;
+  },
+
+  createSize: async (name) => {
+    const { data, error } = await supabase
+      .from('sizes')
+      .insert([{ name: name.toUpperCase() }])
+      .select('id, name')
+      .single();
+    if (error) throw error;
+    set(state => ({ sizes: [...state.sizes, data].sort((a, b) => a.name.localeCompare(b.name)) }));
+    return data.id;
+  },
+
+  createColor: async (name, hex_code = '#000000') => {
+    const { data, error } = await supabase
+      .from('colors')
+      .insert([{ name: name.toUpperCase(), hex_code }])
+      .select('id, name, hex_code')
+      .single();
+    if (error) throw error;
+    set(state => ({ colors: [...state.colors, data].sort((a, b) => a.name.localeCompare(b.name)) }));
+    return data.id;
+  },
+
+  deleteVariant: async (variantId) => {
+    const { error } = await supabase
+      .from('product_variants')
+      .delete()
+      .eq('id', variantId);
+    if (error) throw error;
+    await get().fetchProducts();
+    return true;
+  },
+
+  updateProduct: async (productId, updates) => {
+    const { error } = await supabase
+      .from('products')
+      .update(updates)
+      .eq('id', productId);
+    if (error) throw error;
+    await get().fetchProducts();
+    return true;
   },
 }));
