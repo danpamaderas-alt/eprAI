@@ -7,21 +7,26 @@ export interface Transaction {
   date: string;
   description: string;
   category: string;
-  businessUnit: string;
-  paymentMethod: string;
-  type: 'INCOME' | 'EXPENSE';
+  business_unit?: string;
+  businessUnit?: string;
+  payment_method?: string;
+  paymentMethod?: string;
+  type: 'INCOME' | 'EXPENSE' | 'TRANSFER';
   amount: number;
-  status?: 'PENDIENTE' | 'COMPLETADO' | 'CANCELADO';
+  status?: string;
+  notes?: string;
+  company_id?: string;
 }
 
 interface TreasuryState {
   transactions: Transaction[];
   isLoading: boolean;
   fetchTransactions: () => Promise<void>;
-  addTransaction: (tx: Omit<Transaction, 'id'>) => Promise<void>;
+  addTransaction: (tx: Omit<Transaction, 'id' | 'company_id'>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   updateTransaction: (id: string, data: Partial<Transaction>) => Promise<void>;
   resolvePayment: (id: string) => Promise<void>;
+  transferBetweenAccounts: (from: string, to: string, amount: number, description: string) => Promise<void>;
 }
 
 export const useTreasuryStore = create<TreasuryState>((set, get) => ({
@@ -31,24 +36,17 @@ export const useTreasuryStore = create<TreasuryState>((set, get) => ({
   fetchTransactions: async () => {
     const companyId = useTenantStore.getState().activeCompanyId;
     if (!companyId) return;
-
     set({ isLoading: true });
     try {
       const { data, error } = await supabase
         .from('treasury')
-        .select('id, amount, type, date, description, category, business_unit, payment_method, status')
+        .select('id, amount, type, date, description, category, business_unit, payment_method, status, notes')
         .eq('company_id', companyId)
         .order('date', { ascending: false });
-
-      if (error) {
-        console.error("Error Supabase:", error.message);
-        set({ isLoading: false });
-        return;
-      }
-
+      if (error) throw error;
       set({ transactions: (data || []) as Transaction[], isLoading: false });
     } catch (err) {
-      console.error("Error:", err);
+      console.error("Error fetching treasury:", err);
       set({ isLoading: false });
     }
   },
@@ -74,8 +72,20 @@ export const useTreasuryStore = create<TreasuryState>((set, get) => ({
   },
 
   resolvePayment: async (id) => {
-    const { error } = await supabase.from('treasury').update({ status: 'COMPLETADO' }).eq('id', id);
+    const { error } = await supabase.from('treasury').update({ status: 'COMPLETED' }).eq('id', id);
     if (error) throw error;
     await get().fetchTransactions();
-  }
+  },
+
+  transferBetweenAccounts: async (from, to, amount, description) => {
+    const companyId = useTenantStore.getState().activeCompanyId;
+    if (!companyId) throw new Error('No hay company_id activo');
+    const now = new Date().toISOString();
+    const { error } = await supabase.from('treasury').insert([
+      { amount, type: 'EXPENSE', date: now, description: `TRANSFERENCIA: ${description}`, category: 'TRANSFERENCIA', payment_method: from, status: 'COMPLETED', company_id: companyId },
+      { amount, type: 'INCOME', date: now, description: `TRANSFERENCIA: ${description}`, category: 'TRANSFERENCIA', payment_method: to, status: 'COMPLETED', company_id: companyId },
+    ]);
+    if (error) throw error;
+    await get().fetchTransactions();
+  },
 }));
