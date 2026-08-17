@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback, memo } from 'react';
 import { useCatalogStore, type Product, type ProductVariant } from '../../../store/useCatalogStore';
 import { useCrmStore } from '../../crm/store/useCrmStore';
+import { useResellerStore } from '../../resellers/store/useResellerStore';
 import { useTenantStore } from '../../../store/useTenantStore';
 import { supabase } from '../../../lib/supabase';
 import { ARS } from '../../../shared/utils/format';
@@ -10,7 +11,8 @@ import { RemitoModal } from '../../orders/components/RemitoModal';
 import {
   Search, ShoppingCart, Package, Plus, Minus, Trash2, X,
   User, Star, Tag, AlertTriangle, PackageX, Printer,
-  Banknote, ArrowRightLeft, BookOpen, Check,
+  Banknote, ArrowRightLeft, BookOpen, Check, Percent,
+  DollarSign, Store, Truck,
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
@@ -26,7 +28,11 @@ interface CartItem {
   maxQty: number;
   color_name: string;
   size_name: string;
+  discountType: 'none' | 'percent' | 'fixed';
+  discountValue: number;
 }
+
+type CustomerType = 'minorista' | 'mayorista' | 'revendedor';
 
 const CATEGORIES = ['Todos', 'Remeras', 'Buzos', 'Pantalones', 'Camperas', 'Accesorios'] as const;
 
@@ -49,6 +55,7 @@ function getCategoryGradient(category: string | null) {
 const SalesContent = memo(() => {
   const { products, inventory, fetchAllCatalogs, processSale } = useCatalogStore();
   const { balances, fetchBalances } = useCrmStore();
+  const { resellers, fetchData: fetchResellers } = useResellerStore();
   const activeCompanyId = useTenantStore((s) => s.activeCompanyId);
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -61,20 +68,46 @@ const SalesContent = memo(() => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isRemitoOpen, setIsRemitoOpen] = useState(false);
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
+  const [customerType, setCustomerType] = useState<CustomerType>('minorista');
+  const [selectedResellerId, setSelectedResellerId] = useState<string | null>(null);
+  const [globalDiscountType, setGlobalDiscountType] = useState<'none' | 'percent' | 'fixed'>('none');
+  const [globalDiscountValue, setGlobalDiscountValue] = useState<number>(0);
 
   useEffect(() => {
     fetchAllCatalogs();
     fetchBalances();
-  }, [fetchAllCatalogs, fetchBalances]);
+    fetchResellers();
+  }, [fetchAllCatalogs, fetchBalances, fetchResellers]);
 
   const totals = useMemo(() => {
-    const total = cart.reduce((a, i) => a + i.price * i.qty, 0);
+    const subtotal = cart.reduce((a, i) => a + i.price * i.qty, 0);
     const count = cart.reduce((a, i) => a + i.qty, 0);
-    return { total, count };
-  }, [cart]);
+    
+    const itemDiscounts = cart.reduce((a, i) => {
+      if (i.discountType === 'percent') {
+        return a + (i.price * i.qty * i.discountValue) / 100;
+      }
+      if (i.discountType === 'fixed') {
+        return a + i.discountValue * i.qty;
+      }
+      return a;
+    }, 0);
+    
+    let globalDiscount = 0;
+    if (globalDiscountType === 'percent') {
+      globalDiscount = (subtotal - itemDiscounts) * globalDiscountValue / 100;
+    } else if (globalDiscountType === 'fixed') {
+      globalDiscount = globalDiscountValue;
+    }
+    
+    const totalDiscount = itemDiscounts + globalDiscount;
+    const afterDiscounts = Math.max(0, subtotal - totalDiscount);
+    
+    return { subtotal, count, itemDiscounts, globalDiscount, totalDiscount, afterDiscounts };
+  }, [cart, globalDiscountType, globalDiscountValue]);
 
-  const iva = useMemo(() => totals.total * 0.21, [totals.total]);
-  const grandTotal = useMemo(() => totals.total + iva, [totals.total, iva]);
+  const iva = useMemo(() => totals.afterDiscounts * 0.21, [totals.afterDiscounts]);
+  const grandTotal = useMemo(() => totals.afterDiscounts + iva, [totals.afterDiscounts, iva]);
 
   const filteredProducts = useMemo(() => {
     const search = searchTerm.toLowerCase().trim();
@@ -89,6 +122,11 @@ const SalesContent = memo(() => {
     if (!customerSearch) return balances.slice(0, 8);
     return balances.filter((c) => c.name.toLowerCase().includes(customerSearch.toLowerCase())).slice(0, 8);
   }, [balances, customerSearch]);
+
+  const filteredResellers = useMemo(() => {
+    if (!customerSearch) return resellers.slice(0, 8);
+    return resellers.filter((r) => r.name.toLowerCase().includes(customerSearch.toLowerCase())).slice(0, 8);
+  }, [resellers, customerSearch]);
 
   const selectedCustomerData = useMemo(
     () => balances.find((c) => c.id === selectedCustomerId),
@@ -135,6 +173,8 @@ const SalesContent = memo(() => {
             maxQty: variant.finished_quantity || 0,
             color_name: variant.colors?.name || 'S/C',
             size_name: variant.sizes?.name || 'S/T',
+            discountType: 'none',
+            discountValue: 0,
           },
         ]);
       }
@@ -155,6 +195,12 @@ const SalesContent = memo(() => {
     setCart((prev) => prev.filter((c) => c.id !== id));
   }, []);
 
+  const updateItemDiscount = useCallback((id: string, discountType: 'none' | 'percent' | 'fixed', discountValue: number) => {
+    setCart((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, discountType, discountValue } : c))
+    );
+  }, []);
+
   const clearCart = useCallback(() => setCart([]), []);
 
   const handleCheckout = async () => {
@@ -164,15 +210,23 @@ const SalesContent = memo(() => {
       return Swal.fire({ title: 'Error', text: 'Asigná un cliente para la deuda.', icon: 'error' });
     if (cart.length === 0) return;
 
+    const discountInfo = totals.totalDiscount > 0
+      ? `<br/><b>Descuentos:</b> <span style="color:#ef4444;">-${ARS.format(totals.totalDiscount)}</span>`
+      : '';
+
     const confirm = await Swal.fire({
       title: '¿FINALIZAR VENTA?',
       html: `<div style="text-align:left;font-size:14px;">
         <b>Items:</b> ${totals.count} unidades<br/>
-        <b>Subtotal:</b> ${ARS.format(totals.total)}<br/>
+        <b>Subtotal:</b> ${ARS.format(totals.subtotal)}<br/>
+        ${discountInfo}
         <b>IVA (21%):</b> ${ARS.format(iva)}<br/>
         <b>TOTAL:</b> <span style="color:#10b981;font-size:18px;">${ARS.format(grandTotal)}</span><br/>
         <b>Medio de pago:</b> ${paymentMethod.replace('_', ' ')}
+        ${customerType === 'mayorista' ? '<br/><span style="color:#f59e0b;">⚡ PRECIO MAYORISTA</span>' : ''}
+        ${customerType === 'revendedor' ? '<br/><span style="color:#8b5cf6;">🏷️ REVENDEDOR</span>' : ''}
         ${selectedCustomerData ? `<br/><b>Cliente:</b> ${selectedCustomerData.name}` : ''}
+        ${selectedResellerId ? `<br/><b>Revendedor:</b> ${resellers.find(r => r.id === selectedResellerId)?.name || ''}` : ''}
       </div>`,
       icon: 'question',
       showCancelButton: true,
@@ -195,8 +249,12 @@ const SalesContent = memo(() => {
       Swal.fire({ title: 'VENTA EXITOSA', icon: 'success', timer: 2000, showConfirmButton: false });
       setCart([]);
       setSelectedCustomerId(null);
+      setSelectedResellerId(null);
       setCustomerSearch('');
       setPaymentMethod('EFECTIVO');
+      setCustomerType('minorista');
+      setGlobalDiscountType('none');
+      setGlobalDiscountValue(0);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error desconocido';
       Swal.fire({ title: 'FALLO CRÍTICO', text: msg, icon: 'error' });
@@ -377,52 +435,140 @@ const SalesContent = memo(() => {
 
           {/* Customer Selector */}
           <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
-            <label className="text-[9px] font-black uppercase text-slate-400 mb-1.5 block tracking-widest flex items-center gap-1.5">
-              <User className="w-3 h-3" /> Cliente
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Buscar cliente..."
-                value={customerSearch}
-                onChange={(e) => {
-                  setCustomerSearch(e.target.value);
-                  setShowCustomerDropdown(true);
-                  if (!e.target.value) setSelectedCustomerId(null);
-                }}
-                onFocus={() => setShowCustomerDropdown(true)}
-                className="w-full px-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all"
-              />
-              {selectedCustomerId && (
+            {/* Customer Type Tabs */}
+            <div className="flex gap-1 mb-3">
+              {([
+                { value: 'minorista' as CustomerType, label: 'Minorista', icon: User },
+                { value: 'mayorista' as CustomerType, label: 'Mayorista', icon: Store },
+                { value: 'revendedor' as CustomerType, label: 'Revendedor', icon: Truck },
+              ]).map(({ value, label, icon: Icon }) => (
                 <button
-                  onClick={() => { setSelectedCustomerId(null); setCustomerSearch(''); }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-danger"
+                  key={value}
+                  onClick={() => {
+                    setCustomerType(value);
+                    setSelectedCustomerId(null);
+                    setSelectedResellerId(null);
+                    setCustomerSearch('');
+                  }}
+                  className={cn(
+                    'flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[9px] font-black uppercase transition-all active:scale-95',
+                    customerType === value
+                      ? value === 'mayorista'
+                        ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20'
+                        : value === 'revendedor'
+                          ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/20'
+                          : 'bg-brand text-white shadow-lg shadow-brand/20'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700',
+                  )}
                 >
-                  <X className="w-3 h-3" />
+                  <Icon className="w-3 h-3" />
+                  {label}
                 </button>
-              )}
-              {showCustomerDropdown && !selectedCustomerId && filteredCustomers.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-20 max-h-48 overflow-y-auto">
-                  {filteredCustomers.map((c) => (
-                    <button
-                      key={c.id}
-                      onClick={() => {
-                        setSelectedCustomerId(c.id);
-                        setCustomerSearch(c.name);
-                        setShowCustomerDropdown(false);
-                      }}
-                      className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors border-b border-slate-50 dark:border-slate-700 last:border-0"
-                    >
-                      <span className="font-bold text-slate-800 dark:text-white">{c.name}</span>
-                      {c.company && <span className="text-slate-400 ml-1">({c.company})</span>}
-                      {c.loyalty_points != null && c.loyalty_points > 0 && (
-                        <span className="ml-1 text-amber-500"><Star className="w-2.5 h-2.5 inline" /> {c.loyalty_points}</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
+              ))}
             </div>
+
+            {/* Customer or Reseller Search */}
+            {customerType === 'revendedor' ? (
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Buscar revendedor..."
+                  value={customerSearch}
+                  onChange={(e) => {
+                    setCustomerSearch(e.target.value);
+                    setShowCustomerDropdown(true);
+                    if (!e.target.value) setSelectedResellerId(null);
+                  }}
+                  onFocus={() => setShowCustomerDropdown(true)}
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-purple-500 transition-all"
+                />
+                {selectedResellerId && (
+                  <button
+                    onClick={() => { setSelectedResellerId(null); setCustomerSearch(''); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-danger"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+                {showCustomerDropdown && !selectedResellerId && filteredResellers.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-20 max-h-48 overflow-y-auto">
+                    {filteredResellers.map((r) => (
+                      <button
+                        key={r.id}
+                        onClick={() => {
+                          setSelectedResellerId(r.id);
+                          setCustomerSearch(r.name);
+                          setShowCustomerDropdown(false);
+                        }}
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors border-b border-slate-50 dark:border-slate-700 last:border-0"
+                      >
+                        <span className="font-bold text-slate-800 dark:text-white">{r.name}</span>
+                        <span className="text-slate-400 ml-1">{r.phone}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Buscar cliente..."
+                  value={customerSearch}
+                  onChange={(e) => {
+                    setCustomerSearch(e.target.value);
+                    setShowCustomerDropdown(true);
+                    if (!e.target.value) setSelectedCustomerId(null);
+                  }}
+                  onFocus={() => setShowCustomerDropdown(true)}
+                  className={cn(
+                    'w-full px-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none transition-all',
+                    customerType === 'mayorista' ? 'focus:border-amber-500' : 'focus:border-brand',
+                  )}
+                />
+                {selectedCustomerId && (
+                  <button
+                    onClick={() => { setSelectedCustomerId(null); setCustomerSearch(''); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-danger"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+                {showCustomerDropdown && !selectedCustomerId && filteredCustomers.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-20 max-h-48 overflow-y-auto">
+                    {filteredCustomers.map((c) => (
+                      <button
+                        key={c.id}
+                        onClick={() => {
+                          setSelectedCustomerId(c.id);
+                          setCustomerSearch(c.name);
+                          setShowCustomerDropdown(false);
+                        }}
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors border-b border-slate-50 dark:border-slate-700 last:border-0"
+                      >
+                        <span className="font-bold text-slate-800 dark:text-white">{c.name}</span>
+                        {c.company && <span className="text-slate-400 ml-1">({c.company})</span>}
+                        {c.loyalty_points != null && c.loyalty_points > 0 && (
+                          <span className="ml-1 text-amber-500"><Star className="w-2.5 h-2.5 inline" /> {c.loyalty_points}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Customer Info Badges */}
+            {customerType === 'mayorista' && (
+              <p className="text-[9px] text-amber-600 dark:text-amber-400 font-medium mt-1.5 flex items-center gap-1">
+                <Store className="w-3 h-3" /> Precios mayoristas activos
+              </p>
+            )}
+            {customerType === 'revendedor' && selectedResellerId && (
+              <p className="text-[9px] text-purple-600 dark:text-purple-400 font-medium mt-1.5 flex items-center gap-1">
+                <Truck className="w-3 h-3" /> Revendedor asignado
+              </p>
+            )}
             {selectedCustomerData?.loyalty_points != null && selectedCustomerData.loyalty_points > 0 && (
               <p className="text-[9px] text-amber-600 dark:text-amber-400 font-medium mt-1.5 flex items-center gap-1">
                 <Star className="w-3 h-3" /> {selectedCustomerData.loyalty_points} puntos de fidelidad
@@ -501,8 +647,74 @@ const SalesContent = memo(() => {
                     </div>
                     <div className="text-right">
                       <p className="text-[9px] text-slate-400 font-medium">{item.qty} x {ARS.format(item.price)}</p>
-                      <p className="font-black text-xs text-slate-900 dark:text-white tabular-nums">{ARS.format(item.price * item.qty)}</p>
+                      {item.discountType !== 'none' && (
+                        <p className="text-[9px] text-amber-600 dark:text-amber-400 font-bold">
+                          -{item.discountType === 'percent' ? `${item.discountValue}%` : ARS.format(item.discountValue * item.qty)}
+                        </p>
+                      )}
+                      <p className="font-black text-xs text-slate-900 dark:text-white tabular-nums">
+                        {ARS.format(
+                          item.discountType === 'percent'
+                            ? item.price * item.qty * (1 - item.discountValue / 100)
+                            : item.price * item.qty - item.discountValue * item.qty,
+                        )}
+                      </p>
                     </div>
+                  </div>
+
+                  {/* Item Discount Controls */}
+                  <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-100 dark:border-slate-700">
+                    <Tag className="w-3 h-3 text-slate-400" />
+                    <div className="flex gap-1 flex-1">
+                      <button
+                        onClick={() => updateItemDiscount(item.id, 'none', 0)}
+                        className={cn(
+                          'flex-1 py-1 rounded-lg text-[8px] font-black uppercase transition-all',
+                          item.discountType === 'none'
+                            ? 'bg-slate-200 dark:bg-slate-700 text-slate-500'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700',
+                        )}
+                      >
+                        Sin
+                      </button>
+                      <button
+                        onClick={() => updateItemDiscount(item.id, 'percent', item.discountType === 'percent' ? item.discountValue : 10)}
+                        className={cn(
+                          'flex-1 py-1 rounded-lg text-[8px] font-black uppercase transition-all flex items-center justify-center gap-0.5',
+                          item.discountType === 'percent'
+                            ? 'bg-amber-500 text-white'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700',
+                        )}
+                      >
+                        <Percent className="w-2.5 h-2.5" />%
+                      </button>
+                      <button
+                        onClick={() => updateItemDiscount(item.id, 'fixed', item.discountType === 'fixed' ? item.discountValue : 0)}
+                        className={cn(
+                          'flex-1 py-1 rounded-lg text-[8px] font-black uppercase transition-all flex items-center justify-center gap-0.5',
+                          item.discountType === 'fixed'
+                            ? 'bg-amber-500 text-white'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700',
+                        )}
+                      >
+                        <DollarSign className="w-2.5 h-2.5" />$
+                      </button>
+                    </div>
+                    {item.discountType !== 'none' && (
+                      <input
+                        type="number"
+                        min={0}
+                        max={item.discountType === 'percent' ? 100 : item.price * item.qty}
+                        value={item.discountValue}
+                        onChange={(e) => updateItemDiscount(item.id, item.discountType, Number(e.target.value) || 0)}
+                        className="w-14 text-center text-[9px] font-black bg-white dark:bg-slate-950 border border-amber-300 dark:border-amber-700 rounded-lg py-1 outline-none focus:border-amber-500"
+                      />
+                    )}
+                    {item.discountType !== 'none' && (
+                      <span className="text-[8px] text-amber-600 dark:text-amber-400 font-bold">
+                        {item.discountType === 'percent' ? `${item.discountValue}%` : ARS.format(item.discountValue)}
+                      </span>
+                    )}
                   </div>
                 </div>
               ))
@@ -511,6 +723,63 @@ const SalesContent = memo(() => {
 
           {/* Payment & Summary */}
           <div className="p-4 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-200 dark:border-slate-800 space-y-3">
+            {/* Global Discount */}
+            <div>
+              <label className="text-[9px] font-black uppercase text-slate-400 mb-1.5 block tracking-widest flex items-center gap-1.5">
+                <Tag className="w-3 h-3" /> Descuento Global
+              </label>
+              <div className="flex gap-1.5">
+                <button
+                  onClick={() => setGlobalDiscountType('none')}
+                  className={cn(
+                    'flex-1 py-2 rounded-xl text-[9px] font-black uppercase transition-all',
+                    globalDiscountType === 'none'
+                      ? 'bg-slate-200 dark:bg-slate-700 text-slate-500'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700',
+                  )}
+                >
+                  Sin descuento
+                </button>
+                <button
+                  onClick={() => setGlobalDiscountType('percent')}
+                  className={cn(
+                    'flex-1 py-2 rounded-xl text-[9px] font-black uppercase transition-all flex items-center justify-center gap-1',
+                    globalDiscountType === 'percent'
+                      ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700',
+                  )}
+                >
+                  <Percent className="w-3 h-3" /> %
+                </button>
+                <button
+                  onClick={() => setGlobalDiscountType('fixed')}
+                  className={cn(
+                    'flex-1 py-2 rounded-xl text-[9px] font-black uppercase transition-all flex items-center justify-center gap-1',
+                    globalDiscountType === 'fixed'
+                      ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700',
+                  )}
+                >
+                  <DollarSign className="w-3 h-3" /> $
+                </button>
+              </div>
+              {globalDiscountType !== 'none' && (
+                <div className="flex items-center gap-2 mt-1.5">
+                  <input
+                    type="number"
+                    min={0}
+                    max={globalDiscountType === 'percent' ? 100 : totals.subtotal}
+                    value={globalDiscountValue}
+                    onChange={(e) => setGlobalDiscountValue(Number(e.target.value) || 0)}
+                    className="flex-1 px-3 py-2 bg-white dark:bg-slate-950 border border-amber-300 dark:border-amber-700 rounded-xl text-xs font-bold text-slate-700 dark:text-white outline-none focus:border-amber-500 transition-all"
+                  />
+                  <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400">
+                    {globalDiscountType === 'percent' ? '%' : 'ARS'}
+                  </span>
+                </div>
+              )}
+            </div>
+
             {/* Payment Method */}
             <div>
               <label className="text-[9px] font-black uppercase text-slate-400 mb-2 block tracking-widest">Medio de Pago</label>
@@ -548,8 +817,26 @@ const SalesContent = memo(() => {
             <div className="space-y-1.5 text-xs">
               <div className="flex justify-between text-slate-500">
                 <span className="font-medium">Subtotal</span>
-                <span className="font-bold tabular-nums">{ARS.format(totals.total)}</span>
+                <span className="font-bold tabular-nums">{ARS.format(totals.subtotal)}</span>
               </div>
+              {totals.itemDiscounts > 0 && (
+                <div className="flex justify-between text-amber-600 dark:text-amber-400">
+                  <span className="font-medium">Desc. Items</span>
+                  <span className="font-bold tabular-nums">-{ARS.format(totals.itemDiscounts)}</span>
+                </div>
+              )}
+              {totals.globalDiscount > 0 && (
+                <div className="flex justify-between text-amber-600 dark:text-amber-400">
+                  <span className="font-medium">Desc. Global</span>
+                  <span className="font-bold tabular-nums">-{ARS.format(totals.globalDiscount)}</span>
+                </div>
+              )}
+              {totals.totalDiscount > 0 && (
+                <div className="flex justify-between text-danger font-bold">
+                  <span>Total Descuentos</span>
+                  <span className="tabular-nums">-{ARS.format(totals.totalDiscount)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-slate-500">
                 <span className="font-medium">IVA (21%)</span>
                 <span className="font-bold tabular-nums">{ARS.format(iva)}</span>
