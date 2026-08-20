@@ -17,6 +17,8 @@ import {
   Ruler,
   Calculator,
   Printer,
+  Boxes,
+  Palette,
   Users,
   CreditCard,
   Moon,
@@ -39,7 +41,7 @@ interface NavRoute {
   readonly path: string;
   readonly label: string;
   readonly icon: LucideIcon;
-  readonly highlight?: 'indigo' | 'rose' | 'emerald';
+  readonly highlight?: 'indigo' | 'rose' | 'emerald' | 'fuchsia';
 }
 
 const DESKTOP_ROUTES: readonly NavRoute[] = [
@@ -58,6 +60,8 @@ const DESKTOP_ROUTES: readonly NavRoute[] = [
   { path: '/insumos', label: 'Insumos y Taller', icon: Ruler, highlight: 'indigo' },
   { path: '/calculadora', label: 'Calculadora de Costos', icon: Calculator, highlight: 'indigo' },
   { path: '/calculadora-3d', label: 'Calc. Impresión 3D', icon: Printer, highlight: 'indigo' },
+  { path: '/impresiones-3d', label: 'Repositorio 3D', icon: Boxes, highlight: 'indigo' },
+  { path: '/sublimacion', label: 'Repos. Sublimación', icon: Palette, highlight: 'fuchsia' },
 ];
 
 const CRM_ROUTES: readonly NavRoute[] = [
@@ -76,6 +80,7 @@ const SidebarItem = memo(({ path, label, icon: Icon, highlight }: SidebarItemPro
       case 'indigo': return `${base} bg-brand-600 text-white shadow-lg`;
       case 'rose': return `${base} bg-danger-600 text-white shadow-lg shadow-danger-600/30`;
       case 'emerald': return `${base} bg-success-600 text-white shadow-lg shadow-success-600/20`;
+      case 'fuchsia': return `${base} bg-fuchsia-600 text-white shadow-lg shadow-fuchsia-600/30`;
       default: return `${base} bg-brand-600 text-white shadow-lg shadow-brand-600/20`;
     }
   };

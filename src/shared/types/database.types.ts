@@ -1162,6 +1162,181 @@ export type Database = {
         }
         Relationships: []
       }
+      print_models: {
+        Row: {
+          category: string
+          company_id: string | null
+          created_at: string | null
+          estimated_grams: number | null
+          estimated_time_hours: number | null
+          id: string
+          imagen: string | null
+          infill: number | null
+          layer_height: number | null
+          link_descarga: string | null
+          material: string | null
+          name: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string
+          company_id?: string | null
+          created_at?: string | null
+          estimated_grams?: number | null
+          estimated_time_hours?: number | null
+          id?: string
+          imagen?: string | null
+          infill?: number | null
+          layer_height?: number | null
+          link_descarga?: string | null
+          material?: string | null
+          name: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          company_id?: string | null
+          created_at?: string | null
+          estimated_grams?: number | null
+          estimated_time_hours?: number | null
+          id?: string
+          imagen?: string | null
+          infill?: number | null
+          layer_height?: number | null
+          link_descarga?: string | null
+          material?: string | null
+          name?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "print_models_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sublimation_designs: {
+        Row: {
+          atribucion_requerida: boolean | null
+          background: string | null
+          bundle_count: number | null
+          category: string
+          company_id: string | null
+          created_at: string | null
+          currency: string | null
+          description: string | null
+          designer: string | null
+          dimensions: string | null
+          dpi: number | null
+          file_format: string | null
+          file_size_mb: number | null
+          id: string
+          imagen: string | null
+          license_date: string | null
+          license_file: string | null
+          license_type: string | null
+          link_descarga: string | null
+          name: string
+          notes: string | null
+          origin: string | null
+          platform: string | null
+          pod_nivel: string | null
+          pod_permitido: boolean | null
+          price: number | null
+          project_dest: string | null
+          purchase_date: string | null
+          status: string
+          tags: string | null
+          updated_at: string | null
+          url_original: string | null
+          ventas_limit: number | null
+        }
+        Insert: {
+          atribucion_requerida?: boolean | null
+          background?: string | null
+          bundle_count?: number | null
+          category?: string
+          company_id?: string | null
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          designer?: string | null
+          dimensions?: string | null
+          dpi?: number | null
+          file_format?: string | null
+          file_size_mb?: number | null
+          id?: string
+          imagen?: string | null
+          license_date?: string | null
+          license_file?: string | null
+          license_type?: string | null
+          link_descarga?: string | null
+          name: string
+          notes?: string | null
+          origin?: string | null
+          platform?: string | null
+          pod_nivel?: string | null
+          pod_permitido?: boolean | null
+          price?: number | null
+          project_dest?: string | null
+          purchase_date?: string | null
+          status?: string
+          tags?: string | null
+          updated_at?: string | null
+          url_original?: string | null
+          ventas_limit?: number | null
+        }
+        Update: {
+          atribucion_requerida?: boolean | null
+          background?: string | null
+          bundle_count?: number | null
+          category?: string
+          company_id?: string | null
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          designer?: string | null
+          dimensions?: string | null
+          dpi?: number | null
+          file_format?: string | null
+          file_size_mb?: number | null
+          id?: string
+          imagen?: string | null
+          license_date?: string | null
+          license_file?: string | null
+          license_type?: string | null
+          link_descarga?: string | null
+          name?: string
+          notes?: string | null
+          origin?: string | null
+          platform?: string | null
+          pod_nivel?: string | null
+          pod_permitido?: boolean | null
+          price?: number | null
+          project_dest?: string | null
+          purchase_date?: string | null
+          status?: string
+          tags?: string | null
+          updated_at?: string | null
+          url_original?: string | null
+          ventas_limit?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sublimation_designs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           base_price: number | null
