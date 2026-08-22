@@ -2,6 +2,7 @@ export interface Env {
   GEMINI_API_KEY: string;
   SUPABASE_URL: string;
   SUPABASE_ANON_KEY: string;
+  ASSETS: { fetch: (request: Request) => Promise<Response> };
 }
 
 const CORS_HEADERS = {
@@ -424,6 +425,12 @@ export default {
       }
     }
 
-    return new Response('Not Found', { status: 404 });
+    if (url.pathname.startsWith('/api/') || request.method !== 'GET') {
+      return new Response('Not Found', { status: 404 });
+    }
+
+    const assetResponse = await env.ASSETS.fetch(request);
+    if (assetResponse.status !== 404) return assetResponse;
+    return env.ASSETS.fetch(new Request(new URL('/', request.url)));
   },
 };
