@@ -1,5 +1,7 @@
-import { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
+import { supabase } from '../../../lib/supabase';
 import { useCatalogStore, type Product } from '../../../store/useCatalogStore';
+import { useTenantStore } from '../../../store/useTenantStore';
 import { useCrmStore } from '../../crm/store/useCrmStore';
 import { useOrderStore, type Order } from '../store/useOrderStore';
 import { ARS } from '../../../shared/utils/format';
@@ -46,13 +48,49 @@ const REMITO_STATUSES = {
 
 const OPERACION_OPTIONS = ['ENTREGA PARCIAL', 'ENTREGA TOTAL', 'PRESUPUESTO', 'TRASLADO A TALLER', 'DEVOLUCIÓN', 'CAMBIO'];
 
-const STORAGE_KEY = 'epr_remitos';
-
-function loadRemitos(): Remito[] {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+interface RemitoRow {
+  id: string;
+  number: string;
+  date: string;
+  customer: string | null;
+  address: string | null;
+  status: Remito['status'];
+  items: PedidoItem[];
+  view_type: Remito['viewType'];
+  total: number | string;
+  order_id: string | null;
+  notes: string | null;
 }
-function saveRemitos(remitos: Remito[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(remitos));
+
+function toDb(remito: Remito) {
+  return {
+    number: remito.number,
+    date: remito.date,
+    customer: remito.customer,
+    address: remito.address,
+    status: remito.status,
+    items: remito.items,
+    view_type: remito.viewType,
+    total: remito.total,
+    order_id: remito.orderId ?? null,
+    notes: remito.notes ?? null,
+  };
+}
+
+function fromDb(row: RemitoRow): Remito {
+  return {
+    id: row.id,
+    number: row.number,
+    date: row.date,
+    customer: row.customer || '',
+    address: row.address || '',
+    status: row.status,
+    items: Array.isArray(row.items) ? row.items : [],
+    viewType: row.view_type,
+    total: Number(row.total) || 0,
+    orderId: row.order_id || undefined,
+    notes: row.notes || undefined,
+  };
 }
 
 function generateRemitoNumber(): string {
@@ -67,7 +105,9 @@ const RemitosContent = memo(() => {
   const { balances = [], fetchBalances } = useCrmStore();
   const { orders, fetchOrders } = useOrderStore();
 
-  const [remitos, setRemitos] = useState<Remito[]>(() => loadRemitos());
+  const [remitos, setRemitos] = useState<Remito[]>([]);
+  const remitosRef = useRef<Remito[]>([]);
+  useEffect(() => { remitosRef.current = remitos; }, [remitos]);
   const [activeView, setActiveView] = useState<'editor' | 'history'>('editor');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -90,6 +130,20 @@ const RemitosContent = memo(() => {
   const [newItem, setNewItem] = useState({ qtyOrdered: 1, qtyDelivered: 1, description: '', details: '', unitPrice: 0 });
 
   useEffect(() => { fetchAllCatalogs(); fetchBalances(); fetchOrders(); }, [fetchAllCatalogs, fetchBalances, fetchOrders]);
+
+  const fetchRemitos = useCallback(async () => {
+    const companyId = useTenantStore.getState().activeCompanyId;
+    if (!companyId) return;
+    const { data, error } = await supabase
+      .from('remitos')
+      .select('*')
+      .eq('company_id', companyId)
+      .order('date', { ascending: false });
+    if (!error && data) setRemitos((data as unknown as RemitoRow[]).map(fromDb));
+    else if (error) console.error('Error fetching remitos:', error.message);
+  }, []);
+
+  useEffect(() => { void fetchRemitos(); }, [fetchRemitos]);
 
   const productMap = useMemo(() => new Map(products.map(p => [p.id, p])), [products]);
   const totalGeneral = useMemo(() => items.reduce((acc, i) => acc + (i.qtyOrdered * i.unitPrice), 0), [items]);
@@ -152,8 +206,10 @@ const RemitosContent = memo(() => {
   }, []);
 
   // ===== Save/Load =====
-  const handleSaveRemito = useCallback(() => {
+  const handleSaveRemito = useCallback(async () => {
     if (items.length === 0) return Swal.fire({ title: 'Sin items', text: 'Agregá al menos un artículo', icon: 'warning' });
+    const companyId = useTenantStore.getState().activeCompanyId;
+    if (!companyId) return Swal.fire({ title: 'Sin empresa activa', icon: 'warning' });
     const remito: Remito = {
       id: crypto.randomUUID(),
       number: remitoNumber,
@@ -167,27 +223,45 @@ const RemitosContent = memo(() => {
       orderId: linkedOrderId || undefined,
       notes,
     };
-    const updated = [remito, ...remitos];
-    setRemitos(updated);
-    saveRemitos(updated);
+    const { data, error } = await supabase
+      .from('remitos')
+      .insert([{ ...toDb(remito), company_id: companyId }])
+      .select();
+    if (error || !data || data.length === 0) {
+      console.error('Error saving remito:', error?.message);
+      return Swal.fire({ title: 'Error', text: 'No se pudo guardar el remito.', icon: 'error' });
+    }
+    setRemitos((prev) => [fromDb(data[0] as unknown as RemitoRow), ...prev]);
     Swal.fire({ title: 'Remito guardado', icon: 'success', timer: 1500, showConfirmButton: false });
-  }, [items, remitoNumber, cliente, domicilio, viewType, totalGeneral, linkedOrderId, notes, remitos]);
+  }, [items, remitoNumber, cliente, domicilio, viewType, totalGeneral, linkedOrderId, notes]);
 
   const handleUpdateRemitoStatus = useCallback((id: string, status: Remito['status']) => {
-    const updated = remitos.map(r => r.id === id ? { ...r, status } : r);
-    setRemitos(updated);
-    saveRemitos(updated);
-  }, [remitos]);
+    const prev = remitosRef.current;
+    setRemitos((rows) => rows.map(r => r.id === id ? { ...r, status } : r));
+    void supabase.from('remitos').update({ status }).eq('id', id).then(({ error }) => {
+      if (error) {
+        console.error('Error updating remito status:', error.message);
+        setRemitos(prev);
+        void Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'No se pudo actualizar el remito', showConfirmButton: false, timer: 3000 });
+      }
+    });
+  }, []);
 
   const handleDeleteRemito = useCallback((id: string) => {
     Swal.fire({ title: '¿Eliminar remito?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' }).then(result => {
       if (result.isConfirmed) {
-        const updated = remitos.filter(r => r.id !== id);
-        setRemitos(updated);
-        saveRemitos(updated);
+        const prev = remitosRef.current;
+        setRemitos((rows) => rows.filter(r => r.id !== id));
+        void supabase.from('remitos').delete().eq('id', id).then(({ error }) => {
+          if (error) {
+            console.error('Error deleting remito:', error.message);
+            setRemitos(prev);
+            void Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'No se pudo eliminar el remito', showConfirmButton: false, timer: 3000 });
+          }
+        });
       }
     });
-  }, [remitos]);
+  }, []);
 
   const handleLoadRemito = useCallback((remito: Remito) => {
     setCliente(remito.customer);
@@ -199,7 +273,7 @@ const RemitosContent = memo(() => {
     setActiveView('editor');
   }, []);
 
-  const handleDuplicateRemito = useCallback((remito: Remito) => {
+  const handleDuplicateRemito = useCallback(async (remito: Remito) => {
     const duplicate: Remito = {
       ...remito,
       id: crypto.randomUUID(),
@@ -207,11 +281,19 @@ const RemitosContent = memo(() => {
       date: new Date().toISOString(),
       status: 'DRAFT',
     };
-    const updated = [duplicate, ...remitos];
-    setRemitos(updated);
-    saveRemitos(updated);
+    const companyId = useTenantStore.getState().activeCompanyId;
+    if (!companyId) return;
+    const { data, error } = await supabase
+      .from('remitos')
+      .insert([{ ...toDb(duplicate), company_id: companyId }])
+      .select();
+    if (error || !data || data.length === 0) {
+      console.error('Error duplicating remito:', error?.message);
+      return Swal.fire({ title: 'Error', text: 'No se pudo duplicar el remito.', icon: 'error' });
+    }
+    setRemitos((prev) => [fromDb(data[0] as unknown as RemitoRow), ...prev]);
     Swal.fire({ title: 'Remito duplicado', icon: 'success', timer: 1500, showConfirmButton: false });
-  }, [remitos]);
+  }, []);
 
   const handleLinkToOrder = useCallback((orderId: string) => {
     const order = orders.find(o => o.id === orderId);

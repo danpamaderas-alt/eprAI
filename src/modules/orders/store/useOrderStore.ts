@@ -94,11 +94,11 @@ interface OrderState {
   registerPartialDelivery: (orderId: string, deliveryData: Record<string, unknown>) => Promise<void>;
   createOrder: (orderData: Omit<Order, 'id'>) => Promise<void>;
   updateOrder: (orderId: string, updates: Partial<Order>) => Promise<void>;
-  addNote: (orderId: string, text: string) => void;
-  addPayment: (orderId: string, amount: number, method: string, note?: string) => void;
-  addActivityLog: (orderId: string, action: string, detail: string) => void;
-  setPriority: (orderId: string, priority: OrderPriority) => void;
-  setProductionStage: (orderId: string, stage: ProductionStage) => void;
+  addNote: (orderId: string, text: string) => Promise<void>;
+  addPayment: (orderId: string, amount: number, method: string, note?: string) => Promise<void>;
+  addActivityLog: (orderId: string, action: string, detail: string) => Promise<void>;
+  setPriority: (orderId: string, priority: OrderPriority) => Promise<void>;
+  setProductionStage: (orderId: string, stage: ProductionStage) => Promise<void>;
   setViewMode: (mode: 'list' | 'kanban' | 'calendar') => void;
   toggleOrderSelection: (orderId: string) => void;
   selectAllOrders: (orderIds: string[]) => void;
@@ -107,36 +107,10 @@ interface OrderState {
   duplicateOrder: (orderId: string) => void;
   saveTemplate: (name: string, order: Order) => void;
   deleteTemplate: (id: string) => void;
-  addPhoto: (orderId: string, url: string, name: string) => void;
+  addPhoto: (orderId: string, url: string, name: string) => Promise<void>;
 }
 
-const STORAGE_KEY = 'epr_orders_meta';
-
-function loadMeta(): Record<string, Partial<Order>> {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-  } catch {
-    return {};
-  }
-}
-
-function saveMeta(orders: Order[]) {
-  const meta: Record<string, Partial<Order>> = {};
-  orders.forEach((o) => {
-    meta[o.id] = {
-      priority: o.priority,
-      production_stage: o.production_stage,
-      activity_log: o.activity_log,
-      notes: o.notes,
-      payments: o.payments,
-      photos: o.photos,
-      customer_phone: o.customer_phone,
-      customer_email: o.customer_email,
-      internal_notes: o.internal_notes,
-    };
-  });
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(meta));
-}
+const META_COLUMNS = 'priority, production_stage, activity_log, notes, payments, photos, customer_phone, customer_email, internal_notes';
 
 function loadTemplates(): OrderTemplate[] {
   try {
@@ -150,8 +124,21 @@ function saveTemplates(templates: OrderTemplate[]) {
   localStorage.setItem('epr_order_templates', JSON.stringify(templates));
 }
 
-export const useOrderStore = create<OrderState>((set, get) => ({
-  orders: [],
+const Swal = {
+  fire: async (...args: [options?: import('sweetalert2').SweetAlertOptions]) =>
+    (await import('sweetalert2')).default.fire(...args),
+};
+
+async function persistMeta(orderId: string, patch: Record<string, unknown>) {
+  const { error } = await supabase.from('orders').update(patch).eq('id', orderId);
+  if (error) {
+    console.error('Error persisting order meta:', error.message);
+    void Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'No se pudo sincronizar el pedido', showConfirmButton: false, timer: 3000 });
+    throw error;
+  }
+}
+
+export const useOrderStore = create<OrderState>((set, get) => ({  orders: [],
   templates: loadTemplates(),
   isLoading: false,
   viewMode: 'list',
@@ -165,17 +152,12 @@ export const useOrderStore = create<OrderState>((set, get) => ({
 
     const { data, error } = await supabase
       .from('orders')
-      .select('id, company_id, customer_name, total_amount, advance_payment, status, due_date, business_unit, items, created_at')
+      .select(`id, company_id, customer_name, total_amount, advance_payment, status, due_date, business_unit, items, created_at, ${META_COLUMNS}`)
       .eq('company_id', companyId)
       .order('created_at', { ascending: false });
 
     if (!error) {
-      const meta = loadMeta();
-      const enriched = (data || []).map((o) => ({
-        ...o,
-        ...meta[o.id],
-      }));
-      set({ orders: enriched, isLoading: false });
+      set({ orders: (data || []) as Order[], isLoading: false });
     } else {
       console.error("Error fetching 'orders':", error.message);
       set({ isLoading: false });
@@ -209,19 +191,26 @@ export const useOrderStore = create<OrderState>((set, get) => ({
     if (updates.due_date !== undefined) dbUpdates.due_date = updates.due_date;
     if (updates.customer_name !== undefined) dbUpdates.customer_name = updates.customer_name;
     if (updates.items !== undefined) dbUpdates.items = updates.items;
+    if (updates.priority !== undefined) dbUpdates.priority = updates.priority;
+    if (updates.production_stage !== undefined) dbUpdates.production_stage = updates.production_stage;
+    if (updates.activity_log !== undefined) dbUpdates.activity_log = updates.activity_log;
+    if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+    if (updates.payments !== undefined) dbUpdates.payments = updates.payments;
+    if (updates.photos !== undefined) dbUpdates.photos = updates.photos;
+    if (updates.customer_phone !== undefined) dbUpdates.customer_phone = updates.customer_phone;
+    if (updates.customer_email !== undefined) dbUpdates.customer_email = updates.customer_email;
+    if (updates.internal_notes !== undefined) dbUpdates.internal_notes = updates.internal_notes;
 
     if (Object.keys(dbUpdates).length > 0) {
       const { error } = await supabase.from('orders').update(dbUpdates).eq('id', orderId);
       if (error) throw error;
     }
 
-    set((state) => {
-      const updated = state.orders.map((o) =>
+    set((state) => ({
+      orders: state.orders.map((o) =>
         o.id === orderId ? { ...o, ...updates } : o,
-      );
-      saveMeta(updated);
-      return { orders: updated };
-    });
+      ),
+    }));
   },
 
   registerPartialDelivery: async (orderId, deliveryData) => {
@@ -238,23 +227,26 @@ export const useOrderStore = create<OrderState>((set, get) => ({
     }
   },
 
-  addNote: (orderId, text) => {
+  addNote: async (orderId, text) => {
     const note: OrderNote = {
       id: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
       text,
       user: 'Usuario',
     };
-    set((state) => {
-      const updated = state.orders.map((o) =>
-        o.id === orderId ? { ...o, notes: [...(o.notes || []), note] } : o,
-      );
-      saveMeta(updated);
-      return { orders: updated };
+    const prev = get().orders;
+    const current = prev.find((o) => o.id === orderId);
+    if (!current) return;
+    const newNotes = [...(current.notes || []), note];
+    set({
+      orders: prev.map((o) =>
+        o.id === orderId ? { ...o, notes: newNotes } : o,
+      ),
     });
+    try { await persistMeta(orderId, { notes: newNotes }); } catch { set({ orders: prev }); }
   },
 
-  addPayment: (orderId, amount, method, note) => {
+  addPayment: async (orderId, amount, method, note) => {
     const payment: OrderPayment = {
       id: crypto.randomUUID(),
       date: new Date().toISOString(),
@@ -262,18 +254,26 @@ export const useOrderStore = create<OrderState>((set, get) => ({
       method,
       note,
     };
-    set((state) => {
-      const updated = state.orders.map((o) => {
-        if (o.id !== orderId) return o;
-        const newAdvance = (o.advance_payment || 0) + amount;
-        return { ...o, payments: [...(o.payments || []), payment], advance_payment: newAdvance };
-      });
-      saveMeta(updated);
-      return { orders: updated };
+    const prev = get().orders;
+    const current = prev.find((o) => o.id === orderId);
+    if (!current) return;
+    const newPayments = [...(current.payments || []), payment];
+    const newAdvance = (current.advance_payment || 0) + amount;
+    set({
+      orders: prev.map((o) =>
+        o.id === orderId
+          ? { ...o, payments: newPayments, advance_payment: newAdvance }
+          : o,
+      ),
     });
+    try {
+      await persistMeta(orderId, { payments: newPayments, advance_payment: newAdvance });
+    } catch {
+      set({ orders: prev });
+    }
   },
 
-  addActivityLog: (orderId, action, detail) => {
+  addActivityLog: async (orderId, action, detail) => {
     const entry: ActivityLogEntry = {
       id: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
@@ -281,26 +281,30 @@ export const useOrderStore = create<OrderState>((set, get) => ({
       detail,
       user: 'Usuario',
     };
-    set((state) => {
-      const updated = state.orders.map((o) =>
-        o.id === orderId ? { ...o, activity_log: [...(o.activity_log || []), entry] } : o,
-      );
-      saveMeta(updated);
-      return { orders: updated };
+    const prev = get().orders;
+    const current = prev.find((o) => o.id === orderId);
+    if (!current) return;
+    const newLog = [...(current.activity_log || []), entry];
+    set({
+      orders: prev.map((o) =>
+        o.id === orderId ? { ...o, activity_log: newLog } : o,
+      ),
     });
+    try { await persistMeta(orderId, { activity_log: newLog }); } catch { set({ orders: prev }); }
   },
 
-  setPriority: (orderId, priority) => {
-    set((state) => {
-      const updated = state.orders.map((o) =>
+  setPriority: async (orderId, priority) => {
+    const prev = get().orders;
+    if (!prev.some((o) => o.id === orderId)) return;
+    set({
+      orders: prev.map((o) =>
         o.id === orderId ? { ...o, priority } : o,
-      );
-      saveMeta(updated);
-      return { orders: updated };
+      ),
     });
+    try { await persistMeta(orderId, { priority }); } catch { set({ orders: prev }); }
   },
 
-  setProductionStage: (orderId, stage) => {
+  setProductionStage: async (orderId, stage) => {
     const entry: ActivityLogEntry = {
       id: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
@@ -308,15 +312,22 @@ export const useOrderStore = create<OrderState>((set, get) => ({
       detail: `Etapa: ${stage}`,
       user: 'Usuario',
     };
-    set((state) => {
-      const updated = state.orders.map((o) =>
+    const prev = get().orders;
+    const current = prev.find((o) => o.id === orderId);
+    if (!current) return;
+    const newLog = [...(current.activity_log || []), entry];
+    set({
+      orders: prev.map((o) =>
         o.id === orderId
-          ? { ...o, production_stage: stage, activity_log: [...(o.activity_log || []), entry] }
+          ? { ...o, production_stage: stage, activity_log: newLog }
           : o,
-      );
-      saveMeta(updated);
-      return { orders: updated };
+      ),
     });
+    try {
+      await persistMeta(orderId, { production_stage: stage, activity_log: newLog });
+    } catch {
+      set({ orders: prev });
+    }
   },
 
   setViewMode: (mode) => set({ viewMode: mode }),
@@ -385,19 +396,22 @@ export const useOrderStore = create<OrderState>((set, get) => ({
     set({ templates });
   },
 
-  addPhoto: (orderId, url, name) => {
+  addPhoto: async (orderId, url, name) => {
     const photo: OrderPhoto = {
       id: crypto.randomUUID(),
       url,
       name,
       timestamp: new Date().toISOString(),
     };
-    set((state) => {
-      const updated = state.orders.map((o) =>
-        o.id === orderId ? { ...o, photos: [...(o.photos || []), photo] } : o,
-      );
-      saveMeta(updated);
-      return { orders: updated };
+    const prev = get().orders;
+    const current = prev.find((o) => o.id === orderId);
+    if (!current) return;
+    const newPhotos = [...(current.photos || []), photo];
+    set({
+      orders: prev.map((o) =>
+        o.id === orderId ? { ...o, photos: newPhotos } : o,
+      ),
     });
+    try { await persistMeta(orderId, { photos: newPhotos }); } catch { set({ orders: prev }); }
   },
 }));

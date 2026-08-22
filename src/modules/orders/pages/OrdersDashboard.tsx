@@ -135,7 +135,7 @@ const OrdersContent = memo(() => {
     if (!qty) return;
     try {
       await registerPartialDelivery(orderId, { date: new Date().toISOString(), itemsDelivered: [{ itemId, variationId, quantity: Number(qty) }] });
-      addActivityLog(orderId, 'DELIVERY', `Entrega parcial: ${qty} unidades de ${desc}`);
+      await addActivityLog(orderId, 'DELIVERY', `Entrega parcial: ${qty} unidades de ${desc}`);
       fetchOrders();
       Swal.fire({ title: 'Entrega Registrada', icon: 'success', timer: 1500, showConfirmButton: false });
     } catch {
@@ -154,7 +154,7 @@ const OrdersContent = memo(() => {
     if (!confirm.isConfirmed) return;
     try {
       await updateOrder(orderId, { status: newStatus });
-      addActivityLog(orderId, 'STATUS_CHANGE', `Estado cambiado a ${STATUS_CONFIG[newStatus]?.label}`);
+      await addActivityLog(orderId, 'STATUS_CHANGE', `Estado cambiado a ${STATUS_CONFIG[newStatus]?.label}`);
       fetchOrders();
       Swal.fire({ title: 'Estado actualizado', icon: 'success', timer: 1500, showConfirmButton: false });
     } catch {
@@ -167,7 +167,7 @@ const OrdersContent = memo(() => {
     if (!confirm.isConfirmed) return;
     try {
       await updateOrder(orderId, { status: 'CANCELLED' });
-      addActivityLog(orderId, 'CANCELLED', 'Pedido cancelado');
+      await addActivityLog(orderId, 'CANCELLED', 'Pedido cancelado');
       fetchOrders();
     } catch {
       Swal.fire({ title: 'Error', icon: 'error' });
