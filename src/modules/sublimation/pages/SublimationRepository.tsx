@@ -12,6 +12,7 @@ import {
   FileDown,
   BadgeCheck,
   Sparkles,
+  Wand2,
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import {
@@ -21,6 +22,7 @@ import {
 import { SublimationDesignCard } from '../components/SublimationDesignCard';
 import { SublimationDesignFormModal } from '../components/SublimationDesignFormModal';
 import { SublimationDesignDetailModal } from '../components/SublimationDesignDetailModal';
+import { DesignStudioModal } from '../components/DesignStudioModal';
 import { exportDesignsCSV, exportDesignsPDF } from '../utils/export';
 import type { SublimationDesign } from '../types';
 import { EmptyState } from '../../../shared/components/ui/EmptyState';
@@ -51,6 +53,8 @@ export const SublimationRepository = () => {
   const [editingDesign, setEditingDesign] = useState<SublimationDesign | null>(null);
   const [detailDesign, setDetailDesign] = useState<SublimationDesign | null>(null);
   const [isExportingPDF, setIsExportingPDF] = useState(false);
+  const [isStudioOpen, setIsStudioOpen] = useState(false);
+  const [studioDesign, setStudioDesign] = useState<SublimationDesign | null>(null);
 
   useEffect(() => {
     fetchDesigns();
@@ -185,6 +189,17 @@ export const SublimationRepository = () => {
               <FileDown className="w-3.5 h-3.5" aria-hidden="true" />
             )}
             {isExportingPDF ? 'Generando...' : 'PDF'}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setStudioDesign(null);
+              setIsStudioOpen(true);
+            }}
+            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-slate-900 hover:bg-slate-700 dark:bg-fuchsia-600 dark:hover:bg-fuchsia-500 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-slate-900/20 dark:shadow-fuchsia-600/30 transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-fuchsia-500"
+          >
+            <Wand2 className="w-4 h-4" aria-hidden="true" />
+            Estudio IA
           </button>
           <button
             type="button"
@@ -355,6 +370,20 @@ export const SublimationRepository = () => {
         design={detailDesign}
         onClose={() => setDetailDesign(null)}
         onEdit={handleEdit}
+        onOpenStudio={(d) => {
+          setDetailDesign(null);
+          setStudioDesign(d);
+          setIsStudioOpen(true);
+        }}
+      />
+      <DesignStudioModal
+        key={`studio-${studioDesign?.id ?? 'blank'}`}
+        isOpen={isStudioOpen}
+        onClose={() => {
+          setIsStudioOpen(false);
+          setStudioDesign(null);
+        }}
+        initialDesign={studioDesign}
       />
     </div>
   );

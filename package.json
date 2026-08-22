@@ -19,6 +19,7 @@
     "@tanstack/react-table": "^8.21.3",
     "axios": "^1.14.0",
     "clsx": "^2.1.1",
+    "imagetracerjs": "^1.2.6",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
     "lucide-react": "^1.31.0",

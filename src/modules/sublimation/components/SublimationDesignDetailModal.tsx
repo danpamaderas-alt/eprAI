@@ -12,6 +12,7 @@ import {
   Tag,
   Trash2,
   User,
+  Wand2,
 } from 'lucide-react';
 import { Modal } from '../../../shared/components/ui/Modal';
 import { useToastStore } from '../../../store/useToastStore';
@@ -26,6 +27,7 @@ interface SublimationDesignDetailModalProps {
   design: SublimationDesign | null;
   onClose: () => void;
   onEdit: (design: SublimationDesign) => void;
+  onOpenStudio?: (design: SublimationDesign) => void;
 }
 
 const formatDate = (d: string | null): string => {
@@ -63,6 +65,7 @@ export const SublimationDesignDetailModal = memo(function SublimationDesignDetai
   design,
   onClose,
   onEdit,
+  onOpenStudio,
 }: SublimationDesignDetailModalProps) {
   const setStatus = useSublimationStore((s) => s.setStatus);
   const deleteDesign = useSublimationStore((s) => s.deleteDesign);
@@ -161,14 +164,26 @@ export const SublimationDesignDetailModal = memo(function SublimationDesignDetai
             </p>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => onEdit(design)}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest transition-colors"
-        >
-          <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
-          Editar
-        </button>
+        <div className="flex items-center gap-2">
+          {onOpenStudio && (
+            <button
+              type="button"
+              onClick={() => onOpenStudio(design)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-fuchsia-600/10 hover:bg-fuchsia-600/20 border border-fuchsia-500/30 text-fuchsia-600 dark:text-fuchsia-400 text-[10px] font-black uppercase tracking-widest transition-colors"
+            >
+              <Wand2 className="w-3.5 h-3.5" aria-hidden="true" />
+              Estudio
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => onEdit(design)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest transition-colors"
+          >
+            <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+            Editar
+          </button>
+        </div>
       </div>
 
       {/* Especificaciones técnicas */}

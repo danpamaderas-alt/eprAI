@@ -228,6 +228,11 @@ const SUBLIMATION_PLATFORM_MAP: { matcher: RegExp; name: string }[] = [
   { matcher: /elements\.envato\.com/i, name: 'Envato Elements' },
   { matcher: /mydigitalstudio\.net/i, name: 'MyDigitalStudio' },
   { matcher: /plantillasparasublimar\.com/i, name: 'Plantillas para Sublimar' },
+  { matcher: /designcuts\.com/i, name: 'Design Cuts' },
+  { matcher: /fontbundles\.net/i, name: 'Font Bundles' },
+  { matcher: /craftbundles\.(com|net)/i, name: 'CraftBundles' },
+  { matcher: /shutterstock\.com/i, name: 'Shutterstock' },
+  { matcher: /stockadobe|stock\.adobe\.com/i, name: 'Adobe Stock' },
 ];
 
 const parseMetaMulti = (html: string, properties: string[]): string | undefined => {
@@ -294,6 +299,88 @@ async function scrapeSublimationFromLink(rawUrl: string): Promise<SublimationScr
     price,
     currency,
   };
+}
+
+const GEMINI_IMAGE_MODELS = ['gemini-2.5-flash-image', 'gemini-2.0-flash-preview-image-generation'];
+
+const DESIGN_TOOL_PROMPTS: Record<string, (product?: string) => string> = {
+  remove_bg: () =>
+    'Remove the background of this artwork completely and cleanly. Output the design with a fully transparent background as PNG. Keep colors, shapes and proportions identical to the original. Do not add shadows, borders or new elements.',
+  mockup: (product) =>
+    `Create a photorealistic product mockup: place this exact flat artwork on ${product ?? 'a white ceramic mug'}. Professional studio photography, neutral light background, soft realistic lighting and perspective. The artwork must remain unchanged, centered and clearly visible.`,
+};
+
+interface DesignToolBody {
+  action?: string;
+  imageBase64?: string;
+  mimeType?: string;
+  product?: string;
+}
+
+interface GeminiImageResponse {
+  candidates?: {
+    content?: {
+      parts?: {
+        inlineData?: GeminiInlineData;
+        inline_data?: GeminiInlineData;
+      }[];
+    };
+  }[];
+}
+
+interface GeminiInlineData {
+  data?: string;
+  mimeType?: string;
+  mime_type?: string;
+}
+
+async function callGeminiImageEdit(
+  env: Env,
+  imageBase64: string,
+  mimeType: string,
+  prompt: string,
+): Promise<{ imageBase64: string; mimeType: string }> {
+  let lastError = 'No se pudo procesar la imagen.';
+
+  for (const model of GEMINI_IMAGE_MODELS) {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                { text: prompt },
+                { inline_data: { mime_type: mimeType, data: imageBase64 } },
+              ],
+            },
+          ],
+          generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      lastError = `El modelo de imagen respondió HTTP ${response.status}.`;
+      continue;
+    }
+
+    const data = (await response.json()) as GeminiImageResponse;
+    const parts = data.candidates?.[0]?.content?.parts ?? [];
+    for (const part of parts) {
+      const inline = part.inlineData ?? part.inline_data;
+      if (!inline?.data) continue;
+      return {
+        imageBase64: inline.data,
+        mimeType: inline.mimeType ?? inline.mime_type ?? 'image/png',
+      };
+    }
+    lastError = 'El modelo no devolvió ninguna imagen.';
+  }
+
+  throw new Error(lastError);
 }
 
 async function verifySupabaseJWT(
@@ -418,6 +505,57 @@ export default {
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : 'No se pudo extraer la información del enlace.';
+        return new Response(
+          JSON.stringify({ error: message }),
+          { status: 422, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } },
+        );
+      }
+    }
+
+    if (url.pathname === '/api/design-tools' && request.method === 'POST') {
+      const authHeader = request.headers.get('Authorization');
+      const authenticated = await verifySupabaseJWT(authHeader, env.SUPABASE_URL, env.SUPABASE_ANON_KEY);
+      if (!authenticated) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } },
+        );
+      }
+
+      try {
+        const body = (await request.json()) as DesignToolBody;
+        const promptBuilder = body.action ? DESIGN_TOOL_PROMPTS[body.action] : undefined;
+        if (!promptBuilder) {
+          return new Response(
+            JSON.stringify({ error: 'Acción inválida. Usá remove_bg o mockup.' }),
+            { status: 400, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } },
+          );
+        }
+        if (!body.imageBase64?.trim()) {
+          return new Response(
+            JSON.stringify({ error: 'Falta la imagen a procesar.' }),
+            { status: 400, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } },
+          );
+        }
+        if (!env.GEMINI_API_KEY) {
+          return new Response(
+            JSON.stringify({ error: 'El servidor no tiene configurada GEMINI_API_KEY.' }),
+            { status: 503, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } },
+          );
+        }
+
+        const result = await callGeminiImageEdit(
+          env,
+          body.imageBase64.trim(),
+          body.mimeType ?? 'image/png',
+          promptBuilder(body.product),
+        );
+        return new Response(JSON.stringify(result), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'No se pudo procesar el diseño.';
         return new Response(
           JSON.stringify({ error: message }),
           { status: 422, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } },
