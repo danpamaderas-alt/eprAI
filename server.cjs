@@ -16,7 +16,20 @@ const MIME = {
 const dist = path.join(__dirname, 'dist');
 
 http.createServer((req, res) => {
-  let filePath = path.join(dist, req.url === '/' ? 'index.html' : req.url);
+  let urlPath;
+  try {
+    urlPath = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+  } catch {
+    res.writeHead(400, { 'Content-Type': 'text/plain' });
+    res.end('Bad Request');
+    return;
+  }
+  const filePath = path.normalize(path.join(dist, urlPath === '/' ? 'index.html' : urlPath));
+  if (filePath.includes('\0') || (filePath !== dist && !filePath.startsWith(dist + path.sep))) {
+    res.writeHead(403, { 'Content-Type': 'text/plain' });
+    res.end('Forbidden');
+    return;
+  }
   const ext = path.extname(filePath);
   fs.readFile(filePath, (err, data) => {
     if (err) {

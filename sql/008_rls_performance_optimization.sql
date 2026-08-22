@@ -275,13 +275,14 @@ CREATE POLICY tenant_isolation ON quote_items
     )
   );
 
--- reseller_transactions (joins through resellers)
+-- reseller_transactions (company_id directo en la tabla viva; join como fallback)
 DROP POLICY IF EXISTS tenant_isolation ON reseller_transactions;
 CREATE POLICY tenant_isolation ON reseller_transactions
   FOR ALL USING (
-    EXISTS (
+    company_id = (SELECT private.user_company_id())
+    OR EXISTS (
       SELECT 1 FROM resellers r
-      WHERE r.id = reseller_transactions."resellerId"
+      WHERE r.id = reseller_transactions.reseller_id
         AND r.company_id = (SELECT private.user_company_id())
     )
   );

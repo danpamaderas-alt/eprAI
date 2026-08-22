@@ -3,11 +3,14 @@ import { Bot, Sparkles, AlertTriangle } from "lucide-react";
 import { useCatalogStore } from "../../store/useCatalogStore";
 import { useCrmStore } from "../crm/store/useCrmStore";
 import { useTreasuryStore } from "../inventory/treasury/store/useTreasuryStore";
+import { useAuthStore } from "../../store/useAuthStore";
 
 export const AIAnalyticBrain = () => {
   const [analysis, setAnalysis] = useState<string>("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const session = useAuthStore((s) => s.session);
 
   const { products, inventory } = useCatalogStore();
   const { balances } = useCrmStore();
@@ -63,7 +66,10 @@ export const AIAnalyticBrain = () => {
 
       const response = await fetch('/api/gemini', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token && { Authorization: `Bearer ${session.access_token}` }),
+        },
         signal: controller.signal,
         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
       });
