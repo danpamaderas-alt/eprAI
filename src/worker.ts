@@ -301,7 +301,9 @@ async function scrapeSublimationFromLink(rawUrl: string): Promise<SublimationScr
   };
 }
 
-const GEMINI_IMAGE_MODELS = ['gemini-2.5-flash-image', 'gemini-2.0-flash-preview-image-generation'];
+const GEMINI_IMAGE_MODELS = ['gemini-2.5-flash-image', 'gemini-3.1-flash-image-preview'];
+
+const VALID_DESIGN_ACTIONS = new Set(['remove_bg', 'mockup']);
 
 const DESIGN_TOOL_PROMPTS: Record<string, (product?: string) => string> = {
   remove_bg: () =>
@@ -313,12 +315,14 @@ const DESIGN_TOOL_PROMPTS: Record<string, (product?: string) => string> = {
 interface DesignToolBody {
   action?: string;
   imageBase64?: string;
+  imageUrl?: string;
   mimeType?: string;
   product?: string;
 }
 
 interface GeminiImageResponse {
   candidates?: {
+    finishReason?: string;
     content?: {
       parts?: {
         inlineData?: GeminiInlineData;
@@ -326,6 +330,7 @@ interface GeminiImageResponse {
       }[];
     };
   }[];
+  promptFeedback?: { blockReason?: string };
 }
 
 interface GeminiInlineData {
@@ -333,6 +338,98 @@ interface GeminiInlineData {
   mimeType?: string;
   mime_type?: string;
 }
+
+interface GeminiErrorBody {
+  error?: { code?: number; message?: string; status?: string };
+}
+
+const MAX_REMOTE_IMAGE_BYTES = 10 * 1024 * 1024;
+
+async function resolveDesignToolImage(
+  body: DesignToolBody,
+): Promise<{ imageBase64: string; mimeType: string }> {
+  if (body.imageBase64?.trim()) {
+    const b64 = body.imageBase64.trim();
+    if (b64.length > MAX_REMOTE_IMAGE_BYTES) {
+      throw new Error('La imagen es demasiado grande. Probá con una versión más liviana.');
+    }
+    return { imageBase64: b64, mimeType: body.mimeType ?? 'image/png' };
+  }
+
+  const rawUrl = body.imageUrl?.trim();
+  if (!rawUrl) {
+    throw new Error('Falta la imagen: mandá imageUrl o imageBase64.');
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    throw new Error('El enlace de la imagen no es válido.');
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error('Solo se permiten enlaces http/https.');
+  }
+
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(parsed.toString(), 20000);
+  } catch {
+    throw new Error('No se pudo descargar la imagen desde el enlace original.');
+  }
+  if (!res.ok) {
+    throw new Error(`El sitio original no dejó descargar la imagen (HTTP ${res.status}).`);
+  }
+  const contentType = (res.headers.get('content-type') ?? '').split(';')[0].trim();
+  if (!contentType.startsWith('image/') || contentType.includes('svg')) {
+    throw new Error('El enlace no apunta a una imagen rasterizada válida (PNG/JPG/WebP).');
+  }
+  const buffer = await res.arrayBuffer();
+  if (buffer.byteLength > MAX_REMOTE_IMAGE_BYTES) {
+    throw new Error('La imagen original supera los 10 MB permitidos.');
+  }
+  if (buffer.byteLength === 0) {
+    throw new Error('La imagen original llegó vacía.');
+  }
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + CHUNK, bytes.length)));
+  }
+  return {
+    imageBase64: btoa(binary),
+    mimeType: contentType,
+  };
+}
+
+const describeGeminiError = (status: number, bodyText: string): string => {
+  let apiMessage = '';
+  try {
+    const parsed = JSON.parse(bodyText) as GeminiErrorBody;
+    apiMessage = parsed.error?.message ?? '';
+  } catch {
+    apiMessage = '';
+  }
+
+  if (status === 429) {
+    if (/free_tier|limit: 0/i.test(apiMessage)) {
+      return 'La cuota gratuita de tu key de Google AI no incluye generación de imágenes. Activá la facturación del proyecto en Google AI Studio (es por uso, ~USD 0,04 por imagen) para habilitar Mockup y Quitar fondo.';
+    }
+    return 'Se alcanzó el límite de generaciones de imagen por ahora. Esperá un minuto y volvé a intentar.';
+  }
+  if (status === 403) {
+    return 'La key de Gemini no tiene permiso para generar imágenes (restricción de API o facturación).';
+  }
+  if (status >= 500) {
+    return 'El servicio de IA está con problemas temporales. Probá de nuevo en un rato.';
+  }
+  if (/safety|blocked|prohibited/i.test(apiMessage)) {
+    return 'La IA bloqueó esta imagen por políticas de seguridad. Probá con otro diseño.';
+  }
+  return apiMessage
+    ? `Gemini respondió un error: ${apiMessage.slice(0, 180)}`
+    : `El modelo de imagen respondió HTTP ${status}.`;
+};
 
 async function callGeminiImageEdit(
   env: Env,
@@ -363,7 +460,7 @@ async function callGeminiImageEdit(
     );
 
     if (!response.ok) {
-      lastError = `El modelo de imagen respondió HTTP ${response.status}.`;
+      lastError = describeGeminiError(response.status, await response.text());
       continue;
     }
 
@@ -377,7 +474,18 @@ async function callGeminiImageEdit(
         mimeType: inline.mimeType ?? inline.mime_type ?? 'image/png',
       };
     }
-    lastError = 'El modelo no devolvió ninguna imagen.';
+
+    const blockReason =
+      data.promptFeedback?.blockReason ??
+      (data.candidates?.[0]?.finishReason &&
+      ['SAFETY', 'IMAGE_SAFETY', 'PROHIBITED_CONTENT', 'RECITATION', 'BLOCKLIST'].includes(
+        data.candidates[0].finishReason as string,
+      )
+        ? data.candidates[0].finishReason
+        : null);
+    lastError = blockReason
+      ? 'La IA bloqueó esta imagen por políticas de seguridad. Probá con otro diseño.'
+      : 'El modelo no devolvió ninguna imagen.';
   }
 
   throw new Error(lastError);
@@ -524,16 +632,9 @@ export default {
 
       try {
         const body = (await request.json()) as DesignToolBody;
-        const promptBuilder = body.action ? DESIGN_TOOL_PROMPTS[body.action] : undefined;
-        if (!promptBuilder) {
+        if (!body.action || !VALID_DESIGN_ACTIONS.has(body.action)) {
           return new Response(
             JSON.stringify({ error: 'Acción inválida. Usá remove_bg o mockup.' }),
-            { status: 400, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } },
-          );
-        }
-        if (!body.imageBase64?.trim()) {
-          return new Response(
-            JSON.stringify({ error: 'Falta la imagen a procesar.' }),
             { status: 400, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } },
           );
         }
@@ -544,11 +645,12 @@ export default {
           );
         }
 
+        const image = await resolveDesignToolImage(body);
         const result = await callGeminiImageEdit(
           env,
-          body.imageBase64.trim(),
-          body.mimeType ?? 'image/png',
-          promptBuilder(body.product),
+          image.imageBase64,
+          image.mimeType,
+          DESIGN_TOOL_PROMPTS[body.action](body.product),
         );
         return new Response(JSON.stringify(result), {
           status: 200,

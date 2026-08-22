@@ -41,7 +41,6 @@ export interface PresetVerdict {
 export const loadImageInfo = (src: string): Promise<ImageInfo> =>
   new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
     img.onload = () => resolve({ widthPx: img.naturalWidth, heightPx: img.naturalHeight });
     img.onerror = () => reject(new Error('No se pudo cargar la imagen para analizarla.'));
     img.src = src;

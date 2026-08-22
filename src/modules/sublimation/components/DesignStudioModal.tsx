@@ -76,9 +76,11 @@ export const DesignStudioModal = ({
   const [vectorColors, setVectorColors] = useState(16);
   const [result, setResult] = useState<StudioResult | null>(null);
   const objectUrlRef = useRef<string | null>(null);
+  const aliveRef = useRef(true);
 
   useEffect(
     () => () => {
+      aliveRef.current = false;
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
     },
     [],
@@ -100,11 +102,13 @@ export const DesignStudioModal = ({
     setError(null);
     try {
       const next = await loadImageInfo(target);
+      if (!aliveRef.current) return;
       setImageInfo(next);
     } catch {
+      if (!aliveRef.current) return;
       setError('No se pudo cargar la imagen. Probá con otro enlace o subila como archivo.');
     } finally {
-      setBusy(null);
+      if (aliveRef.current) setBusy(null);
     }
   }, []);
 
@@ -129,7 +133,12 @@ export const DesignStudioModal = ({
   const handlePickRepo = (id: string) => {
     setSelectedId(id);
     const design = designs.find((d) => d.id === id);
-    if (!design?.imagen) return;
+    if (!design) return;
+    if (!design.imagen) {
+      applySource(null);
+      setError('Ese diseño no tiene imagen guardada. Editá el diseño y agregale una imagen o URL.');
+      return;
+    }
     applySource(design.imagen, design.name);
   };
 
@@ -153,9 +162,16 @@ export const DesignStudioModal = ({
     applySource(objectUrl, file.name);
   };
 
+  /**
+   * Para imágenes remotas mandamos la URL y el worker la descarga server-side
+   * (sin restricciones CORS). Solo los archivos locales se convierten a base64.
+   */
   const prepareForApi = async (
     target: string,
-  ): Promise<{ imageBase64: string; mimeType: string }> => {
+  ): Promise<{ imageBase64?: string; imageUrl?: string; mimeType?: string }> => {
+    if (/^https?:\/\//i.test(target)) {
+      return { imageUrl: target };
+    }
     let img: HTMLImageElement;
     try {
       img = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -166,9 +182,7 @@ export const DesignStudioModal = ({
         image.src = target;
       });
     } catch {
-      throw new Error(
-        'La imagen no permite procesamiento directo por su origen (CORS). Descargala y subila como archivo.',
-      );
+      throw new Error('No se pudo leer la imagen. Probá cargarla de nuevo.');
     }
     const scale = Math.min(1, MAX_API_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
     const canvas = document.createElement('canvas');
@@ -181,20 +195,17 @@ export const DesignStudioModal = ({
     try {
       dataUrl = canvas.toDataURL('image/png');
     } catch {
-      throw new Error(
-        'La imagen no permite procesamiento directo por su origen (CORS). Descargala y subila como archivo.',
-      );
+      throw new Error('No se pudo leer la imagen. Probá cargarla de nuevo como archivo.');
     }
     return { imageBase64: dataUrl.split(',')[1] ?? '', mimeType: 'image/png' };
   };
 
   const callDesignTool = async (body: Record<string, unknown>) => {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
     const response = await fetch('/api/design-tools', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: session?.access_token ? `Bearer ${session.access_token}` : '',
-      },
+      headers,
       body: JSON.stringify(body),
     });
     const data = (await response.json().catch(() => null)) as
@@ -222,13 +233,15 @@ export const DesignStudioModal = ({
         label: action === 'remove_bg' ? 'fondo transparente' : `mockup ${product?.label ?? ''}`,
         dataUrl,
       });
-      toast('Imagen generada con IA', { type: 'success' });
+      if (aliveRef.current) toast('Imagen generada con IA', { type: 'success' });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'No se pudo procesar la imagen.';
-      setError(message);
-      toast(message, { type: 'error' });
+      if (aliveRef.current) {
+        setError(message);
+        toast(message, { type: 'error' });
+      }
     } finally {
-      setBusy(null);
+      if (aliveRef.current) setBusy(null);
     }
   };
 
@@ -238,14 +251,17 @@ export const DesignStudioModal = ({
     setError(null);
     try {
       const svg = await vectorizeImage(src, { colors: vectorColors });
+      if (!aliveRef.current) return;
       setResult({ kind: 'svg', label: 'vectorizado', svg });
       toast('Diseño vectorizado', { type: 'success' });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'No se pudo vectorizar la imagen.';
-      setError(message);
-      toast(message, { type: 'error' });
+      if (aliveRef.current) {
+        setError(message);
+        toast(message, { type: 'error' });
+      }
     } finally {
-      setBusy(null);
+      if (aliveRef.current) setBusy(null);
     }
   };
 
@@ -424,7 +440,7 @@ export const DesignStudioModal = ({
             ) : result ? (
               result.kind === 'svg' && result.svg ? (
                 <img
-                  src={`data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(result.svg)))}`}
+                  src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(result.svg)}`}
                   alt="Resultado vectorizado"
                   className="w-full h-full object-contain p-2"
                 />
@@ -473,7 +489,7 @@ export const DesignStudioModal = ({
         <button
           type="button"
           onClick={() => runAiAction('remove_bg')}
-          disabled={!src || isBusyAi || busy === 'vectorize'}
+          disabled={!src || busy !== null}
           className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-fuchsia-600 hover:bg-fuchsia-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-fuchsia-600/20 transition-all active:scale-95"
         >
           {busy === 'remove_bg' ? <Spinner className="w-3.5 h-3.5" /> : <Scissors className="w-3.5 h-3.5" aria-hidden="true" />}
@@ -495,7 +511,7 @@ export const DesignStudioModal = ({
           <button
             type="button"
             onClick={() => runAiAction('mockup')}
-            disabled={!src || isBusyAi || busy === 'vectorize'}
+            disabled={!src || busy !== null}
             title="Generar mockup con IA"
             className="flex items-center justify-center gap-1.5 px-3 py-3 rounded-2xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-600/20 transition-all active:scale-95"
           >
@@ -523,7 +539,7 @@ export const DesignStudioModal = ({
           <button
             type="button"
             onClick={handleVectorize}
-            disabled={!src || isBusyAi || busy === 'vectorize'}
+            disabled={!src || busy !== null}
             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 dark:bg-slate-200 dark:hover:bg-slate-100 text-white dark:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
           >
             {busy === 'vectorize' ? <Spinner className="w-3.5 h-3.5" /> : <PenTool className="w-3.5 h-3.5" aria-hidden="true" />}
