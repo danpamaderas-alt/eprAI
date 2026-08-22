@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "epr-sistema",
+  "name": "eprservintegrales",
   "main": "src/worker.ts",
   "build": {
     "command": "npm run build"
