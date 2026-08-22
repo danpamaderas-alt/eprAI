@@ -1,4 +1,4 @@
-﻿import { memo, useCallback, useState, useEffect } from 'react';
+﻿import { memo, useCallback, useState, useEffect, lazy, Suspense } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LogOut,
@@ -34,7 +34,9 @@ import { supabase } from '../../../../lib/supabase';
 import { useThemeStore } from '../../../../store/useThemeStore';
 import { useTenantStore } from '../../../../store/useTenantStore';
 import { useAuthStore } from '../../../../store/useAuthStore';
-import { CompanyFormModal } from '../../ui/CompanyFormModal';
+const CompanyFormModal = lazy(() =>
+  import('../../ui/CompanyFormModal').then((m) => ({ default: m.CompanyFormModal })),
+);
 import { NotificationBell } from '../../notifications/NotificationBell';
 
 interface NavRoute {
@@ -287,12 +289,16 @@ export const Sidebar = memo(() => {
         
       </aside>
 
-      <CompanyFormModal
-        isOpen={isCompanyModalOpen}
-        onClose={() => { setIsCompanyModalOpen(false); setEditingCompany(null); }}
-        onSaved={handleCompanySaved}
-        editCompany={editingCompany as any}
-      />
+      {isCompanyModalOpen && (
+        <Suspense fallback={null}>
+          <CompanyFormModal
+            isOpen={isCompanyModalOpen}
+            onClose={() => { setIsCompanyModalOpen(false); setEditingCompany(null); }}
+            onSaved={handleCompanySaved}
+            editCompany={editingCompany as any}
+          />
+        </Suspense>
+      )}
     </>
   );
 });

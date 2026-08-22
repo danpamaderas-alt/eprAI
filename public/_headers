@@ -1,0 +1,7 @@
+# Cache de largo plazo para assets con hash (Vite genera /assets/index-[hash].js)
+# El HTML de entrada NO se cachea: siempre revalida para recibir los nuevos hashes.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/index.html
+  Cache-Control: no-cache

@@ -1,12 +1,12 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { useCatalogStore, type Customer } from '../../store/useCatalogStore';
+import { useCatalogStore } from '../../store/useCatalogStore';
 import { useCrmStore } from '../crm/store/useCrmStore';
 import { ARS } from '../../shared/utils/format';
 import { cn } from '../../shared/utils/cn';
 import { CartItemCard } from './components/CartItemCard';
 import { PaymentSelector } from './components/PaymentSelector';
 import {
-  Search, ShoppingCart, Plus, Minus, Trash2, X,
+  Search, ShoppingCart, Plus, Minus, X,
   Clock, Printer, Tag, Package, AlertTriangle, PackageX,
   User, Star, Percent, DollarSign, History, Lock,
   CreditCard, CircleDollarSign,
@@ -99,83 +99,42 @@ export const POSDashboard = () => {
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
   const [payments, setPayments] = useState<PaymentEntry[]>([]);
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(() => loadHeldCart());
   const [isProcessing, setIsProcessing] = useState(false);
   const [discountType, setDiscountType] = useState<'none' | 'percent' | 'fixed'>('none');
   const [discountValue, setDiscountValue] = useState(0);
-  const [recentSales, setRecentSales] = useState<RecentSale[]>([]);
+  const [recentSales, setRecentSales] = useState<RecentSale[]>(() => loadRecentSales());
   const [showRecentSales, setShowRecentSales] = useState(false);
   const [toasts, setToasts] = useState<{ id: number; message: string; type: 'success' | 'error' | 'warning' }[]>([]);
 
   useEffect(() => {
     fetchAllCatalogs();
-    setCart(loadHeldCart());
-    setRecentSales(loadRecentSales());
   }, [fetchAllCatalogs]);
 
-  useEffect(() => {
-    if (paymentMethods.length > 0 && !selectedPaymentMethod) {
-      setSelectedPaymentMethod(paymentMethods[0].id);
-    }
-  }, [paymentMethods, selectedPaymentMethod]);
+  const cartTotal = useMemo(() => cart.reduce((sum, item) => sum + item.price * item.qty, 0), [cart]);
+  const discount = useMemo(() => {
+    if (discountType === 'percent') return cartTotal * (discountValue / 100);
+    if (discountType === 'fixed') return Math.min(discountValue, cartTotal);
+    return 0;
+  }, [cartTotal, discountType, discountValue]);
+  const subtotal = cartTotal - discount;
+  const iva = subtotal * 0.21;
+  const grandTotal = subtotal + iva;
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement).tagName;
-      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
-
-      if (e.key === 'F2') {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-        searchInputRef.current?.select();
-        return;
-      }
-
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        if (isInput) {
-          (e.target as HTMLElement).blur();
-        }
-        setSearchTerm('');
-        setShowCustomerDropdown(false);
-        setShowRecentSales(false);
-        return;
-      }
-
-      if (e.key === 'F9') {
-        e.preventDefault();
-        handleCheckout();
-        return;
-      }
-
-      if (!isInput && cart.length > 0) {
-        const lastItem = cart[cart.length - 1];
-        if (e.key === '+' || e.key === '=') {
-          e.preventDefault();
-          updateCartQty(lastItem.variantId, 1);
-        } else if (e.key === '-' || e.key === '_') {
-          e.preventDefault();
-          updateCartQty(lastItem.variantId, -1);
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  });
+  const activePaymentMethod = selectedPaymentMethod || paymentMethods[0]?.id || '';
 
   const totalPaid = useMemo(() => payments.reduce((sum, p) => sum + p.amount, 0), [payments]);
   const remainingBalance = useMemo(() => Math.max(0, grandTotal - totalPaid), [grandTotal, totalPaid]);
   const isFullyPaid = remainingBalance <= 0.01;
 
   const addPayment = useCallback(() => {
-    if (!selectedPaymentMethod || grandTotal <= 0) return;
-    const method = paymentMethods.find(m => m.id === selectedPaymentMethod);
+    if (!activePaymentMethod || grandTotal <= 0) return;
+    const method = paymentMethods.find(m => m.id === activePaymentMethod);
     if (!method) return;
     const amount = Math.min(remainingBalance, grandTotal);
     if (amount <= 0) return;
-    setPayments(prev => [...prev, { method_id: selectedPaymentMethod, amount }]);
-  }, [selectedPaymentMethod, grandTotal, remainingBalance, paymentMethods]);
+    setPayments(prev => [...prev, { method_id: activePaymentMethod, amount }]);
+  }, [activePaymentMethod, grandTotal, remainingBalance, paymentMethods]);
 
   const removePayment = useCallback((index: number) => {
     setPayments(prev => prev.filter((_, i) => i !== index));
@@ -237,16 +196,7 @@ export const POSDashboard = () => {
       });
   }, [inventory, products, searchTerm, selectedCategory]);
 
-  const cartTotal = useMemo(() => cart.reduce((sum, item) => sum + item.price * item.qty, 0), [cart]);
   const cartCount = useMemo(() => cart.reduce((sum, item) => sum + item.qty, 0), [cart]);
-  const discount = useMemo(() => {
-    if (discountType === 'percent') return cartTotal * (discountValue / 100);
-    if (discountType === 'fixed') return Math.min(discountValue, cartTotal);
-    return 0;
-  }, [cartTotal, discountType, discountValue]);
-  const subtotal = cartTotal - discount;
-  const iva = subtotal * 0.21;
-  const grandTotal = subtotal + iva;
 
   const updateCartQty = useCallback((variantId: string, delta: number) => {
     setCart(prev => {
@@ -423,6 +373,51 @@ export const POSDashboard = () => {
       setIsProcessing(false);
     }
   };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+
+      if (e.key === 'F2') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (isInput) {
+          (e.target as HTMLElement).blur();
+        }
+        setSearchTerm('');
+        setShowCustomerDropdown(false);
+        setShowRecentSales(false);
+        return;
+      }
+
+      if (e.key === 'F9') {
+        e.preventDefault();
+        handleCheckout();
+        return;
+      }
+
+      if (!isInput && cart.length > 0) {
+        const lastItem = cart[cart.length - 1];
+        if (e.key === '+' || e.key === '=') {
+          e.preventDefault();
+          updateCartQty(lastItem.variantId, 1);
+        } else if (e.key === '-' || e.key === '_') {
+          e.preventDefault();
+          updateCartQty(lastItem.variantId, -1);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  });
 
   const printReceipt = () => {
     const printContent = `
@@ -821,10 +816,10 @@ export const POSDashboard = () => {
             </div>
 
             {/* Payment Method */}
-            <PaymentSelector methods={paymentMethods} value={selectedPaymentMethod} onChange={setSelectedPaymentMethod} />
+            <PaymentSelector methods={paymentMethods} value={activePaymentMethod} onChange={setSelectedPaymentMethod} />
 
             {/* Add payment button */}
-            {grandTotal > 0 && selectedPaymentMethod && remainingBalance > 0.01 && (
+            {grandTotal > 0 && activePaymentMethod && remainingBalance > 0.01 && (
               <button
                 onClick={addPayment}
                 className="w-full py-2 rounded-xl border-2 border-dashed border-brand/30 text-brand text-[10px] font-black uppercase tracking-wider hover:bg-brand/5 hover:border-brand/50 transition-all active:scale-[0.97] flex items-center justify-center gap-1.5"

@@ -1,6 +1,6 @@
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import type { SublimationDesign } from '../types';
+
+type JsPdfDoc = InstanceType<(typeof import('jspdf'))['default']>;
 
 const HEADERS = [
   'Nombre',
@@ -105,7 +105,11 @@ const STATUS_COLORS: Record<string, [number, number, number]> = {
 };
 
 export async function exportDesignsPDF(designs: SublimationDesign[]) {
-  const doc = new jsPDF();
+  const [{ default: JsPDF }, { autoTable }] = await Promise.all([
+    import('jspdf'),
+    import('jspdf-autotable'),
+  ]);
+  const doc = new JsPDF();
   const primary: [number, number, number] = [217, 70, 239];
   const counts = countByStatus(designs);
   const cost = totalPrice(designs);
@@ -138,7 +142,7 @@ export async function exportDesignsPDF(designs: SublimationDesign[]) {
     columnStyles: { 1: { halign: 'right' } },
   });
 
-  let y = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 50;
+  let y = (doc as JsPdfDoc & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 50;
   y += 10;
 
   doc.setFontSize(12);
@@ -217,7 +221,7 @@ export async function exportDesignsPDF(designs: SublimationDesign[]) {
       styles: { fontSize: 8, halign: 'center' },
     });
 
-    const tableEnd = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y;
+    const tableEnd = (doc as JsPdfDoc & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y;
 
     if (design.link_descarga) {
       doc.setFontSize(8);

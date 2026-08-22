@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useMemo, memo } from 'react';
+﻿import { lazy, Suspense, useEffect, useState, useMemo, memo } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { useCatalogStore } from '../../../store/useCatalogStore';
@@ -10,8 +10,10 @@ import { ARS } from '../../../shared/utils/format';
 import { KpiCard } from '../../../shared/components/ui/KpiCard';
 import { Breadcrumbs } from '../../../shared/components/ui/Breadcrumbs';
 import { ErrorBoundary } from '../../../shared/components/ui/ErrorBoundary';
-import { SalesTrendChart } from '../../../shared/components/charts/SalesTrendChart';
-import { KpiSkeleton } from '../../../shared/components/ui/Skeleton';
+const SalesTrendChart = lazy(() =>
+  import('../../../shared/components/charts/SalesTrendChart').then((m) => ({ default: m.SalesTrendChart })),
+);
+import { Skeleton } from '../../../shared/components/ui/Skeleton';
 import {
   ShoppingCart,
   Package,
@@ -338,7 +340,16 @@ const DashboardContent = memo(() => {
       {/* Chart + Activity Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <SalesTrendChart data={chartData} isLoading={isChartLoading} />
+          <Suspense
+            fallback={
+              <div className="bg-white dark:bg-slate-800 p-10 rounded-[2.5rem] border border-slate-200 dark:border-slate-700 shadow-sm">
+                <Skeleton className="h-4 w-40 mb-8" />
+                <Skeleton className="h-64 w-full" />
+              </div>
+            }
+          >
+            <SalesTrendChart data={chartData} isLoading={isChartLoading} />
+          </Suspense>
         </div>
 
         {/* Recent Activity Feed */}

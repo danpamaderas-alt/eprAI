@@ -1,7 +1,14 @@
 import { create } from 'zustand';
 import { supabase } from '../../../lib/supabase';
 import { useTenantStore } from '../../../store/useTenantStore';
-import Swal from 'sweetalert2';
+
+type FireArgs =
+  | [options?: import('sweetalert2').SweetAlertOptions]
+  | [title: string, html?: string, icon?: import('sweetalert2').SweetAlertIcon];
+
+const Swal = {
+  fire: async (...args: FireArgs) => (await import('sweetalert2')).default.fire(...args),
+};
 
 const MIN_STOCK_DEFAULT = 5;
 export const STOCK_THRESHOLDS = { min: MIN_STOCK_DEFAULT };

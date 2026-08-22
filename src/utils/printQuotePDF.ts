@@ -1,5 +1,4 @@
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+type JsPdfDoc = InstanceType<(typeof import('jspdf'))['default']>;
 
 // 🛡️ Interfaces para eliminar los 'any'
 export interface QuoteItem {
@@ -21,15 +20,20 @@ export interface QuoteData {
 
 /**
  * Genera un PDF de cotización y lo devuelve como Blob.
+ * jsPDF se carga bajo demanda (~580 kB) para no penalizar la ruta del Cotizador.
  */
-export const getQuotePDFBlob = (quote: QuoteData, items: QuoteItem[]): Blob => {
-  const doc = new jsPDF();
-  const primaryColor: [number, number, number] = [37, 99, 235]; 
+export const getQuotePDFBlob = async (quote: QuoteData, items: QuoteItem[]): Promise<Blob> => {
+  const [{ default: JsPDF }, { autoTable }] = await Promise.all([
+    import('jspdf'),
+    import('jspdf-autotable'),
+  ]);
+  const doc = new JsPDF();
+  const primaryColor: [number, number, number] = [37, 99, 235];
 
   doc.setFontSize(26);
   doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
   doc.text('RAÍCES', 14, 25);
-   
+
   doc.setFontSize(10);
   doc.setTextColor(100);
   doc.text('Indumentaria Institucional y de Trabajo', 14, 32);
@@ -49,7 +53,7 @@ export const getQuotePDFBlob = (quote: QuoteData, items: QuoteItem[]): Blob => {
   doc.setFontSize(12);
   doc.setTextColor(0);
   doc.text(`Cliente / Institución: ${quote.clients?.name || 'Consumidor Final'}`, 14, 50);
-   
+
   if (quote.clients?.document_id) {
     doc.setFontSize(10);
     doc.setTextColor(100);
@@ -79,8 +83,8 @@ export const getQuotePDFBlob = (quote: QuoteData, items: QuoteItem[]): Blob => {
   });
 
   // 🚀 FIX: Tipado seguro para la propiedad inyectada por autoTable
-  const finalY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || 65;
-   
+  const finalY = (doc as JsPdfDoc & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || 65;
+
   doc.setFontSize(16);
   doc.setTextColor(0);
   doc.setFillColor(240, 248, 255);
@@ -108,8 +112,8 @@ export const getQuotePDFBlob = (quote: QuoteData, items: QuoteItem[]): Blob => {
 /**
  * Genera un PDF de cotización y lo abre en una nueva pestaña (comportamiento original).
  */
-export const generateQuotePDF = (quote: QuoteData, items: QuoteItem[]) => {
-  const pdfBlob = getQuotePDFBlob(quote, items);
+export const generateQuotePDF = async (quote: QuoteData, items: QuoteItem[]) => {
+  const pdfBlob = await getQuotePDFBlob(quote, items);
   const blobUrl = URL.createObjectURL(pdfBlob);
   window.open(blobUrl, '_blank');
 };

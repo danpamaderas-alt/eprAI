@@ -1,5 +1,4 @@
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+type JsPdfDoc = InstanceType<(typeof import('jspdf'))['default']>;
 import type { PrintModel } from '../types';
 
 const HEADERS = [
@@ -102,7 +101,11 @@ const STATUS_COLORS: Record<string, [number, number, number]> = {
 };
 
 export async function exportModelsPDF(models: PrintModel[]) {
-  const doc = new jsPDF();
+  const [{ default: JsPDF }, { autoTable }] = await Promise.all([
+    import('jspdf'),
+    import('jspdf-autotable'),
+  ]);
+  const doc = new JsPDF();
   const primary: [number, number, number] = [124, 58, 237];
   const counts = countByStatus(models);
   const hours = totalHours(models);
@@ -137,7 +140,7 @@ export async function exportModelsPDF(models: PrintModel[]) {
     columnStyles: { 1: { halign: 'right' } },
   });
 
-  let y = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 50;
+  let y = (doc as JsPdfDoc & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 50;
   y += 10;
 
   doc.setFontSize(12);
@@ -215,7 +218,7 @@ export async function exportModelsPDF(models: PrintModel[]) {
       styles: { fontSize: 8, halign: 'center' },
     });
 
-    const tableEnd = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y;
+    const tableEnd = (doc as JsPdfDoc & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y;
 
     if (model.link_descarga) {
       doc.setFontSize(8);

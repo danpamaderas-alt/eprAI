@@ -12,8 +12,7 @@ interface SalesTrendChartProps {
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
-export function SalesTrendChart({ data, isLoading }: SalesTrendChartProps) {
-  const chartData = useMemo(() => {
+export function SalesTrendChart({ data, isLoading }: SalesTrendChartProps) {  const chartData = useMemo(() => {
     if (data && data.length > 0) return data;
     return DAYS.map((day) => ({ day, sales: 0 }));
   }, [data]);
@@ -64,3 +63,5 @@ export function SalesTrendChart({ data, isLoading }: SalesTrendChartProps) {
     </div>
   );
 }
+
+export default SalesTrendChart;

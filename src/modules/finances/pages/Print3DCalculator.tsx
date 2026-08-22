@@ -17,8 +17,6 @@ import {
   AlertTriangle,
   Layers,
 } from "lucide-react";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import { useToastStore } from "../../../store/useToastStore";
 
 // ====================================================
@@ -516,8 +514,12 @@ export const Print3DCalculator = () => {
   // -------------------------------------------------------
   // EXPORTAR PDF
   // -------------------------------------------------------
-  const handleExportPDF = useCallback(() => {
-    const doc = new jsPDF();
+  const handleExportPDF = useCallback(async () => {
+    const [{ default: JsPDF }, { autoTable }] = await Promise.all([
+      import("jspdf"),
+      import("jspdf-autotable"),
+    ]);
+    const doc = new JsPDF();
     const primary: [number, number, number] = [124, 58, 237];
 
     doc.setFillColor(...primary);
@@ -559,7 +561,7 @@ export const Print3DCalculator = () => {
       columnStyles: { 1: { halign: "right" } },
     });
 
-    const y = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 70;
+    const y = (doc as InstanceType<typeof JsPDF> & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 70;
 
     doc.setFillColor(230, 230, 255);
     doc.roundedRect(14, y + 10, 182, 16, 3, 3, "F");

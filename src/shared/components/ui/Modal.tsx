@@ -91,9 +91,10 @@ export function Modal({
           <button
             type="button"
             onClick={onClose}
+            aria-label={`Cerrar ${title?.toLowerCase() || 'modal'}`}
             className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
           >
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
 
