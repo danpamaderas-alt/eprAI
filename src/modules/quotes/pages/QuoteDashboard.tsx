@@ -4,6 +4,11 @@ import { useCatalogStore } from '../../../store/useCatalogStore';
 import { useTenantStore } from '../../../store/useTenantStore';
 import { generateQuotePDF } from '../../../utils/printQuotePDF';
 import { ARS } from '../../../shared/utils/format';
+
+const Swal = {
+  fire: async (...args: [options?: import('sweetalert2').SweetAlertOptions]) =>
+    (await import('sweetalert2')).default.fire(...args),
+};
 import {
   FileText, Plus, Search, Download, Printer, Copy, Trash2,
   ChevronDown, ChevronUp, Send, CheckCircle, XCircle,
@@ -135,7 +140,7 @@ export function QuoteDashboard() {
           company_id: companyId,
           customer_id: selectedClient,
           quote_number: quoteNumber,
-          total_amount: totalAmount,
+          total: totalAmount,
           notes: quoteNotes,
           status: 'PENDIENTE',
         }])
@@ -146,9 +151,11 @@ export function QuoteDashboard() {
 
       const itemsToInsert = quoteItems.map(item => ({
         quote_id: newQuote.id,
-        variant_id: item.product_id || null,
+        product_id: item.product_id || null,
+        description: item.description,
         quantity: item.quantity,
-        price: item.unit_price,
+        unit_price: item.unit_price,
+        subtotal: item.quantity * item.unit_price,
       }));
 
       const { error: itemsError } = await supabase.from('quote_items').insert(itemsToInsert);
@@ -162,6 +169,7 @@ export function QuoteDashboard() {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Error desconocido';
       console.error('Error saving quote:', message);
+      void Swal.fire({ icon: 'error', title: 'Error', text: `No se pudo guardar el presupuesto: ${message}` });
     } finally {
       setIsSaving(false);
     }
@@ -198,7 +206,7 @@ export function QuoteDashboard() {
     try {
       const { data: items, error } = await supabase
         .from('quote_items')
-        .select('id, variant_id, quantity, price')
+        .select('id, product_id, description, quantity, unit_price')
         .eq('quote_id', quote.id);
       if (error) throw error;
 
@@ -212,11 +220,11 @@ export function QuoteDashboard() {
 
       const mappedItems = (items || []).map((item: Record<string, unknown>) => ({
         quantity: item.quantity,
-        description: String(item.variant_id || ''),
-        unit_price: item.price,
+        description: String(item.description || item.product_id || ''),
+        unit_price: Number(item.unit_price) || 0,
       }));
 
-      generateQuotePDF(quoteForPdf, mappedItems);
+      await generateQuotePDF(quoteForPdf, mappedItems);
     } catch {
       console.error('Error generating PDF');
     }

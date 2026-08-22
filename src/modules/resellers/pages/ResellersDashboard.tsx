@@ -31,7 +31,7 @@ export const ResellersDashboard = () => {
 
   const selectedReseller = resellers.find(r => r.id === selectedId);
   const resellerTxs = useMemo(() => 
-    transactions.filter(t => t.resellerId === selectedId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    transactions.filter(t => t.reseller_id === selectedId).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
   , [transactions, selectedId]);
 
   // 2. Cálculo de deuda con lógica de colores
@@ -57,7 +57,7 @@ export const ResellersDashboard = () => {
     try {
       // A. Registrar en Cuenta Corriente del Revendedor
       await addTransaction({
-        resellerId: selectedReseller.id,
+        reseller_id: selectedReseller.id,
         type: data.type,
         amount: Number(data.amount),
         description: data.description || (data.type === 'GOODS_GIVEN' ? 'Entrega de mercadería' : 'Pago a cuenta')
@@ -223,7 +223,7 @@ export const ResellersDashboard = () => {
                         </div>
                         <div>
                           <p className="text-[11px] font-black text-slate-800 uppercase tracking-tight">{tx.description}</p>
-                          <p className="text-[9px] text-slate-400 font-bold mt-1 uppercase italic">{new Date(tx.date).toLocaleString('es-AR')}</p>
+                          <p className="text-[9px] text-slate-400 font-bold mt-1 uppercase italic">{new Date(tx.created_at).toLocaleString('es-AR')}</p>
                         </div>
                       </div>
                       <div className={`text-sm font-black tabular-nums ${tx.type === 'GOODS_GIVEN' ? 'text-rose-600' : 'text-emerald-600'}`}>
