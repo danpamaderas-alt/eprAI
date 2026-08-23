@@ -137,6 +137,13 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 archivos STL/G-code en repositorio 3D** — Migración `022_print_model_files.sql`
+  (APLICADA: tabla print_model_files con kind CHECK stl/gcode, printer_name para G-code,
+  FK model_id ON DELETE CASCADE + bucket privado `print-files` con políticas authenticated).
+  Store `usePrintModelFileStore` (upload path `{companyId}/{modelId}/{uuid}.{ext}`, STL
+  único por modelo con reemplazo automático, firma on-demand con `download: true`).
+  Sección "Archivos de impresión" en el detalle del modelo: adjuntar/descargar/borrar STL
+  y un G-code por impresora (input impresora obligatorio antes del file picker).
 - **2026-08 repositorio 3D: tiempo HH:MM + puente a calculadora** — Tiempo del repositorio
   migrado a HH:MM: formulario con input HH:MM (muestra horas decimales y días debajo),
   cards y detalle usan `formatHoursHuman` (nuevo helper en shared/utils/format.ts:

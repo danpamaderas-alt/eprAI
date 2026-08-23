@@ -33,6 +33,21 @@ export interface PrintModel {
 export type PrintModelInput = Pick<PrintModel, 'name'> &
   Partial<Omit<PrintModel, 'id' | 'company_id' | 'created_at' | 'updated_at'>>;
 
+export type PrintModelFileKind = 'stl' | 'gcode';
+
+export interface PrintModelFile {
+  id: string;
+  company_id: string | null;
+  model_id: string;
+  kind: string;
+  printer_name: string | null;
+  file_name: string;
+  storage_path: string;
+  size_bytes: number | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
 export const STATUS_STYLES: Record<PrintStatus, { badge: string; dot: string; ring: string }> = {
   Idea: {
     badge: 'bg-slate-500/15 text-slate-400 border-slate-500/30',

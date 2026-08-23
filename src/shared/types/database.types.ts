@@ -1302,6 +1302,60 @@ export type Database = {
         }
         Relationships: []
       }
+      print_model_files: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          file_name: string
+          id: string
+          kind: string
+          model_id: string
+          printer_name: string | null
+          size_bytes: number | null
+          storage_path: string
+          updated_at: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string | null
+          file_name: string
+          id?: string
+          kind?: string
+          model_id: string
+          printer_name?: string | null
+          size_bytes?: number | null
+          storage_path: string
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          file_name?: string
+          id?: string
+          kind?: string
+          model_id?: string
+          printer_name?: string | null
+          size_bytes?: number | null
+          storage_path?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "print_model_files_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_model_files_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "print_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       print_filaments: {
         Row: {
           brand: string

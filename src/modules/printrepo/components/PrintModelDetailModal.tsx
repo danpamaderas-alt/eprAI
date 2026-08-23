@@ -19,6 +19,7 @@ import { usePrintJobStore } from '../../printjobs/store/usePrintJobStore';
 import { formatHoursHuman, hoursToTime } from '../../../shared/utils/format';
 import { type PrintModel, type PrintStatus } from '../types';
 import { PrintStatusBadge } from './PrintStatusBadge';
+import { PrintModelFilesSection } from './PrintModelFilesSection';
 
 interface PrintModelDetailModalProps {
   model: PrintModel | null;
@@ -248,6 +249,9 @@ export const PrintModelDetailModal = memo(function PrintModelDetailModal({
           Sin link de descarga cargado
         </p>
       )}
+
+      {/* Archivos STL / G-code */}
+      <PrintModelFilesSection modelId={model.id} />
 
       {/* Cambiar estado */}
       <div>
