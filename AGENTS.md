@@ -137,6 +137,13 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 UX carga de G-code: archivo primero, impresora después** — El dueño no podía
+  cargar G-codes: el flujo exigía escribir la impresora ANTES de elegir el archivo (si
+  elegías primero, se rechazaba y quedaba sin asignar) y el file picker filtraba por
+  accept=".gcode,.gco,.nc" (variantes como .bgcode/.tap quedaban grises en Windows).
+  Nuevo flujo en PrintModelFilesSection: se elige el archivo y si no hay impresora
+  escrita Swal pregunta con input obligatorio; input inline pasa a opcional con
+  datalist de impresoras ya usadas (sugerencias); gcode input SIN accept (acepta todo).
 - **2026-08 auditoría detalle modelo 3D: delete seguro + purga de storage** — Dos bugs
   reales corregidos en PrintModelDetailModal: (1) "Eliminar" borraba el modelo SIN
   confirmación (la página sí preguntaba con Swal, el modal no) — ahora Swal.fire

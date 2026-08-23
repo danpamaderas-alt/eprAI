@@ -1,5 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Download, FileCode2, FileUp, Loader2, Trash2, Boxes } from 'lucide-react';
+import Swal from 'sweetalert2';
 import { usePrintModelFileStore } from '../store/usePrintModelFileStore';
 import { useToastStore } from '../../../store/useToastStore';
 import type { PrintModelFile, PrintModelFileKind } from '../types';
@@ -32,6 +33,19 @@ export const PrintModelFilesSection = memo(function PrintModelFilesSection({ mod
   const originals = modelFiles.filter((f) => f.kind === 'original');
   const gcodes = modelFiles.filter((f) => f.kind === 'gcode');
 
+  // Impresoras ya usadas en cualquier modelo → sugerencias del datalist
+  const knownPrinters = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          files
+            .filter((f) => f.kind === 'gcode' && f.printer_name)
+            .map((f) => f.printer_name as string),
+        ),
+      ).sort(),
+    [files],
+  );
+
   useEffect(() => {
     void fetchFiles();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -50,16 +64,35 @@ export const PrintModelFilesSection = memo(function PrintModelFilesSection({ mod
 
   const handlePick = async (kind: PrintModelFileKind, file: File | undefined) => {
     if (!file) return;
-    if (kind === 'gcode' && printerName.trim() === '') {
-      toast('Escribí primero la impresora del G-code', { type: 'warning' });
-      return;
+
+    let printer: string | null = null;
+    if (kind === 'gcode') {
+      printer = printerName.trim();
+      // Si no escribió la impresora antes, preguntar DESPUÉS de elegir el archivo
+      if (!printer) {
+        const res = await Swal.fire({
+          title: '¿Para qué impresora es este G-code?',
+          input: 'text',
+          inputValue: knownPrinters[0] ?? '',
+          inputPlaceholder: 'Ej: Ender 3 V2',
+          showCancelButton: true,
+          confirmButtonText: 'Guardar G-code',
+          cancelButtonText: 'Cancelar',
+          confirmButtonColor: '#7c3aed',
+          inputValidator: (v) => (!v || v.trim() === '' ? 'Escribí el nombre de la impresora' : null),
+        });
+        if (!res.isConfirmed) return;
+        printer = (res.value as string).trim();
+        setPrinterName(printer);
+      }
     }
+
     setUploading(kind);
     try {
-      await attachFile({ modelId, file, kind, printerName });
+      await attachFile({ modelId, file, kind, printerName: printer });
       toast(
         kind === 'gcode'
-          ? `G-code guardado para «${printerName.trim()}»`
+          ? `G-code guardado para «${printer}»`
           : `${(file.name.split('.').pop() ?? 'archivo').toUpperCase()} adjuntado`,
         { type: 'success' },
       );
@@ -175,7 +208,8 @@ export const PrintModelFilesSection = memo(function PrintModelFilesSection({ mod
           type="text"
           value={printerName}
           onChange={(e) => setPrinterName(e.target.value)}
-          placeholder="Impresora (ej: Ender 3 V2)"
+          placeholder="Impresora (opcional: se pregunta después)"
+          list="printers-known-list"
           aria-label="Nombre de la impresora para el G-code"
           className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:border-violet-500 focus:outline-none"
         />
@@ -189,7 +223,12 @@ export const PrintModelFilesSection = memo(function PrintModelFilesSection({ mod
           G-code
         </button>
       </div>
-      <input ref={gcodeInputRef} type="file" accept=".gcode,.gco,.nc,text/plain" className="hidden"
+      <datalist id="printers-known-list">
+        {knownPrinters.map((p) => (
+          <option key={p} value={p} />
+        ))}
+      </datalist>
+      <input ref={gcodeInputRef} type="file" className="hidden"
         onChange={(e) => void handlePick('gcode', e.target.files?.[0])} />
 
       {isLoading && modelFiles.length === 0 && (
