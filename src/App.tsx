@@ -29,6 +29,7 @@ const CostCalculator = lazy(() => import("./modules/finances/pages/CostCalculato
 const Print3DCalculator = lazy(() => import("./modules/finances/pages/Print3DCalculator").then(m => ({ default: m.Print3DCalculator })));
 const SublimationCalculator = lazy(() => import("./modules/finances/pages/SublimationCalculator").then(m => ({ default: m.SublimationCalculator })));
 const PrintJobsPage = lazy(() => import("./modules/printjobs/pages/PrintJobsPage").then(m => ({ default: m.PrintJobsPage })));
+const SublimationJobsPage = lazy(() => import("./modules/sublimationjobs/pages/SublimationJobsPage").then(m => ({ default: m.SublimationJobsPage })));
 const PrintRepository = lazy(() => import("./modules/printrepo/pages/PrintRepository").then(m => ({ default: m.PrintRepository })));
 const SublimationRepository = lazy(() => import("./modules/sublimation/pages/SublimationRepository").then(m => ({ default: m.SublimationRepository })));
 const FilamentsPage = lazy(() => import("./modules/filaments/pages/FilamentsPage").then(m => ({ default: m.FilamentsPage })));
@@ -95,6 +96,7 @@ export default function App() {
             <Route path="calculadora-3d" element={<Print3DCalculator />} />
             <Route path="calculadora-sublimacion" element={<SublimationCalculator />} />
             <Route path="produccion-3d" element={<PrintJobsPage />} />
+            <Route path="produccion-sublimacion" element={<SublimationJobsPage />} />
             <Route path="impresiones-3d" element={<PrintRepository />} />
             <Route path="sublimacion" element={<SublimationRepository />} />
             <Route path="filamentos" element={<FilamentsPage />} />

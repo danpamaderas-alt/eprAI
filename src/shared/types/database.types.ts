@@ -1532,6 +1532,108 @@ export type Database = {
           },
         ]
       }
+      sublimation_jobs: {
+        Row: {
+          actual_cost_total: number | null
+          actual_notes: string | null
+          blank_id: string | null
+          blank_label: string | null
+          company_id: string | null
+          completed_at: string | null
+          created_at: string
+          design_id: string | null
+          est_cost_total: number | null
+          est_price_total: number | null
+          id: string
+          inputs: Json
+          name: string
+          quantity: number
+          remito_id: string | null
+          sale_id: string | null
+          size_label: string | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          actual_cost_total?: number | null
+          actual_notes?: string | null
+          blank_id?: string | null
+          blank_label?: string | null
+          company_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          design_id?: string | null
+          est_cost_total?: number | null
+          est_price_total?: number | null
+          id?: string
+          inputs?: Json
+          name?: string
+          quantity?: number
+          remito_id?: string | null
+          sale_id?: string | null
+          size_label?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          actual_cost_total?: number | null
+          actual_notes?: string | null
+          blank_id?: string | null
+          blank_label?: string | null
+          company_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          design_id?: string | null
+          est_cost_total?: number | null
+          est_price_total?: number | null
+          id?: string
+          inputs?: Json
+          name?: string
+          quantity?: number
+          remito_id?: string | null
+          sale_id?: string | null
+          size_label?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sublimation_jobs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sublimation_jobs_design_id_fkey"
+            columns: ["design_id"]
+            isOneToOne: false
+            referencedRelation: "sublimation_designs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sublimation_jobs_blank_id_fkey"
+            columns: ["blank_id"]
+            isOneToOne: false
+            referencedRelation: "textile_blanks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sublimation_jobs_remito_id_fkey"
+            columns: ["remito_id"]
+            isOneToOne: false
+            referencedRelation: "remitos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sublimation_jobs_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       print_models: {
         Row: {
           category: string

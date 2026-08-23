@@ -29,6 +29,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/calculadora-3d': 'Calculadora Impresión 3D',
   '/calculadora-sublimacion': 'Calculadora Sublimación',
   '/produccion-3d': 'Producción 3D',
+  '/produccion-sublimacion': 'Producción Sublimación',
   '/impresiones-3d': 'Repositorio Impresión 3D',
   '/sublimacion': 'Sublimación',
   '/settings': 'Configuración',

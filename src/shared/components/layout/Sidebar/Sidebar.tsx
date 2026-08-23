@@ -82,6 +82,7 @@ const NAV_SECTIONS: readonly NavSection[] = [
       { path: '/sublimacion', label: 'Repos. Sublimación', icon: Palette, highlight: 'fuchsia' },
       { path: '/blanks', label: 'Blanks e Insumos', icon: PackageOpen, highlight: 'fuchsia' },
       { path: '/calculadora-sublimacion', label: 'Calc. Sublimación', icon: Shirt, highlight: 'fuchsia' },
+      { path: '/produccion-sublimacion', label: 'Producción Sublimación', icon: Factory, highlight: 'fuchsia' },
       { path: '/mockups', label: 'Mockups Base', icon: Frame, highlight: 'sky' },
     ],
   },

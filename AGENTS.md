@@ -137,6 +137,15 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 producción de sublimación (cola tipo 3D)** — Módulo `src/modules/sublimationjobs/`
+  espejo de `printjobs`: migración `028_sublimation_jobs.sql` (APLICADA; tabla con design_id→
+  sublimation_designs, blank_id→textile_blanks, status CHECK, RLS tenant_isolation), store
+  `useSublimationJobStore`, página `SublimationJobsPage` (KPIs, filtros, completar registra
+  costo real = blank.cost_price×qty, entregar genera venta business_unit `sublimacion` + remito
+  DELIVERED/VALUED), `NewSublimationJobModal` (desde diseños) y `DeliverSublimationJobModal`.
+  Botón "A Producción" en `SublimationDesignDetailModal` crea el trabajo y navega a
+  `/produccion-sublimacion` (ruta + entrada de sidebar con icono Factory, título en
+  DashboardLayout). Tabla tipada a mano en database.types.ts.
 - **2026-08 seed de colores PLA en stock 0** — Migración `027_seed_pla_colors.sql` (APLICADA,
   idempotente: no re-inserta si ya hay >=12 PLA en MI EMPRESA): 12 colores PLA Generica
   Negro/Blanco/Rojo/Azul/Verde/Amarillo/Naranja/Violeta/Rosa/Celeste/Gris/Marron a

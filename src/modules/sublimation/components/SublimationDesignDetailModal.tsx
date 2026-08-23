@@ -1,4 +1,5 @@
 import { memo, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   BadgeCheck,
   ClipboardList,
@@ -10,6 +11,7 @@ import {
   Palette,
   Pencil,
   Share2,
+  Shirt,
   StickyNote,
   Tag,
   Trash2,
@@ -24,6 +26,7 @@ import { uploadDesignFile } from '../../../shared/utils/designStorage';
 import { useTenantStore } from '../../../store/useTenantStore';
 import { useToastStore } from '../../../store/useToastStore';
 import { useSublimationStore } from '../store/useSublimationStore';
+import { useSublimationJobStore } from '../../sublimationjobs/store/useSublimationJobStore';
 import {
   type SublimationDesign,
   type SublimationStatus,
@@ -89,6 +92,8 @@ export const SublimationDesignDetailModal = memo(function SublimationDesignDetai
   const deleteDesign = useSublimationStore((s) => s.deleteDesign);
   const updateDesign = useSublimationStore((s) => s.updateDesign);
   const toast = useToastStore((s) => s.toast);
+  const navigate = useNavigate();
+  const addJob = useSublimationJobStore((s) => s.addJob);
   const [isDeleting, setIsDeleting] = useState(false);
   const [usedInOrders, setUsedInOrders] = useState<OrderUseRow[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
@@ -170,6 +175,28 @@ export const SublimationDesignDetailModal = memo(function SublimationDesignDetai
       toast('No se pudo eliminar el diseño', { type: 'error' });
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleToProduction = async () => {
+    try {
+      await addJob({
+        name: design.name,
+        status: 'presupuestado',
+        inputs: {
+          source: 'repositorio',
+          category: design.category,
+          platform: design.platform,
+          project_dest: design.project_dest,
+        },
+        design_id: design.id,
+        quantity: 1,
+      });
+      toast('Trabajo creado en Producción de Sublimación', { type: 'success' });
+      navigate('/produccion-sublimacion');
+    } catch (err) {
+      console.error(err);
+      toast('No se pudo enviar a producción', { type: 'error' });
     }
   };
 
@@ -260,6 +287,14 @@ export const SublimationDesignDetailModal = memo(function SublimationDesignDetai
               Estudio
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => void handleToProduction()}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 border border-fuchsia-500 text-white text-[10px] font-black uppercase tracking-widest transition-colors"
+          >
+            <Shirt className="w-3.5 h-3.5" aria-hidden="true" />
+            A Producción
+          </button>
           <button
             type="button"
             onClick={() => onEdit(design)}
