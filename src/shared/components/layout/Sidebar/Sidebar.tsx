@@ -47,28 +47,32 @@ interface NavRoute {
   readonly path: string;
   readonly label: string;
   readonly icon: LucideIcon;
-  readonly highlight?: 'indigo' | 'rose' | 'emerald' | 'fuchsia' | 'orange' | 'sky';
+  readonly highlight?: 'brand' | 'indigo' | 'rose' | 'emerald' | 'fuchsia' | 'orange' | 'sky';
+  readonly end?: boolean;
 }
 
 interface NavSection {
   readonly label: string;
+  readonly defaultHighlight?: NavRoute['highlight'];
   readonly routes: readonly NavRoute[];
 }
 
 const NAV_SECTIONS: readonly NavSection[] = [
   {
     label: 'Operación',
+    defaultHighlight: 'sky',
     routes: [
       { path: '/inicio', label: 'Inicio', icon: LayoutDashboard },
       { path: '/ventas', label: 'Punto de Venta', icon: ShoppingCart },
       { path: '/pedidos', label: 'Pedidos', icon: ClipboardList },
       { path: '/remitos', label: 'Remitos / Envíos', icon: Truck },
-      { path: '/produccion', label: 'A Fabricar', icon: Factory, highlight: 'rose' },
+      { path: '/produccion', label: 'A Fabricar', icon: Factory, highlight: 'rose', end: true },
       { path: '/talleristas', label: 'Equipo y Taller', icon: Scissors, highlight: 'emerald' },
     ],
   },
   {
     label: 'Impresión 3D',
+    defaultHighlight: 'indigo',
     routes: [
       { path: '/impresiones-3d', label: 'Repositorio 3D', icon: Boxes, highlight: 'indigo' },
       { path: '/filamentos', label: 'Filamentos', icon: Rainbow, highlight: 'orange' },
@@ -78,6 +82,7 @@ const NAV_SECTIONS: readonly NavSection[] = [
   },
   {
     label: 'Textil y Sublimación',
+    defaultHighlight: 'fuchsia',
     routes: [
       { path: '/sublimacion', label: 'Repos. Sublimación', icon: Palette, highlight: 'fuchsia' },
       { path: '/blanks', label: 'Blanks e Insumos', icon: PackageOpen, highlight: 'fuchsia' },
@@ -88,6 +93,7 @@ const NAV_SECTIONS: readonly NavSection[] = [
   },
   {
     label: 'Stock y Compras',
+    defaultHighlight: 'indigo',
     routes: [
       { path: '/inventario', label: 'Inventario', icon: Package },
       { path: '/insumos', label: 'Insumos y Taller', icon: Ruler, highlight: 'indigo' },
@@ -96,6 +102,7 @@ const NAV_SECTIONS: readonly NavSection[] = [
   },
   {
     label: 'Finanzas',
+    defaultHighlight: 'emerald',
     routes: [
       { path: '/tesoreria', label: 'Tesorería', icon: Landmark },
       { path: '/finanzas', label: 'Centro Financiero', icon: BarChart3 },
@@ -113,24 +120,24 @@ const CRM_ROUTES: readonly NavRoute[] = [
 
 type SidebarItemProps = NavRoute;
 
-const SidebarItem = memo(({ path, label, icon: Icon, highlight }: SidebarItemProps) => {
+const SidebarItem = memo(({ path, label, icon: Icon, highlight = 'brand', end }: SidebarItemProps) => {
   const getClasses = (isActive: boolean) => {
     const base = "flex items-center gap-3 px-4 py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2";
     if (!isActive) return `${base} text-slate-400 hover:bg-slate-800 hover:text-slate-200`;
 
     switch (highlight) {
-      case 'indigo': return `${base} bg-brand-600 text-white shadow-lg`;
-      case 'rose': return `${base} bg-danger-600 text-white shadow-lg shadow-danger-600/30`;
-      case 'emerald': return `${base} bg-success-600 text-white shadow-lg shadow-success-600/20`;
-      case 'fuchsia': return `${base} bg-fuchsia-600 text-white shadow-lg shadow-fuchsia-600/30`;
-      case 'orange': return `${base} bg-orange-600 text-white shadow-lg shadow-orange-600/30`;
-      case 'sky': return `${base} bg-sky-600 text-white shadow-lg shadow-sky-600/30`;
-      default: return `${base} bg-brand-600 text-white shadow-lg shadow-brand-600/20`;
+      case 'indigo': return `${base} bg-brand-600 text-white shadow-lg shadow-brand-600/30 border-l-4 border-white/70`;
+      case 'rose': return `${base} bg-danger-600 text-white shadow-lg shadow-danger-600/30 border-l-4 border-white/70`;
+      case 'emerald': return `${base} bg-success-600 text-white shadow-lg shadow-success-600/20 border-l-4 border-white/70`;
+      case 'fuchsia': return `${base} bg-fuchsia-600 text-white shadow-lg shadow-fuchsia-600/30 border-l-4 border-white/70`;
+      case 'orange': return `${base} bg-orange-600 text-white shadow-lg shadow-orange-600/30 border-l-4 border-white/70`;
+      case 'sky': return `${base} bg-sky-600 text-white shadow-lg shadow-sky-600/30 border-l-4 border-white/70`;
+      default: return `${base} bg-brand-600 text-white shadow-lg shadow-brand-600/20 border-l-4 border-white/70`;
     }
   };
 
   return (
-    <NavLink to={path} className={({ isActive }) => getClasses(isActive)}>
+    <NavLink to={path} end={end} className={({ isActive }) => getClasses(isActive)}>
       <Icon className="w-4 h-4 shrink-0" />
       {label}
     </NavLink>
@@ -305,7 +312,7 @@ export const Sidebar = memo(() => {
                 {section.label}
               </p>
               {section.routes.map((route) => (
-                <SidebarItem key={route.path} {...route} />
+                <SidebarItem key={route.path} {...route} highlight={route.highlight ?? section.defaultHighlight} />
               ))}
             </div>
           ))}
@@ -313,12 +320,12 @@ export const Sidebar = memo(() => {
           <div className="pt-3 mt-3 border-t border-slate-800">
             <p className="text-[9px] font-bold text-slate-600 uppercase tracking-[0.3em] mb-3 ml-3" aria-hidden="true">CRM</p>
             {CRM_ROUTES.map((route) => (
-              <SidebarItem key={route.path} {...route} />
+              <SidebarItem key={route.path} {...route} highlight={route.highlight ?? 'sky'} />
             ))}
           </div>
 
           <div className="pt-3 mt-3 border-t border-slate-800">
-            <SidebarItem path="/settings" label="Configuración" icon={Settings} />
+            <SidebarItem path="/settings" label="Configuración" icon={Settings} highlight="brand" />
           </div>
         </nav>
 
