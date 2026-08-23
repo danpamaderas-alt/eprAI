@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Share2, Download, Copy, X, Loader2 } from 'lucide-react';
+import { Share2, Download, Copy, X, Loader2, Image } from 'lucide-react';
 import type { SublimationDesign } from '../types';
+import { useMockupTemplateStore } from '../../mockups/store/useMockupTemplateStore';
 import { useToastStore } from '../../../store/useToastStore';
 import {
   MOCKUP_PRODUCTS,
@@ -27,11 +28,25 @@ const PRODUCT_BY_DEST: Record<string, string> = {
   Llavero: 'llavero',
 };
 
+const TEMPLATE_TYPE_TO_PRODUCT: Record<string, string> = {
+  Taza: 'taza',
+  Remera: 'remera',
+  Tumbler: 'botella',
+  Termo: 'botella',
+  Mousepad: 'mousepad',
+  Llavero: 'llavero',
+  Gorra: 'llavero',
+  Almohadón: 'mousepad',
+  Plato: 'taza',
+  Vidrio: 'botella',
+};
+
 const SLIDER_CLASS =
   'w-full accent-violet-500 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 appearance-none cursor-pointer';
 
 export const MockupPreviewModal = ({ design, isOpen, onClose }: MockupPreviewModalProps) => {
   const toast = useToastStore((s) => s.toast);
+  const { templates, fetchTemplates } = useMockupTemplateStore();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [productId, setProductId] = useState(
     () => PRODUCT_BY_DEST[design?.project_dest ?? ''] ?? 'taza',
@@ -43,6 +58,11 @@ export const MockupPreviewModal = ({ design, isOpen, onClose }: MockupPreviewMod
   const [rotation, setRotation] = useState(0);
   const [rendering, setRendering] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) void fetchTemplates();
+  }, [isOpen, fetchTemplates]);
 
   useEffect(() => {
     if (!isOpen || !design?.imagen || !canvasRef.current) return;
@@ -221,9 +241,9 @@ export const MockupPreviewModal = ({ design, isOpen, onClose }: MockupPreviewMod
                   <button
                     key={p.id}
                     type="button"
-                    onClick={() => setProductId(p.id)}
+                    onClick={() => { setProductId(p.id); setSelectedTemplateId(null); }}
                     className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
-                      productId === p.id
+                      productId === p.id && !selectedTemplateId
                         ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/25'
                         : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 hover:bg-slate-200'
                     }`}
@@ -233,6 +253,35 @@ export const MockupPreviewModal = ({ design, isOpen, onClose }: MockupPreviewMod
                 ))}
               </div>
             </div>
+
+            {templates.length > 0 && (
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-1.5">
+                  <Image className="w-3 h-3" /> Mockups Base (inventario)
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {templates.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => {
+                        const mappedId = TEMPLATE_TYPE_TO_PRODUCT[t.product_type] ?? 'taza';
+                        setProductId(mappedId);
+                        setSelectedTemplateId(t.id);
+                      }}
+                      title={t.print_area_width_mm && t.print_area_height_mm ? `Área: ${t.print_area_width_mm}×${t.print_area_height_mm}mm` : t.product_type}
+                      className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${
+                        selectedTemplateId === t.id
+                          ? 'bg-violet-600 text-white border-violet-600 shadow-lg shadow-violet-600/25'
+                          : 'bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      {t.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Color</p>

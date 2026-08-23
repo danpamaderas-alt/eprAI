@@ -136,6 +136,16 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 features pendientes (WhatsApp/Mockups/Blanks)** — Tres integraciones cruzadas:
+  botón de WhatsApp en Cotizador (`handleShareWhatsApp` abre `wa.me` con resumen del
+  presupuesto), Mockups Base conectado a `MockupPreviewModal` (templates de la tabla
+  `mockup_templates` mapeados a productos canvas vía `TEMPLATE_TYPE_TO_PRODUCT`; ojo: el
+  store real vive en `src/modules/mockups/store/`, NO crear otro en `designs/store`),
+  y selector de Blanks en Calculadora de Costos (categoría Textil autocompleta el costo
+  desde `textile_blanks.cost_price`, aviso ⚠️ si stock <= mínimo). Lecciones: verificar
+  con Glob si el store ya existe antes de crearlo — se duplicó uno con datos fake;
+  los dos lint errors nuevos eran patrones prohibidos por convención #4 (historial de
+  localStorage pasó a lazy initializer, `fetchData` movido antes del effect).
 - **2026-08 typecheck limpio (250→0)** — Limpieza de deuda de tipos en una sesión:
   `database.types.ts` reconstruido contra la BD real: agregadas 7 tablas faltantes
   (`sales`, `remitos`, `resellers`, `reseller_transactions`, `stock_movements`,

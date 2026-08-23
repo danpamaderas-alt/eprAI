@@ -1,5 +1,6 @@
 ﻿import { useState, useCallback, useMemo, useEffect } from 'react';
-import { Calculator, Trash2, Save, ChevronDown, ChevronUp, Clock } from 'lucide-react';
+import { Calculator, Trash2, Save, ChevronDown, ChevronUp, Clock, Shirt } from 'lucide-react';
+import { useBlankStore } from '../../blanks/store/useBlankStore';
 
 // =============================================
 // TIPOS
@@ -151,24 +152,31 @@ export const CostCalculator = () => {
   const [categoryKey, setCategoryKey] = useState<string>('general');
   const [inputs, setInputs] = useState<Record<string, number>>(buildDefaultInputs('general'));
   const [calcName, setCalcName] = useState('');
-  const [history, setHistory] = useState<SavedCalculation[]>([]);
-  const [showHistory, setShowHistory] = useState(false);
-
-  const currentCategory = CATEGORIES[categoryKey];
-
-  // Cargar historial desde localStorage al montar
-  useEffect(() => {
+  const [history, setHistory] = useState<SavedCalculation[]>(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setHistory(JSON.parse(raw) as SavedCalculation[]);
-    } catch { /* ignorar */ }
-  }, []);
+      return raw ? (JSON.parse(raw) as SavedCalculation[]) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [showHistory, setShowHistory] = useState(false);
+  const [selectedBlankId, setSelectedBlankId] = useState<string>('');
+
+  const { blanks, fetchBlanks } = useBlankStore();
+
+  useEffect(() => {
+    void fetchBlanks();
+  }, [fetchBlanks]);
+
+  const currentCategory = CATEGORIES[categoryKey];
 
   // Al cambiar categoría: reiniciar inputs con defaults de la nueva categoría
   const handleCategoryChange = useCallback((key: string) => {
     setCategoryKey(key);
     setInputs(buildDefaultInputs(key));
     setCalcName('');
+    setSelectedBlankId('');
   }, []);
 
   // -------------------------------------------------------
@@ -193,6 +201,13 @@ export const CostCalculator = () => {
     const val = parseFloat(raw.replace(',', '.'));
     setInputs(prev => ({ ...prev, [key]: isNaN(val) ? 0 : val }));
   }, []);
+
+  const handleBlankSelect = useCallback((blankId: string) => {
+    setSelectedBlankId(blankId);
+    const blank = blanks.find(b => b.id === blankId);
+    if (!blank) return;
+    setInputs(prev => ({ ...prev, fabric: Number(blank.cost_price || 0) }));
+  }, [blanks]);
 
   const handleReset = useCallback(() => {
     setInputs(buildDefaultInputs(categoryKey));
@@ -302,6 +317,28 @@ export const CostCalculator = () => {
           </div>
 
           <hr className="border-slate-800" />
+
+          {/* Selector de Blanks del inventario (solo Textil) */}
+          {categoryKey === 'textil' && blanks.length > 0 && (
+            <div className="space-y-2">
+              <label htmlFor="blank-selector" className="flex items-center gap-1.5 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                <Shirt size={12} aria-hidden="true" /> Blank del inventario
+              </label>
+              <select
+                id="blank-selector"
+                value={selectedBlankId}
+                onChange={e => handleBlankSelect(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-700 text-white text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-indigo-500 transition-colors"
+              >
+                <option value="">-- Carga manual --</option>
+                {blanks.map(b => (
+                  <option key={b.id} value={b.id}>
+                    {b.name} · {fmt(b.cost_price)}{b.stock_qty <= b.min_stock ? ' ⚠️ reposición' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Variables de costo de la categoría */}
           <div className="space-y-3">

@@ -76,18 +76,6 @@ export function QuoteDashboard() {
   });
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      setIsLoading(true);
-      await fetchAllCatalogs();
-      if (cancelled) return;
-      await fetchData();
-    };
-    load();
-    return () => { cancelled = true; };
-  }, [fetchAllCatalogs]);
-
   const fetchData = async () => {
     try {
       const companyId = useTenantStore.getState().activeCompanyId;
@@ -110,6 +98,18 @@ export function QuoteDashboard() {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setIsLoading(true);
+      await fetchAllCatalogs();
+      if (cancelled) return;
+      await fetchData();
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [fetchAllCatalogs]);
 
   const addItemRow = () => {
     setQuoteItems([...quoteItems, emptyItem()]);
