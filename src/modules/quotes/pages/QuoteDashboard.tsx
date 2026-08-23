@@ -14,7 +14,7 @@ const Swal = {
 import {
   FileText, Plus, Search, Download, Copy, Trash2,
   Send, CheckCircle, XCircle,
-  Calendar,
+  Calendar, MessageSquare,
 } from 'lucide-react';
 
 interface Client {
@@ -260,6 +260,15 @@ export function QuoteDashboard() {
     }
   };
 
+  const handleShareWhatsApp = (quote: QuoteRecord) => {
+    const customerName = quote.customers?.name || 'Sin cliente';
+    const total = quote.total_amount || quote.total || 0;
+    const quoteNumber = quote.quote_number || 'S/N';
+    const message = `Hola ${customerName}, le enviamos la cotización ${quoteNumber} por ${ARS.format(total)}. Gracias por su interés.`;
+    const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   const filteredQuotes = useMemo(() => {
     let list = [...quotes];
     if (search) {
@@ -452,6 +461,9 @@ export function QuoteDashboard() {
                         <button onClick={() => handleDownloadPDF(q)} title="PDF"
                           className="p-1.5 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-600 hover:text-white text-indigo-600 dark:text-indigo-400 rounded-lg transition-all">
                           <Download className="w-3 h-3" />
+                        </button>
+                        <button onClick={() => handleShareWhatsApp(q)} title="WhatsApp" className="p-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-all">
+                          <MessageSquare className="w-3 h-3" />
                         </button>
                         <button onClick={() => handleDuplicate(q)} title="Duplicar"
                           className="p-1.5 bg-slate-50 dark:bg-slate-700 hover:bg-slate-600 hover:text-white text-slate-500 rounded-lg transition-all">
