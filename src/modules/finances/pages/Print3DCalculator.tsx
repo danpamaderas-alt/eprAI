@@ -198,7 +198,11 @@ const mergeDefaults = (base: Inputs): Inputs => {
   const merged = { ...base };
   for (const k of DEFAULTABLE_KEYS) {
     const v = stored[k];
-    if (typeof v === "number" && isFinite(v)) (merged as Record<string, unknown>)[k] = v;
+    // Un 0 guardado nunca fue configuración real (ej: electricidad antes del fix):
+    // prevalece el default del código
+    if (typeof v === "number" && isFinite(v) && !(v === 0 && base[k] > 0)) {
+      (merged as Record<string, unknown>)[k] = v;
+    }
   }
   return merged;
 };

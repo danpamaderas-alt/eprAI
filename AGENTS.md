@@ -137,6 +137,11 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 defaults guardados pisaban electricidad 160** — mergeDefaults aplicaba el
+  electricityCost=0 de localStorage por encima del DEFAULT nuevo (160). Regla: un valor
+  GUARDADO igual a 0 cuando el default de código es >0 se ignora ("0" nunca fue config
+  real). El dueño reporta "no está" → primero descartar caché (Ctrl+Shift+R) y defaults
+  viejos antes de tocar código.
 - **2026-08 datos reales: PLA $19.000/kg + luz $160/kWh** — El inventario de filamentos
   estaba VACÍO (por eso el auto-seleccionado no encontraba nada y el total daba $0).
   Migración `026_seed_pla_filament.sql` (APLICADA): fila PLA Generica Natural,
