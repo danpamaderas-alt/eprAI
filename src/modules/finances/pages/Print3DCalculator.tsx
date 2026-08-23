@@ -152,6 +152,7 @@ const DEFAULTABLE_KEYS = [
 
 const HISTORY_KEY = "raices-print3d-history";
 const DEFAULTS_KEY = "raices-print3d-defaults";
+const LAST_FILAMENT_KEY = "raices-print3d-last-filament";
 
 // ====================================================
 // HELPERS
@@ -397,6 +398,7 @@ export const Print3DCalculator = () => {
   const handleFilamentPick = useCallback(
     (id: string) => {
       setSelectedFilamentId(id);
+      localStorage.setItem(LAST_FILAMENT_KEY, id);
       const f = useFilamentStore.getState().filaments.find((x) => x.id === id);
       if (!f) return;
       setInputs((prev) => ({
@@ -407,6 +409,21 @@ export const Print3DCalculator = () => {
     },
     []
   );
+
+  // Auto-selección del filamento: último usado (o el único del inventario).
+  // Sin esto, llegando desde el repositorio/G-code el rollo queda en $0 y el total da $0.
+  const autoFilamentDone = useRef(false);
+  useEffect(() => {
+    const run = async () => {
+      if (autoFilamentDone.current || stockFilaments.length === 0) return;
+      autoFilamentDone.current = true;
+      const savedId = localStorage.getItem(LAST_FILAMENT_KEY);
+      const saved = savedId ? stockFilaments.find((x) => x.id === savedId) : undefined;
+      const pick = saved ?? (stockFilaments.length === 1 ? stockFilaments[0] : undefined);
+      if (pick) handleFilamentPick(pick.id);
+    };
+    void run();
+  }, [stockFilaments, handleFilamentPick]);
 
   const set = useCallback(
     <K extends keyof Inputs>(key: K, value: Inputs[K]) =>
@@ -497,6 +514,8 @@ export const Print3DCalculator = () => {
     if (profitMargin >= 100) list.push("El margen de beneficio debe ser menor a 100%.");
     if (profitMargin > 80 && profitMargin < 100) list.push("El margen es muy alto (>80%). Verificá que sea intencional.");
     if (rollWeight <= 0) list.push("El peso del rollo debe ser mayor a 0 para calcular el material.");
+    if (inputs.rollPrice <= 0) list.push("Falta el filamento: elegí uno del inventario o cargá el precio del rollo.");
+    if (inputs.electricityCost <= 0) list.push("El costo eléctrico está en $0 — revisalo si el precio te da bajo.");
     if (pieceWeight <= 0) list.push("Falta el peso de la pieza.");
     if (printTime <= 0) list.push("Falta el tiempo de impresión.");
     if (quantity < 1) list.push("La cantidad de piezas debe ser al menos 1.");

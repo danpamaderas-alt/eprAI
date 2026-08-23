@@ -137,6 +137,14 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 fix calculadora $0 al llegar desde G-code** — La calculadora arranca con
+  rollPrice/electricity/amortización en 0 (DEFAULT); el dueño siempre elegía a mano el
+  filamento del inventario, así que nunca lo había notado, pero llegando desde el botón
+  "Calcular costo" del G-code el total daba $0. Fix: auto-selección de filamento en
+  Print3DCalculator — localStorage `raices-print3d-last-filament` (guardado en cada pick)
+  con fallback al único filamento en stock; warnings nuevos si rollPrice=0 o
+  electricityCost=0. Ojo: el effect usa patrón async anidado (convención #4) y va DESPUÉS
+  de handleFilamentPick o tsc explota con use-before-declaration.
 - **2026-08 G-code → calculadora 3D directa** — El Swal de datos detectados ahora tiene
   tres salidas: "Actualizar modelo" (estimaciones), "Calcular costo" (navega a
   /calculadora-3d con fromModel/name/weight/time DETECTADOS del gcode, no los viejos
