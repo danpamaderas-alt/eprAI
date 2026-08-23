@@ -121,7 +121,7 @@ const DEFAULT: Inputs = {
   wasteFactor: 15,
   printTime: 0,
   machinePower: 250,
-  electricityCost: 0,
+  electricityCost: 160,
   amortizationPerHour: 0,
   maintenancePerHour: 0,
   prepTime: 0,

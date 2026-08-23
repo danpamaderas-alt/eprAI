@@ -137,6 +137,13 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 datos reales: PLA $19.000/kg + luz $160/kWh** — El inventario de filamentos
+  estaba VACÍO (por eso el auto-seleccionado no encontraba nada y el total daba $0).
+  Migración `026_seed_pla_filament.sql` (APLICADA): fila PLA Generica Natural,
+  cost_per_kg=19000, spool/remaining=1000g, min_stock 250 en MI EMPRESA
+  (6a27dfca-2834-4291-ab54-631f80bd2f7f). DEFAULT.electricityCost de la calculadora pasó
+  a 160 ($/kWh). Lección encoding: Management API corrompe 'é' vía JSON body de
+  PowerShell → usar ASCII plano en SQL por API.
 - **2026-08 fix calculadora $0 al llegar desde G-code** — La calculadora arranca con
   rollPrice/electricity/amortización en 0 (DEFAULT); el dueño siempre elegía a mano el
   filamento del inventario, así que nunca lo había notado, pero llegando desde el botón
