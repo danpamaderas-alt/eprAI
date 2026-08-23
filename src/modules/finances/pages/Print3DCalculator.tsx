@@ -18,6 +18,8 @@ import {
   Layers,
 } from "lucide-react";
 import { useToastStore } from "../../../store/useToastStore";
+import { formatDate, formatDateTime, hoursToTime, timeToHours } from "../../../shared/utils/format";
+import { useFilamentStore } from "../../filaments/store/useFilamentStore";
 
 // ====================================================
 // PRESETS DE IMPRESORAS
@@ -326,6 +328,39 @@ const FieldSelect = ({
 );
 
 // ====================================================
+// SUB-COMPONENTE: CAMPO DE TIEMPO (HH:MM)
+// ====================================================
+const TimeField = ({
+  id,
+  label,
+  value,
+  onChange,
+  hint,
+}: {
+  id: string;
+  label: string;
+  value: number; // horas decimales
+  onChange: (v: number) => void;
+  hint?: string;
+}) => (
+  <div className="space-y-1">
+    <label htmlFor={id} className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">
+      {label}
+      {hint && <span className="normal-case ml-1 text-slate-600">({hint})</span>}
+    </label>
+    <input
+      id={id}
+      type="text"
+      inputMode="numeric"
+      value={hoursToTime(value)}
+      onChange={(e) => onChange(timeToHours(e.target.value))}
+      placeholder="HH:MM"
+      className="w-full bg-slate-950 border border-slate-700 text-white text-sm font-black rounded-xl py-3 px-4 outline-none focus:border-indigo-500 transition-colors"
+    />
+  </div>
+);
+
+// ====================================================
 // COMPONENTE PRINCIPAL
 // ====================================================
 export const Print3DCalculator = () => {
@@ -335,11 +370,32 @@ export const Print3DCalculator = () => {
   const [history, setHistory] = useState<SavedJob[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [selectedFilamentId, setSelectedFilamentId] = useState<string>("");
+
+  const { filaments: stockFilaments, fetchFilaments } = useFilamentStore();
+
+  useEffect(() => {
+    void fetchFilaments();
+  }, [fetchFilaments]);
 
   useEffect(() => {
     const saved = loadJSON<SavedJob[]>(HISTORY_KEY);
     if (saved) setHistory(saved);
   }, []);
+
+  const handleFilamentPick = useCallback(
+    (id: string) => {
+      setSelectedFilamentId(id);
+      const f = useFilamentStore.getState().filaments.find((x) => x.id === id);
+      if (!f) return;
+      setInputs((prev) => ({
+        ...prev,
+        rollWeight: f.spool_weight_g || 1000,
+        rollPrice: f.cost_per_kg ?? prev.rollPrice,
+      }));
+    },
+    []
+  );
 
   const set = useCallback(
     <K extends keyof Inputs>(key: K, value: Inputs[K]) =>
@@ -528,7 +584,7 @@ export const Print3DCalculator = () => {
     doc.setTextColor(255);
     doc.text("Presupuesto - Impresión 3D", 14, 14);
     doc.setFontSize(10);
-    doc.text(`Emitido: ${new Date().toLocaleString("es-AR")}`, 14, 22);
+    doc.text(`Emitido: ${formatDateTime(new Date())}`, 14, 22);
     doc.text(`Trabajo: ${jobName.trim() || "(sin nombre)"}`, 14, 29);
 
     doc.setTextColor(0);
@@ -538,9 +594,10 @@ export const Print3DCalculator = () => {
     doc.text(`Impresora: ${printer.name} (potencia ${printer.power}W)`, 14, 51);
     doc.text(`Cantidad de piezas: ${Math.max(1, inputs.quantity || 1)}`, 14, 57);
     doc.text(`Peso por pieza: ${inputs.pieceWeight} g · Desperdicio: ${inputs.wasteFactor}%`, 14, 63);
+    doc.text(`Tiempo por pieza: ${hoursToTime(inputs.printTime)} · Prep: ${hoursToTime(inputs.prepTime)} · Post: ${hoursToTime(inputs.postTime)}`, 14, 69);
 
     autoTable(doc, {
-      startY: 70,
+      startY: 76,
       head: [["Concepto", "Valor"]],
       body: [
         ["Costo Material (por unidad)", fmt(bd.cm)],
@@ -681,6 +738,35 @@ export const Print3DCalculator = () => {
           )}
 
           <Field id="piece-weight"  label="Peso de la pieza"   value={inputs.pieceWeight}  onChange={(v) => set("pieceWeight", v)}  suffix="g" step={1} />
+
+          {stockFilaments.length > 0 && (
+            <>
+              <FieldSelect
+                id="filament-stock"
+                label="Filamento del inventario"
+                value={selectedFilamentId}
+                onChange={handleFilamentPick}
+                options={[
+                  { value: "", label: "Manual (cargá precio abajo)" },
+                  ...stockFilaments.map((f) => ({
+                    value: f.id,
+                    label: `${f.brand} ${f.material} ${f.color_name ?? ""} · ${Math.round(f.remaining_g)}g`.replace(/\s+/g, " "),
+                  })),
+                ]}
+              />
+              {(() => {
+                const f = stockFilaments.find((x) => x.id === selectedFilamentId);
+                if (!f) return null;
+                return (
+                  <div className="p-3 bg-orange-600/10 rounded-xl border border-orange-600/20 text-[10px] font-bold text-slate-400 space-y-1">
+                    <p className="flex justify-between"><span>Costo/kg:</span><span className="text-orange-300">{f.cost_per_kg != null ? `$${f.cost_per_kg.toLocaleString("es-AR")}` : "sin definir"}</span></p>
+                    <p className="flex justify-between"><span>Stock restante:</span><span className={f.remaining_g <= f.min_stock_g ? "text-rose-400" : "text-slate-200"}>{Math.round(f.remaining_g)}g</span></p>
+                  </div>
+                );
+              })()}
+            </>
+          )}
+
           <Field id="roll-price"    label="Precio del rollo"   value={inputs.rollPrice}    onChange={(v) => set("rollPrice", v)}    prefix="$" />
           <Field id="roll-weight"   label="Peso del rollo"     value={inputs.rollWeight}   onChange={(v) => set("rollWeight", v)}   suffix="g" step={1} hint="default 1000 g" />
           <Field id="waste-factor"  label="Factor de desperdicio" value={inputs.wasteFactor} onChange={(v) => set("wasteFactor", v)} suffix="%" step={1} hint="default 15%" />
@@ -697,7 +783,7 @@ export const Print3DCalculator = () => {
           title="2. Máquina / Impresión"
           color="bg-amber-600/20 text-amber-400"
         >
-          <Field id="print-time"    label="Tiempo por pieza"   value={inputs.printTime}   onChange={(v) => set("printTime", v)}   suffix="h" step={0.5} />
+          <TimeField id="print-time"    label="Tiempo por pieza"   value={inputs.printTime}   onChange={(v) => set("printTime", v)} hint="HH:MM" />
           <Field id="machine-power" label="Potencia"           value={inputs.machinePower} onChange={(v) => set("machinePower", v)} suffix="W" step={10} hint={printer.id !== "custom" ? `según ${printer.name}` : "manual"} />
           <Field id="elec-cost"     label="Costo eléctrico"    value={inputs.electricityCost} onChange={(v) => set("electricityCost", v)} prefix="$" suffix="/kWh" hint="por kWh" />
           <Field id="amortization"  label="Amortización"       value={inputs.amortizationPerHour} onChange={(v) => set("amortizationPerHour", v)} prefix="$" suffix="/h" />
@@ -721,8 +807,8 @@ export const Print3DCalculator = () => {
           title="3. Mano de Obra"
           color="bg-emerald-600/20 text-emerald-400"
         >
-          <Field id="prep-time"   label="Prep. por pieza"     value={inputs.prepTime}   onChange={(v) => set("prepTime", v)}   suffix="h" step={0.25} hint="Slicer, setup" />
-          <Field id="post-time"   label="Post-proc. por pieza" value={inputs.postTime}   onChange={(v) => set("postTime", v)}   suffix="h" step={0.25} hint="lijado, pintura" />
+          <TimeField id="prep-time"   label="Prep. por pieza"     value={inputs.prepTime}   onChange={(v) => set("prepTime", v)} hint="HH:MM" />
+          <TimeField id="post-time"   label="Post-proc. por pieza" value={inputs.postTime}   onChange={(v) => set("postTime", v)} hint="HH:MM" />
           <Field id="labor-rate"  label="Tarifa hora hombre"  value={inputs.laborRate}  onChange={(v) => set("laborRate", v)}  prefix="$" suffix="/h" />
 
           <div className="mt-1 p-3 bg-emerald-600/10 rounded-xl border border-emerald-600/20 flex justify-between items-center">
@@ -826,8 +912,8 @@ export const Print3DCalculator = () => {
           <div className="space-y-0">
             {[
               { label: "Costo Material (Cm) / pieza",       value: bd.cm,            color: "text-violet-400",  formula: `${inputs.pieceWeight}g × $${(inputs.rollWeight > 0 ? inputs.rollPrice / inputs.rollWeight : 0).toFixed(3)}/g × ${(1 + inputs.wasteFactor / 100).toFixed(2)} (desp.)` },
-              { label: "Costo Máquina (Ch) / pieza",        value: bd.ch,            color: "text-amber-400",   formula: `${inputs.printTime}h × ($${bd.chElec.toFixed(3)}/h elec. + $${inputs.amortizationPerHour}/h amort. + $${inputs.maintenancePerHour}/h mant.)` },
-              { label: "Mano de Obra (Cmo) / pieza",        value: bd.cmo,           color: "text-emerald-400", formula: `(${inputs.prepTime}h prep + ${inputs.postTime}h post) × $${inputs.laborRate}/h` },
+              { label: "Costo Máquina (Ch) / pieza",        value: bd.ch,            color: "text-amber-400",   formula: `${hoursToTime(inputs.printTime)} × ($${bd.chElec.toFixed(3)}/h elec. + $${inputs.amortizationPerHour}/h amort. + $${inputs.maintenancePerHour}/h mant.)` },
+              { label: "Mano de Obra (Cmo) / pieza",        value: bd.cmo,           color: "text-emerald-400", formula: `(${hoursToTime(inputs.prepTime)} prep + ${hoursToTime(inputs.postTime)} post) × $${inputs.laborRate}/h` },
               { label: `Costo Producción del lote (×${Math.max(1, inputs.quantity || 1)})`, value: bd.cpTotal, color: "text-white", formula: `${fmt(bd.cp)} × ${Math.max(1, inputs.quantity || 1)} piezas` },
               { label: "Costos Fijos Prorrateados",         value: bd.fixedProrated, color: "text-blue-400",    formula: `$${inputs.fixedCostMonthly} × ${inputs.fixedCostPercent}%` },
             ].map((row) => (
@@ -943,7 +1029,7 @@ export const Print3DCalculator = () => {
                       {job.name}
                     </p>
                     <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
-                      {new Date(job.savedAt).toLocaleDateString("es-AR")} · {job.inputs.quantity || 1}× {job.inputs.pieceWeight}g · {job.inputs.printTime}h impresión · {PRINTERS.find((p) => p.id === job.inputs.printerModel)?.name ?? "personalizada"}
+                      {formatDate(job.savedAt)} · {job.inputs.quantity || 1}× {job.inputs.pieceWeight}g · {hoursToTime(job.inputs.printTime)} impresión · {PRINTERS.find((p) => p.id === job.inputs.printerModel)?.name ?? "personalizada"}
                     </p>
                   </div>
                   <div className="text-right shrink-0">
