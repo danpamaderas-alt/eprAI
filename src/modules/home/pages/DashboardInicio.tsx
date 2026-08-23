@@ -1,8 +1,6 @@
-﻿import { useEffect, useState, useMemo, memo } from 'react';
+﻿import { useEffect, useState, memo } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
-import { useCatalogStore } from '../../../store/useCatalogStore';
-import { useCrmStore } from '../../crm/store/useCrmStore';
 import { useTenantStore } from '../../../store/useTenantStore';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { Breadcrumbs } from '../../../shared/components/ui/Breadcrumbs';
@@ -82,34 +80,27 @@ const QUICK_ACCESS: QuickAccessGroup[] = [
 ];
 
 const DashboardContent = memo(() => {
-  const { inventory, fetchAllCatalogs } = useCatalogStore();
-  const { balances, fetchBalances } = useCrmStore();
   const activeCompanyId = useTenantStore((state) => state.activeCompanyId);
   const user = useAuthStore((state) => state.user);
 
-  const [pedidosPendientes, setPedidosPendientes] = useState(0);
   const [prod3dActivos, setProd3dActivos] = useState(0);
   const [prodSubliActivos, setProdSubliActivos] = useState(0);
   const [isLoadingCounts, setIsLoadingCounts] = useState(true);
 
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Operador';
   const hour = new Date().getHours();
+  const today = new Date().toLocaleDateString('es-AR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
   const greeting =
     hour < 12 ? 'Buenos dias' : hour < 19 ? 'Buenas tardes' : 'Buenas noches';
 
   useEffect(() => {
     const loadDashboardData = async () => {
       try {
-        const fetchOrdersCount = async () => {
-          if (!activeCompanyId) return 0;
-          const { count } = await supabase
-            .from('orders')
-            .select('*', { count: 'exact', head: true })
-            .eq('company_id', activeCompanyId)
-            .in('status', ['PENDING', 'PENDIENTE']);
-          return count || 0;
-        };
-
         const fetchProductionActivos = async (): Promise<{ d3: number; subli: number }> => {
           if (!activeCompanyId) return { d3: 0, subli: 0 };
           const [d3, subli] = await Promise.all([
@@ -127,14 +118,10 @@ const DashboardContent = memo(() => {
           return { d3: d3.count || 0, subli: subli.count || 0 };
         };
 
-        const [ordersCount, , , produccion] = await Promise.all([
-          fetchOrdersCount(),
-          fetchAllCatalogs(),
-          fetchBalances(),
+        const [produccion] = await Promise.all([
           fetchProductionActivos(),
         ]);
 
-        setPedidosPendientes(ordersCount);
         setProd3dActivos(produccion.d3);
         setProdSubliActivos(produccion.subli);
       } catch (error) {
@@ -145,12 +132,7 @@ const DashboardContent = memo(() => {
     };
 
     loadDashboardData();
-  }, [fetchAllCatalogs, fetchBalances, activeCompanyId]);
-
-  const totalStock = useMemo(
-    () => inventory?.reduce((sum, item) => sum + (item.stock_quantity || 0), 0) || 0,
-    [inventory],
-  );
+  }, [activeCompanyId]);
 
   const prodCounts: Record<string, number | undefined> = {
     '/produccion-3d': prod3dActivos,
@@ -168,33 +150,21 @@ const DashboardContent = memo(() => {
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/4" />
 
-        <div className="relative z-10 p-10 lg:p-12 flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <Sparkles className="w-4 h-4 text-blue-400" />
-              <span className="text-xs font-bold text-blue-300 uppercase tracking-widest">{greeting}, {userName}</span>
-            </div>
-            <h1 className="text-4xl lg:text-5xl font-black tracking-tighter text-white mb-2 italic">
-              Raices <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">ERP</span>
-            </h1>
-            <p className="text-slate-400 font-bold text-sm uppercase tracking-widest max-w-md">
-              Panel de Control Operativo — Vista completa de tu negocio
-            </p>
+        <div className="relative z-10 p-10 lg:p-12">
+          <div className="flex items-center gap-2 mb-4">
+            <Sparkles className="w-4 h-4 text-blue-400" />
+            <span className="text-xs font-bold text-blue-300 uppercase tracking-widest">{greeting}, {userName}</span>
           </div>
-          <div className="hidden lg:flex items-center gap-4">
-            <div className="flex flex-col items-center bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl px-6 py-4">
-              <span className="text-2xl font-black text-white">{totalStock}</span>
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Prendas</span>
-            </div>
-            <div className="flex flex-col items-center bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl px-6 py-4">
-              <span className="text-2xl font-black text-emerald-400">{balances?.length || 0}</span>
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Clientes</span>
-            </div>
-            <div className="flex flex-col items-center bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl px-6 py-4">
-              <span className="text-2xl font-black text-amber-400">{pedidosPendientes}</span>
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Pendientes</span>
-            </div>
-          </div>
+          <h1 className="text-4xl lg:text-6xl font-black tracking-tighter text-white mb-3 italic">
+            Raices <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">ERP</span>
+          </h1>
+          <span className="block w-20 h-1 rounded-full bg-gradient-to-r from-blue-400 to-cyan-300 mb-4" aria-hidden="true" />
+          <p className="text-slate-200 font-black text-sm uppercase tracking-widest max-w-md">
+            Panel de Control Operativo
+          </p>
+          <p className="text-slate-400 text-xs font-bold mt-1 capitalize">
+            {today} · Producción, ventas y diseños en un solo lugar
+          </p>
         </div>
       </header>
 

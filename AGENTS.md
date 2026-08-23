@@ -137,7 +137,11 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
-- **2026-08 dashboard: quitar KPIs** — En `DashboardInicio` se removió la sección de 4 KPI Cards
+- **2026-08 dashboard: quitar stats del hero** — En `DashboardInicio` se removieron los chips
+  Prendas/Clientes/Pendientes del hero. El hero ahora es más limpio (saludo, título con
+  acento de gradiente, fecha de hoy y subtítulo). Se eliminaron los fetches que solo servían
+  para esos datos (useCatalogStore, useCrmStore, pedidosPendientes).
+- **2026-08 dashboard: Toquitar KPIs** — En `DashboardInicio` se removió la sección de 4 KPI Cards
   (Ingresos del Mes, Stock Disponible, Cartera de Clientes, Pedidos Pendientes). Quedaron el
   hero (con esos datos resumidos), la franja "Producción en curso" y los Accesos Rápidos.
   Limpieza de imports/cálculos sin uso (useTreasuryStore, ARS, KpiCard, ingresos useMemos).
