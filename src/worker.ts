@@ -440,7 +440,7 @@ async function callGeminiImageEdit(
   let lastError = 'No se pudo procesar la imagen.';
 
   for (const model of GEMINI_IMAGE_MODELS) {
-    const response = await fetch(
+    const response = await postJsonWithTimeout(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`,
       {
         method: 'POST',
@@ -457,6 +457,8 @@ async function callGeminiImageEdit(
           generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
         }),
       },
+      90_000,
+      'La IA tardó demasiado en responder (más de 90 segundos). Probá de nuevo con una imagen más chica.',
     );
 
     if (!response.ok) {
@@ -500,14 +502,72 @@ async function verifySupabaseJWT(
   const token = authHeader.slice(7);
   if (!token || token === 'mock-access-token') return false;
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10_000);
   try {
     const res = await fetch(
       `${supabaseUrl}/auth/v1/user`,
-      { headers: { Authorization: `Bearer ${token}`, apikey } },
+      { headers: { Authorization: `Bearer ${token}`, apikey }, signal: controller.signal },
     );
     return res.ok;
   } catch {
     return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const RATE_WINDOW_MS = 60_000;
+const rateBuckets = new Map<string, number[]>();
+
+function rateLimitKey(prefix: string, authHeader: string | null): string {
+  const token = authHeader?.slice(7) ?? '';
+  let h = 0;
+  for (let i = 0; i < token.length; i++) h = (Math.imul(h, 31) + token.charCodeAt(i)) | 0;
+  return `${prefix}:${h.toString(36)}`;
+}
+
+function checkRateLimit(key: string, maxPerMinute: number): boolean {
+  const now = Date.now();
+  const hits = (rateBuckets.get(key) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
+  if (hits.length >= maxPerMinute) {
+    rateBuckets.set(key, hits);
+    return false;
+  }
+  hits.push(now);
+  rateBuckets.set(key, hits);
+  if (rateBuckets.size > 5000) {
+    for (const [k, v] of rateBuckets) {
+      if (v.every((t) => now - t >= RATE_WINDOW_MS)) rateBuckets.delete(k);
+    }
+  }
+  return true;
+}
+
+function rateLimitedResponse(): Response {
+  return new Response(
+    JSON.stringify({ error: 'Demasiadas solicitudes seguidas. Esperá un minuto y volvé a intentar.' }),
+    { status: 429, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } },
+  );
+}
+
+async function postJsonWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+  timeoutMessage: string,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (err) {
+    if (err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError')) {
+      throw new Error(timeoutMessage);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -528,17 +588,20 @@ export default {
           { status: 401, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } },
         );
       }
+      if (!checkRateLimit(rateLimitKey('gem', authHeader), 30)) return rateLimitedResponse();
 
       try {
         const body = await request.json();
 
-        const response = await fetch(
+        const response = await postJsonWithTimeout(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${env.GEMINI_API_KEY}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
           },
+          30_000,
+          'La IA tardó demasiado en responder. Probá de nuevo.',
         );
 
         const data = await response.json();
@@ -563,6 +626,7 @@ export default {
           { status: 401, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } },
         );
       }
+      if (!checkRateLimit(rateLimitKey('s3d', authHeader), 20)) return rateLimitedResponse();
 
       try {
         const body = (await request.json()) as { url?: string };
@@ -596,6 +660,7 @@ export default {
           { status: 401, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } },
         );
       }
+      if (!checkRateLimit(rateLimitKey('ssu', authHeader), 20)) return rateLimitedResponse();
 
       try {
         const body = (await request.json()) as { url?: string };
@@ -629,6 +694,7 @@ export default {
           { status: 401, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } },
         );
       }
+      if (!checkRateLimit(rateLimitKey('dt', authHeader), 12)) return rateLimitedResponse();
 
       try {
         const body = (await request.json()) as DesignToolBody;

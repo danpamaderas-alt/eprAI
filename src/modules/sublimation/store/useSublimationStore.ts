@@ -102,3 +102,9 @@ export const useSublimationStore = create<SublimationDesignState>((set, get) => 
     }));
   },
 }));
+
+useTenantStore.subscribe((state, prev) => {
+  if (state.activeCompanyId !== prev.activeCompanyId) {
+    useSublimationStore.setState({ designs: [], isLoading: false, error: null });
+  }
+});

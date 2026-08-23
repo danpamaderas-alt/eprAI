@@ -420,3 +420,9 @@ export const useOrderStore = create<OrderState>((set, get) => ({  orders: [],
     try { await persistMeta(orderId, { photos: newPhotos }); } catch { set({ orders: prev }); }
   },
 }));
+
+useTenantStore.subscribe((state, prev) => {
+  if (state.activeCompanyId !== prev.activeCompanyId) {
+    set({ orders: [], selectedOrders: new Set<string>(), isLoading: false });
+  }
+});
