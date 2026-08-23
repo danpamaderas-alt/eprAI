@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Download, FileCode2, FileUp, Loader2, Trash2, Boxes } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { usePrintModelFileStore } from '../store/usePrintModelFileStore';
@@ -26,6 +27,7 @@ interface Props {
 export const PrintModelFilesSection = memo(function PrintModelFilesSection({ modelId }: Props) {
   const toast = useToastStore((s) => s.toast);
   const updateModel = usePrintModelStore((s) => s.updateModel);
+  const navigate = useNavigate();
   const { files, isLoading, error, fetchFiles, attachFile, removeFile, getSignedDownloadUrl } =
     usePrintModelFileStore();
   const [uploading, setUploading] = useState<PrintModelFileKind | null>(null);
@@ -66,7 +68,7 @@ export const PrintModelFilesSection = memo(function PrintModelFilesSection({ mod
     }
   };
 
-  /** Lee peso/tiempo del G-code y ofrece actualizar las estimaciones del modelo. */
+  /** Lee peso/tiempo del G-code y ofrece actualizar el modelo o calcular costo directo. */
   const extractAndOfferStats = async (file: File): Promise<string> => {
     let stats: GcodeStats;
     try {
@@ -84,13 +86,16 @@ export const PrintModelFilesSection = memo(function PrintModelFilesSection({ mod
 
     try {
       const res = await Swal.fire({
-        title: '¿Actualizar estimaciones del modelo?',
-        html: `El G-code indica:<br><b>${parts.join(' · ')}</b>`,
-        icon: 'question',
+        title: 'Datos detectados en el G-code',
+        html: `<b>${parts.join(' · ')}</b>`,
+        icon: 'info',
+        showDenyButton: true,
         showCancelButton: true,
-        confirmButtonText: 'Sí, actualizar',
-        cancelButtonText: 'Dejar como está',
+        confirmButtonText: 'Actualizar modelo',
+        denyButtonText: 'Calcular costo',
+        cancelButtonText: 'Cerrar',
         confirmButtonColor: '#7c3aed',
+        denyButtonColor: '#4f46e5',
       });
       if (res.isConfirmed) {
         const patch: Partial<PrintModelInput> = {};
@@ -100,6 +105,17 @@ export const PrintModelFilesSection = memo(function PrintModelFilesSection({ mod
         if (stats.grams != null && stats.grams > 0) patch.estimated_grams = stats.grams;
         await updateModel(modelId, patch);
         toast('Estimaciones del modelo actualizadas', { type: 'success' });
+      } else if (res.isDenied) {
+        const model = usePrintModelStore.getState().models.find((m) => m.id === modelId);
+        const params = new URLSearchParams();
+        params.set('fromModel', modelId);
+        params.set('name', model?.name ?? file.name.replace(/\.[^.]+$/, ''));
+        if (stats.grams != null && stats.grams > 0) params.set('weight', String(stats.grams));
+        if (stats.timeSeconds != null && stats.timeSeconds > 60) {
+          params.set('time', hoursToTime(stats.timeSeconds / 3600));
+        }
+        void navigate(`/calculadora-3d?${params.toString()}`);
+        return '';
       }
     } catch (err) {
       console.error(err);

@@ -137,6 +137,11 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 G-code → calculadora 3D directa** — El Swal de datos detectados ahora tiene
+  tres salidas: "Actualizar modelo" (estimaciones), "Calcular costo" (navega a
+  /calculadora-3d con fromModel/name/weight/time DETECTADOS del gcode, no los viejos
+  del modelo) y "Cerrar". PrintModelFilesSection usa useNavigate propio; al navegar
+  retorna '' para suprimir el toast posterior (la página se desmonta).
 - **2026-08 stats de G-code: peso/tiempo extraídos del archivo** — Nuevo parser puro
   `printrepo/utils/gcodeStats.ts` (+12 tests, suite en 37): lee comentarios de slicers
   (PrusaSlicer `estimated printing time`/`filament used [g]`, Orca `model printing
