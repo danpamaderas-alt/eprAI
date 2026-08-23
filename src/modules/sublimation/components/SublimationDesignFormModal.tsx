@@ -11,12 +11,17 @@ import {
   User,
   Tag,
   StickyNote,
+  Upload,
 } from 'lucide-react';
 import { Modal, FormField } from '../../../shared/components/ui/Modal';
 import { Input } from '../../../shared/components/ui/Input';
 import { Select } from '../../../shared/components/ui/Select';
+import { useImageSrc } from '../../../shared/hooks/useImageSrc';
+import { isStorageRef } from '../../../shared/utils/designImageRef';
+import { uploadDesignFile } from '../../../shared/utils/designStorage';
 import { useToastStore } from '../../../store/useToastStore';
 import { useAuthStore } from '../../../store/useAuthStore';
+import { useTenantStore } from '../../../store/useTenantStore';
 import { useSublimationStore } from '../store/useSublimationStore';
 import {
   DEFAULT_CATEGORIES,
@@ -126,6 +131,34 @@ export function SublimationDesignFormModal({
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isScraping, setIsScraping] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const activeCompanyId = useTenantStore((s) => s.activeCompanyId);
+  const previewSrc = useImageSrc(form.imagen ?? null);
+
+  const handleUploadImage = async (file: File | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast('El archivo debe ser una imagen.', { type: 'error' });
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast('La imagen no puede superar los 10 MB.', { type: 'error' });
+      return;
+    }
+    setIsUploading(true);
+    try {
+      const path = await uploadDesignFile(activeCompanyId, file);
+      set('imagen', path);
+      toast('Imagen subida a la nube', { type: 'success' });
+    } catch (err) {
+      console.error(err);
+      toast(err instanceof Error ? err.message : 'No se pudo subir la imagen.', {
+        type: 'error',
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const set = <K extends keyof SublimationDesignInput>(key: K, value: SublimationDesignInput[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -321,6 +354,35 @@ export function SublimationDesignFormModal({
               onChange={(e) => set('imagen', e.target.value)}
               placeholder="https://.../preview.png"
             />
+            <div className="flex items-center gap-2 mt-2">
+              <label
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-fuchsia-500/30 bg-fuchsia-600/10 hover:bg-fuchsia-600/20 text-fuchsia-600 dark:text-fuchsia-400 text-[10px] font-black uppercase tracking-widest transition-colors ${isUploading ? 'opacity-60 pointer-events-none' : 'cursor-pointer'}`}
+              >
+                {isUploading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Upload className="w-3.5 h-3.5" aria-hidden="true" />
+                )}
+                {isUploading ? 'Subiendo...' : 'Subir archivo'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    void handleUploadImage(e.target.files?.[0]);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+              {isStorageRef(form.imagen) && (
+                <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-500">
+                  Imagen en la nube
+                </span>
+              )}
+            </div>
+            <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-1">
+              Pegá una URL o subí el archivo: queda guardado en Supabase Storage.
+            </p>
           </FormField>
         </div>
 
@@ -563,10 +625,10 @@ export function SublimationDesignFormModal({
         </FormField>
       </div>
 
-      {form.imagen && (
+      {previewSrc && (
         <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800">
           <img
-            src={form.imagen}
+            src={previewSrc}
             alt="Previsualización"
             className="w-full max-h-40 object-cover"
             onError={(e) => {

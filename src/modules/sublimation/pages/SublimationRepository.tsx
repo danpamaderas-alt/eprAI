@@ -29,6 +29,8 @@ const MockupPreviewModal = lazy(() =>
   import('../components/MockupPreviewModal').then((m) => ({ default: m.MockupPreviewModal })),
 );
 import { exportDesignsCSV, exportDesignsPDF } from '../utils/export';
+import { isStorageRef } from '../../../shared/utils/designImageRef';
+import { resolveImageSrc } from '../../../shared/utils/designStorage';
 import type { SublimationDesign } from '../types';
 import { EmptyState } from '../../../shared/components/ui/EmptyState';
 import { Spinner } from '../../../shared/components/ui/Spinner';
@@ -62,6 +64,17 @@ const [isStudioOpen, setIsStudioOpen] = useState(false);
 const [studioDesign, setStudioDesign] = useState<SublimationDesign | null>(null);
 const [isMockupOpen, setIsMockupOpen] = useState(false);
 const [mockupDesign, setMockupDesign] = useState<SublimationDesign | null>(null);
+
+  const resolveForTool = async (d: SublimationDesign): Promise<SublimationDesign> => {
+    const ref = d.imagen;
+    if (!ref || !isStorageRef(ref)) return d;
+    try {
+      const resolved = await resolveImageSrc(ref);
+      return resolved ? { ...d, imagen: resolved } : d;
+    } catch {
+      return d;
+    }
+  };
 
   useEffect(() => {
     fetchDesigns();
@@ -379,13 +392,17 @@ const [mockupDesign, setMockupDesign] = useState<SublimationDesign | null>(null)
         onEdit={handleEdit}
         onOpenStudio={(d) => {
           setDetailDesign(null);
-          setStudioDesign(d);
-          setIsStudioOpen(true);
+          void resolveForTool(d).then((resolved) => {
+            setStudioDesign(resolved);
+            setIsStudioOpen(true);
+          });
         }}
         onOpenMockup={(d) => {
           setDetailDesign(null);
-          setMockupDesign(d);
-          setIsMockupOpen(true);
+          void resolveForTool(d).then((resolved) => {
+            setMockupDesign(resolved);
+            setIsMockupOpen(true);
+          });
         }}
       />
       <Suspense fallback={null}>

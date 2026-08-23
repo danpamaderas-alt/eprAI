@@ -18,6 +18,10 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { Modal } from '../../../shared/components/ui/Modal';
+import { useImageSrc } from '../../../shared/hooks/useImageSrc';
+import { isDataUrl } from '../../../shared/utils/designImageRef';
+import { uploadDesignFile } from '../../../shared/utils/designStorage';
+import { useTenantStore } from '../../../store/useTenantStore';
 import { useToastStore } from '../../../store/useToastStore';
 import { useSublimationStore } from '../store/useSublimationStore';
 import {
@@ -83,10 +87,34 @@ export const SublimationDesignDetailModal = memo(function SublimationDesignDetai
 }: SublimationDesignDetailModalProps) {
   const setStatus = useSublimationStore((s) => s.setStatus);
   const deleteDesign = useSublimationStore((s) => s.deleteDesign);
+  const updateDesign = useSublimationStore((s) => s.updateDesign);
   const toast = useToastStore((s) => s.toast);
   const [isDeleting, setIsDeleting] = useState(false);
   const [usedInOrders, setUsedInOrders] = useState<OrderUseRow[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
+  const imgSrc = useImageSrc(design?.imagen ?? null);
+
+  useEffect(() => {
+    const ref = design?.imagen;
+    if (!design || !ref || !isDataUrl(ref)) return;
+    let alive = false;
+    const run = async () => {
+      try {
+        const companyId =
+          design.company_id ?? useTenantStore.getState().activeCompanyId ?? 'shared';
+        const path = await uploadDesignFile(companyId, ref);
+        await updateDesign(design.id, { imagen: path });
+        if (alive) toast('Imagen migrada a la nube', { type: 'success' });
+      } catch (err) {
+        console.error('migración de imagen a storage falló:', err);
+      }
+    };
+    alive = true;
+    void run();
+    return () => {
+      alive = false;
+    };
+  }, [design?.id]);
 
   useEffect(() => {
     if (!design?.id || !supabase) {
@@ -168,9 +196,9 @@ export const SublimationDesignDetailModal = memo(function SublimationDesignDetai
     >
       {/* Hero con imagen */}
       <div className="rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800">
-        {design.imagen ? (
+        {imgSrc ? (
           <img
-            src={design.imagen}
+            src={imgSrc}
             alt={design.name}
             className="w-full aspect-[16/9] object-cover"
             onError={(e) => {
@@ -180,7 +208,7 @@ export const SublimationDesignDetailModal = memo(function SublimationDesignDetai
             }}
           />
         ) : null}
-        {!design.imagen && (
+        {!imgSrc && (
           <div className="w-full aspect-[16/9] bg-gradient-to-br from-fuchsia-600/20 via-slate-800 to-slate-900 flex items-center justify-center">
             <Palette className="w-16 h-16 text-fuchsia-400/40" aria-hidden="true" />
           </div>

@@ -1,3 +1,4 @@
+import { resolveImageSrc } from '../../../shared/utils/designStorage';
 import type { SublimationDesign } from '../types';
 
 type JsPdfDoc = InstanceType<(typeof import('jspdf'))['default']>;
@@ -151,7 +152,11 @@ export async function exportDesignsPDF(designs: SublimationDesign[]) {
 
   // Cargar imágenes en paralelo (mejor esfuerzo; si fallan se omite la imagen)
   const images = await Promise.all(
-    designs.map((d) => (d.imagen ? toDataURL(d.imagen) : Promise.resolve(null))),
+    designs.map(async (d) => {
+      if (!d.imagen) return null;
+      const src = await resolveImageSrc(d.imagen);
+      return src ? toDataURL(src) : null;
+    }),
   );
 
   for (let i = 0; i < designs.length; i++) {

@@ -8,6 +8,7 @@ import {
   Pencil,
   Trash2,
 } from 'lucide-react';
+import { useImageSrc } from '../../../shared/hooks/useImageSrc';
 import type { SublimationDesign } from '../types';
 import { SublimationStatusBadge } from './SublimationStatusBadge';
 
@@ -26,6 +27,7 @@ export const SublimationDesignCard = memo(function SublimationDesignCard({
 }: SublimationDesignCardProps) {
   const isArchived = design.status === 'Archivado';
   const isPOD = design.pod_permitido === true;
+  const imgSrc = useImageSrc(design.imagen);
 
   return (
     <article className="group bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-fuchsia-500/10 hover:border-fuchsia-400/40 dark:hover:border-fuchsia-500/40 transition-all duration-300 overflow-hidden flex flex-col">
@@ -36,9 +38,9 @@ export const SublimationDesignCard = memo(function SublimationDesignCard({
         className={`relative w-full aspect-[4/3] overflow-hidden focus-visible:ring-2 focus-visible:ring-fuchsia-500 focus-visible:ring-offset-2 ${isArchived ? 'grayscale opacity-60' : ''}`}
         aria-label={`Ver detalle de ${design.name}`}
       >
-        {design.imagen ? (
+        {imgSrc ? (
           <img
-            src={design.imagen}
+            src={imgSrc}
             alt={design.name}
             loading="lazy"
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
@@ -49,7 +51,7 @@ export const SublimationDesignCard = memo(function SublimationDesignCard({
             }}
           />
         ) : null}
-        {!design.imagen && (
+        {!imgSrc && (
           <div className="w-full h-full bg-gradient-to-br from-fuchsia-600/20 via-slate-800 to-slate-900 flex items-center justify-center">
             <Palette className="w-14 h-14 text-fuchsia-400/40" aria-hidden="true" />
           </div>
