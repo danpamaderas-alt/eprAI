@@ -5,6 +5,7 @@ import { useTenantStore } from '../../../store/useTenantStore';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { Breadcrumbs } from '../../../shared/components/ui/Breadcrumbs';
 import { ErrorBoundary } from '../../../shared/components/ui/ErrorBoundary';
+import { RaicesLogo } from '../../../shared/components/ui/RaicesLogo';
 import {
   ShoppingCart,
   Package,
@@ -155,9 +156,13 @@ const DashboardContent = memo(() => {
             <Sparkles className="w-4 h-4 text-blue-400" />
             <span className="text-xs font-bold text-blue-300 uppercase tracking-widest">{greeting}, {userName}</span>
           </div>
-          <h1 className="text-4xl lg:text-6xl font-black tracking-tighter text-white mb-3 italic">
-            Raices <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">ERP</span>
-          </h1>
+          <div className="mb-3">
+            <RaicesLogo
+              size={52}
+              href="/"
+              textClassName="text-4xl lg:text-6xl font-black tracking-tighter text-white italic"
+            />
+          </div>
           <span className="block w-20 h-1 rounded-full bg-gradient-to-r from-blue-400 to-cyan-300 mb-4" aria-hidden="true" />
           <p className="text-slate-200 font-black text-sm uppercase tracking-widest max-w-md">
             Panel de Control Operativo

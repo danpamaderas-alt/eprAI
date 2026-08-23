@@ -137,6 +137,10 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 logo Raíces ERP (marca SVG)** — Nuevo componente `src/shared/components/ui/RaicesLogo.tsx`
+  (ícono de brote con raíces en badge de gradiente azul-cian, reusable con `size`/`withText`/`href`).
+  Aplicado en Sidebar (reemplaza Sprout), LoginPage (reemplaza emoji 🌱) y hero del DashboardInicio.
+  El `any` de Sidebar.tsx:344 sigue siendo preexistente (no tocar).
 - **2026-08 dashboard: quitar stats del hero** — En `DashboardInicio` se removieron los chips
   Prendas/Clientes/Pendientes del hero. El hero ahora es más limpio (saludo, título con
   acento de gradiente, fecha de hoy y subtítulo). Se eliminaron los fetches que solo servían

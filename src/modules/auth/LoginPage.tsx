@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useTenantStore } from '../../store/useTenantStore';
 import { Spinner } from '../../shared/components/ui/Spinner';
+import { RaicesLogo } from '../../shared/components/ui/RaicesLogo';
 import Swal from 'sweetalert2';
 
 export const LoginPage = () => {
@@ -70,12 +71,13 @@ export const LoginPage = () => {
     <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4">
       <div className="max-w-md w-full bg-slate-800 p-10 rounded-[2.5rem] shadow-2xl border border-slate-700 animate-in fade-in zoom-in duration-500">
         <div className="text-center mb-10">
-          <div className="w-20 h-20 bg-blue-600 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-blue-600/40 transform -rotate-6">
-            <span className="text-4xl" aria-hidden="true">🌱</span>
+          <div className="mx-auto mb-6 w-fit transform -rotate-6">
+            <RaicesLogo
+              size={64}
+              href={null}
+              textClassName="text-3xl font-black text-white tracking-tighter uppercase italic"
+            />
           </div>
-          <h2 className="text-4xl font-black text-white tracking-tighter uppercase italic">
-            Raíces <span className="text-blue-500">ERP</span>
-          </h2>
           <p className="text-slate-500 text-[10px] mt-3 font-black uppercase tracking-[0.4em]">Control de Gestión Industrial</p>
         </div>
 

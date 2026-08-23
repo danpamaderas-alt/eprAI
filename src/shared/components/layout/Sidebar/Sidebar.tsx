@@ -28,7 +28,6 @@ import {
   Moon,
   Sun,
   Plus,
-  Sprout,
   Pencil,
   Settings,
   type LucideIcon,
@@ -42,6 +41,7 @@ const CompanyFormModal = lazy(() =>
   import('../../ui/CompanyFormModal').then((m) => ({ default: m.CompanyFormModal })),
 );
 import { NotificationBell } from '../../notifications/NotificationBell';
+import { RaicesLogo } from '../../ui/RaicesLogo';
 
 interface NavRoute {
   readonly path: string;
@@ -242,15 +242,7 @@ export const Sidebar = memo(() => {
         {/* HEADER */}
         <div className="h-20 flex items-center justify-between px-6 border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-success-600 flex items-center justify-center shrink-0">
-              <Sprout className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-black text-white tracking-tight uppercase leading-none">
-                Raíces
-              </h1>
-              <span className="text-[9px] font-bold text-brand-400 uppercase tracking-[0.3em]">Holding ERP</span>
-            </div>
+            <RaicesLogo size={36} href={null} textClassName="text-lg font-black tracking-tighter text-white uppercase italic" />
           </div>
           <div className="flex items-center gap-1">
             <NotificationBell />
