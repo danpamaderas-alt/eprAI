@@ -137,6 +137,11 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 colores de filamento visibles** — La tarjeta `FilamentCard` ya usaba `color_hex`
+  pero las filas venían sin ese campo (swatch gris). Nuevo `filaments/utils/filamentColors.ts`
+  con `colorHexForName()` (fallback por nombre) + backfill `029_backfill_filament_colors.sql`
+  (APLICADA: setea color_hex por color_name en ASCII para todos los PLA). Ahora cada rollo
+  muestra su color real; los nuevos por nombre también lo resuelven aunque falte color_hex.
 - **2026-08 producción de sublimación (cola tipo 3D)** — Módulo `src/modules/sublimationjobs/`
   espejo de `printjobs`: migración `028_sublimation_jobs.sql` (APLICADA; tabla con design_id→
   sublimation_designs, blank_id→textile_blanks, status CHECK, RLS tenant_isolation), store

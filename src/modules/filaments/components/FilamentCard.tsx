@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { AlertTriangle, Pencil, Scale, Trash2 } from 'lucide-react';
 import type { PrintFilament } from '../types';
+import { colorHexForName } from '../utils/filamentColors';
 
 interface FilamentCardProps {
   filament: PrintFilament;
@@ -18,6 +19,7 @@ export const FilamentCard = memo(function FilamentCard({
   const spool = filament.spool_weight_g || 1000;
   const remaining = Math.max(0, filament.remaining_g);
   const pct = Math.min(100, Math.round((remaining / spool) * 100));
+  const swatchColor = filament.color_hex || colorHexForName(filament.color_name);
   const isLow = remaining <= (filament.min_stock_g ?? 0);
   const barColor =
     pct > 50 ? 'bg-emerald-500' : pct > 20 ? 'bg-amber-500' : 'bg-rose-500';
@@ -32,7 +34,7 @@ export const FilamentCard = memo(function FilamentCard({
       <div className="flex items-center gap-3 p-4 pb-3">
         <div
           className="w-12 h-12 rounded-2xl border-2 border-white dark:border-slate-700 shadow-inner shrink-0"
-          style={{ backgroundColor: filament.color_hex || '#64748b' }}
+          style={{ backgroundColor: swatchColor }}
           aria-hidden="true"
         />
         <div className="min-w-0 flex-1">
