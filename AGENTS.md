@@ -137,6 +137,17 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 fix RLS global: permission denied for user_company_id** — "Error al cargar
+  los archivos" destapó un bug de la migración 008 (del 17/08): su `REVOKE EXECUTE ...
+  FROM PUBLIC, anon, authenticated` sobre `private.user_company_id()` asumía que las
+  expresiones de políticas RLS no chequean EXECUTE contra el rol consultante. ES FALSO:
+  rompió las 37 tablas con tenant_isolation basado en esa función (orders, products,
+  sales, remitos... HTTP 401 vía REST). Fix en dos migraciones APLICADAS: `024` (política
+  inline en print_model_files) y `025` (GRANT USAGE schema private + EXECUTE función a
+  anon/authenticated — la función solo devuelve el company_id del propio JWT, cero
+  riesgo). Verificación: REST anon devuelve 200 en todas. **Lección: "solo usable dentro
+  de políticas" no existe en Postgres; toda función referenciada por una política debe
+  tener EXECUTE para los roles que consultan.**
 - **2026-08 formatos libres y múltiples bandejas en archivos 3D** — Migración
   `023_print_model_files_formats.sql` (APLICADA): kind pasó de stl/gcode a original/gcode
   (UPDATE de datos incluido) + columna `format` backfilleada desde la extensión del
