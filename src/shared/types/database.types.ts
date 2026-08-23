@@ -1,4 +1,4 @@
-﻿/* eslint-disable */
+/* eslint-disable */
 // @ts-nocheck
 export type Json =
   | string
@@ -1307,6 +1307,7 @@ export type Database = {
           company_id: string | null
           created_at: string | null
           file_name: string
+          format: string | null
           id: string
           kind: string
           model_id: string
@@ -1319,6 +1320,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string | null
           file_name: string
+          format?: string | null
           id?: string
           kind?: string
           model_id: string
@@ -1331,6 +1333,7 @@ export type Database = {
           company_id?: string | null
           created_at?: string | null
           file_name?: string
+          format?: string | null
           id?: string
           kind?: string
           model_id?: string

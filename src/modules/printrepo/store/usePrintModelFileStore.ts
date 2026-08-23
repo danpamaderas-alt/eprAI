@@ -5,9 +5,10 @@ import type { PrintModelFile, PrintModelFileKind } from '../types';
 
 export const PRINT_FILES_BUCKET = 'print-files';
 
-const EXT_FOR_KIND: Record<PrintModelFileKind, string> = {
-  stl: 'stl',
-  gcode: 'gcode',
+const extFromName = (name: string): string => {
+  const dot = name.lastIndexOf('.');
+  const ext = dot > -1 ? name.slice(dot + 1).toLowerCase() : '';
+  return /^[a-z0-9]{1,5}$/.test(ext) ? ext : 'bin';
 };
 
 /** Sube el binario al bucket privado y devuelve el path de storage. */
@@ -15,10 +16,8 @@ export const uploadPrintFile = async (
   companyId: string,
   modelId: string,
   file: File,
-  kind: PrintModelFileKind,
 ): Promise<string> => {
-  const dot = file.name.lastIndexOf('.');
-  const ext = dot > -1 ? file.name.slice(dot + 1).toLowerCase() : EXT_FOR_KIND[kind];
+  const ext = extFromName(file.name);
   const path = `${companyId}/${modelId}/${crypto.randomUUID()}.${ext}`;
   const { error } = await supabase.storage.from(PRINT_FILES_BUCKET).upload(path, file, {
     upsert: false,
@@ -73,15 +72,7 @@ export const usePrintModelFileStore = create<PrintModelFileState>((set, get) => 
     const companyId = useTenantStore.getState().activeCompanyId;
     if (!companyId) throw new Error('No hay compañía activa.');
 
-    const storagePath = await uploadPrintFile(companyId, modelId, file, kind);
-
-    // STL único por modelo: reemplaza el anterior (borra binario viejo + fila)
-    if (kind === 'stl') {
-      const previous = get().files.find((f) => f.model_id === modelId && f.kind === 'stl');
-      if (previous) {
-        await get().removeFile(previous.id);
-      }
-    }
+    const storagePath = await uploadPrintFile(companyId, modelId, file);
 
     const { data: row, error } = await supabase
       .from('print_model_files')
@@ -89,6 +80,7 @@ export const usePrintModelFileStore = create<PrintModelFileState>((set, get) => 
         company_id: companyId,
         model_id: modelId,
         kind,
+        format: extFromName(file.name),
         printer_name: kind === 'gcode' ? (printerName?.trim() || null) : null,
         file_name: file.name,
         storage_path: storagePath,

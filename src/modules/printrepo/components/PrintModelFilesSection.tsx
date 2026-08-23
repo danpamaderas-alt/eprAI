@@ -1,16 +1,19 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Download, FileCode2, FileUp, Loader2, Trash2, Boxes } from 'lucide-react';
-import {
-  usePrintModelFileStore,
-} from '../store/usePrintModelFileStore';
+import { usePrintModelFileStore } from '../store/usePrintModelFileStore';
 import { useToastStore } from '../../../store/useToastStore';
-import type { PrintModelFileKind } from '../types';
+import type { PrintModelFile, PrintModelFileKind } from '../types';
 
 const fmtSize = (bytes: number | null): string => {
   if (bytes == null) return '—';
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
+
+const fmtFormat = (f: PrintModelFile): string =>
+  (f.format ?? f.file_name.split('.').pop() ?? 'bin').toUpperCase();
+
+const ORIGINAL_ACCEPT = '.stl,.3mf,.step,.stp,.obj';
 
 interface Props {
   modelId: string;
@@ -22,11 +25,11 @@ export const PrintModelFilesSection = memo(function PrintModelFilesSection({ mod
     usePrintModelFileStore();
   const [uploading, setUploading] = useState<PrintModelFileKind | null>(null);
   const [printerName, setPrinterName] = useState('');
-  const stlInputRef = useRef<HTMLInputElement>(null);
+  const originalInputRef = useRef<HTMLInputElement>(null);
   const gcodeInputRef = useRef<HTMLInputElement>(null);
 
   const modelFiles = useMemo(() => files.filter((f) => f.model_id === modelId), [files, modelId]);
-  const stl = modelFiles.find((f) => f.kind === 'stl');
+  const originals = modelFiles.filter((f) => f.kind === 'original');
   const gcodes = modelFiles.filter((f) => f.kind === 'gcode');
 
   useEffect(() => {
@@ -55,9 +58,9 @@ export const PrintModelFilesSection = memo(function PrintModelFilesSection({ mod
     try {
       await attachFile({ modelId, file, kind, printerName });
       toast(
-        kind === 'stl'
-          ? 'STL adjuntado al modelo'
-          : `G-code guardado para «${printerName.trim()}»`,
+        kind === 'gcode'
+          ? `G-code guardado para «${printerName.trim()}»`
+          : `${(file.name.split('.').pop() ?? 'archivo').toUpperCase()} adjuntado`,
         { type: 'success' },
       );
       setPrinterName('');
@@ -66,7 +69,7 @@ export const PrintModelFilesSection = memo(function PrintModelFilesSection({ mod
       toast(err instanceof Error ? err.message : 'Error al subir el archivo', { type: 'error' });
     } finally {
       setUploading(null);
-      if (stlInputRef.current) stlInputRef.current.value = '';
+      if (originalInputRef.current) originalInputRef.current.value = '';
       if (gcodeInputRef.current) gcodeInputRef.current.value = '';
     }
   };
@@ -87,57 +90,56 @@ export const PrintModelFilesSection = memo(function PrintModelFilesSection({ mod
         Archivos de impresión
       </p>
 
-      {error && (
-        <p className="text-[11px] font-bold text-rose-500">{error}</p>
-      )}
+      {error && <p className="text-[11px] font-bold text-rose-500">{error}</p>}
 
-      {/* STL */}
-      <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
-        <div className="flex items-center gap-3 min-w-0">
-          <Boxes className="w-4 h-4 text-brand-500 shrink-0" aria-hidden="true" />
-          <div className="min-w-0">
-            <p className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">
-              {stl ? stl.file_name : 'Sin STL adjunto'}
-            </p>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              STL · {fmtSize(stl?.size_bytes ?? null)}
-            </p>
+      {/* ORIGINALES (STL / 3MF / STEP / OBJ) */}
+      <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider pt-1">
+        Originales · STL · 3MF · STEP
+      </p>
+      {originals.map((f) => (
+        <div key={f.id} className="flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-3 min-w-0">
+            <Boxes className="w-4 h-4 text-brand-500 shrink-0" aria-hidden="true" />
+            <div className="min-w-0">
+              <p className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">{f.file_name}</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <span className="px-1 py-0.5 mr-1 rounded bg-brand-600/10 text-brand-600 dark:text-brand-400">{fmtFormat(f)}</span>
+                {fmtSize(f.size_bytes)}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-1.5 shrink-0">
+            <button type="button" onClick={() => void handleDownload(f.storage_path, f.file_name)}
+              title="Descargar"
+              aria-label={`Descargar ${f.file_name}`}
+              className="p-2 rounded-lg bg-brand-600/10 hover:bg-brand-600/20 text-brand-600 dark:text-brand-400 transition-colors">
+              <Download size={14} aria-hidden />
+            </button>
+            <button type="button" onClick={() => void handleDelete(f.id, f.file_name)}
+              title="Quitar archivo"
+              aria-label={`Eliminar ${f.file_name}`}
+              className="p-2 rounded-lg bg-rose-600/10 hover:bg-rose-600/20 text-rose-500 transition-colors">
+              <Trash2 size={14} aria-hidden />
+            </button>
           </div>
         </div>
-        <div className="flex gap-1.5 shrink-0">
-          {stl && (
-            <>
-              <button type="button" onClick={() => void handleDownload(stl.storage_path, stl.file_name)}
-                title="Descargar STL"
-                aria-label={`Descargar ${stl.file_name}`}
-                className="p-2 rounded-lg bg-brand-600/10 hover:bg-brand-600/20 text-brand-600 dark:text-brand-400 transition-colors">
-                {uploading === 'stl' ? <Loader2 size={14} className="animate-spin" aria-hidden /> : <Download size={14} aria-hidden />}
-              </button>
-              <button type="button" onClick={() => void handleDelete(stl.id, stl.file_name)}
-                title="Quitar STL"
-                aria-label={`Eliminar ${stl.file_name}`}
-                className="p-2 rounded-lg bg-rose-600/10 hover:bg-rose-600/20 text-rose-500 transition-colors">
-                <Trash2 size={14} aria-hidden />
-              </button>
-            </>
-          )}
-          {!stl && (
-            <button
-              type="button"
-              onClick={() => stlInputRef.current?.click()}
-              disabled={uploading != null}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-slate-300 dark:border-slate-600 hover:border-brand-500 text-slate-500 dark:text-slate-400 hover:text-brand-500 text-[10px] font-black uppercase tracking-widest transition-colors disabled:opacity-50"
-            >
-              {uploading === 'stl' ? <Loader2 size={12} className="animate-spin" aria-hidden /> : <FileUp size={12} aria-hidden />}
-              Adjuntar STL
-            </button>
-          )}
-        </div>
-      </div>
-      <input ref={stlInputRef} type="file" accept=".stl,model/stl,application/sla" className="hidden"
-        onChange={(e) => void handlePick('stl', e.target.files?.[0])} />
+      ))}
+      <button
+        type="button"
+        onClick={() => originalInputRef.current?.click()}
+        disabled={uploading != null}
+        className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-dashed border-slate-300 dark:border-slate-600 hover:border-brand-500 text-slate-500 dark:text-slate-400 hover:text-brand-500 text-[10px] font-black uppercase tracking-widest transition-colors disabled:opacity-50"
+      >
+        {uploading === 'original' ? <Loader2 size={12} className="animate-spin" aria-hidden /> : <FileUp size={12} aria-hidden />}
+        Adjuntar archivo original
+      </button>
+      <input ref={originalInputRef} type="file" accept={ORIGINAL_ACCEPT} className="hidden"
+        onChange={(e) => void handlePick('original', e.target.files?.[0])} />
 
-      {/* G-codes */}
+      {/* G-CODES POR IMPRESORA */}
+      <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider pt-1">
+        G-codes por impresora / bandeja
+      </p>
       {gcodes.map((g) => (
         <div key={g.id} className="flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3 min-w-0">
@@ -145,7 +147,8 @@ export const PrintModelFilesSection = memo(function PrintModelFilesSection({ mod
             <div className="min-w-0">
               <p className="text-xs font-black text-slate-800 dark:text-slate-100 truncate">{g.file_name}</p>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                G-CODE · {g.printer_name ?? 'sin impresora'} · {fmtSize(g.size_bytes)}
+                <span className="px-1 py-0.5 mr-1 rounded bg-violet-600/10 text-violet-500">{g.printer_name ?? 'sin impresora'}</span>
+                {fmtSize(g.size_bytes)}
               </p>
             </div>
           </div>

@@ -137,6 +137,13 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 formatos libres y múltiples bandejas en archivos 3D** — Migración
+  `023_print_model_files_formats.sql` (APLICADA): kind pasó de stl/gcode a original/gcode
+  (UPDATE de datos incluido) + columna `format` backfilleada desde la extensión del
+  archivo. UI: grupo "Originales" acepta .stl/.3mf/.step/.obj SIN límite de cantidad ni
+  reemplazo automático (se elimina la lógica de STL único — el dueño imprime por
+  bandejas), badge de formato por archivo; G-codes siguen por impresora y admiten varios
+  por impresora (una fila = una bandeja).
 - **2026-08 archivos STL/G-code en repositorio 3D** — Migración `022_print_model_files.sql`
   (APLICADA: tabla print_model_files con kind CHECK stl/gcode, printer_name para G-code,
   FK model_id ON DELETE CASCADE + bucket privado `print-files` con políticas authenticated).
