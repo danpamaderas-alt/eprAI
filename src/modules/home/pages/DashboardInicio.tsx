@@ -28,6 +28,16 @@ import {
   Truck,
   FileText,
   CircleDollarSign,
+  Factory,
+  Shirt,
+  Boxes,
+  Rainbow,
+  Printer,
+  Palette,
+  PackageOpen,
+  Frame,
+  Scissors,
+  type LucideIcon,
 } from 'lucide-react';
 
 interface ActivityItem {
@@ -41,6 +51,58 @@ interface ActivityItem {
   color: string;
 }
 
+interface QuickAccessItem {
+  name: string;
+  path: string;
+  icon: LucideIcon;
+  color: string;
+}
+
+interface QuickAccessGroup {
+  label: string;
+  items: QuickAccessItem[];
+}
+
+const QUICK_ACCESS: QuickAccessGroup[] = [
+  {
+    label: 'Operación',
+    items: [
+      { name: 'Punto de Venta', path: '/ventas', icon: ShoppingCart, color: 'from-emerald-500 to-emerald-600' },
+      { name: 'Pedidos', path: '/pedidos', icon: Route, color: 'from-indigo-500 to-indigo-600' },
+      { name: 'Remitos', path: '/remitos', icon: Truck, color: 'from-amber-500 to-amber-600' },
+      { name: 'A Fabricar', path: '/produccion', icon: Scissors, color: 'from-rose-500 to-rose-600' },
+    ],
+  },
+  {
+    label: 'Impresión 3D',
+    items: [
+      { name: 'Repositorio 3D', path: '/impresiones-3d', icon: Boxes, color: 'from-indigo-500 to-indigo-600' },
+      { name: 'Filamentos', path: '/filamentos', icon: Rainbow, color: 'from-orange-500 to-orange-600' },
+      { name: 'Producción 3D', path: '/produccion-3d', icon: Factory, color: 'from-rose-500 to-rose-600' },
+      { name: 'Calc. 3D', path: '/calculadora-3d', icon: Printer, color: 'from-indigo-500 to-indigo-600' },
+    ],
+  },
+  {
+    label: 'Textil y Sublimación',
+    items: [
+      { name: 'Repos. Subli', path: '/sublimacion', icon: Palette, color: 'from-fuchsia-500 to-fuchsia-600' },
+      { name: 'Blanks', path: '/blanks', icon: PackageOpen, color: 'from-fuchsia-500 to-fuchsia-600' },
+      { name: 'Calc. Subli', path: '/calculadora-sublimacion', icon: Shirt, color: 'from-fuchsia-500 to-fuchsia-600' },
+      { name: 'Prod. Subli', path: '/produccion-sublimacion', icon: Factory, color: 'from-fuchsia-500 to-fuchsia-600' },
+      { name: 'Mockups', path: '/mockups', icon: Frame, color: 'from-sky-500 to-sky-600' },
+    ],
+  },
+  {
+    label: 'Stock y Finanzas',
+    items: [
+      { name: 'Inventario', path: '/inventario', icon: Package, color: 'from-blue-500 to-blue-600' },
+      { name: 'Tesorería', path: '/tesoreria', icon: CircleDollarSign, color: 'from-cyan-500 to-cyan-600' },
+      { name: 'Finanzas', path: '/finanzas', icon: BarChart3, color: 'from-slate-500 to-slate-600' },
+      { name: 'Cotizar', path: '/cotizador', icon: FileText, color: 'from-violet-500' },
+    ],
+  },
+];
+
 const DashboardContent = memo(() => {
   const { inventory, fetchAllCatalogs } = useCatalogStore();
   const { balances, fetchBalances } = useCrmStore();
@@ -49,6 +111,8 @@ const DashboardContent = memo(() => {
   const user = useAuthStore((state) => state.user);
 
   const [pedidosPendientes, setPedidosPendientes] = useState(0);
+  const [prod3dActivos, setProd3dActivos] = useState(0);
+  const [prodSubliActivos, setProdSubliActivos] = useState(0);
   const [chartData, setChartData] = useState<{ day: string; sales: number }[]>([]);
   const [isLoadingCounts, setIsLoadingCounts] = useState(true);
   const [isChartLoading, setIsChartLoading] = useState(true);
@@ -152,7 +216,24 @@ const DashboardContent = memo(() => {
           }));
         };
 
-        const [ordersCount, weeklySales, , , , recentOrders, recentSales] = await Promise.all([
+        const fetchProductionActivos = async (): Promise<{ d3: number; subli: number }> => {
+          if (!activeCompanyId) return { d3: 0, subli: 0 };
+          const [d3, subli] = await Promise.all([
+            supabase
+              .from('print_jobs_3d')
+              .select('*', { count: 'exact', head: true })
+              .eq('company_id', activeCompanyId)
+              .in('status', ['en_cola', 'imprimiendo']),
+            supabase
+              .from('sublimation_jobs')
+              .select('*', { count: 'exact', head: true })
+              .eq('company_id', activeCompanyId)
+              .in('status', ['en_cola', 'imprimiendo']),
+          ]);
+          return { d3: d3.count || 0, subli: subli.count || 0 };
+        };
+
+        const [ordersCount, weeklySales, , , , recentOrders, recentSales, produccion] = await Promise.all([
           fetchOrdersCount(),
           fetchWeeklySales(),
           fetchAllCatalogs(),
@@ -160,10 +241,13 @@ const DashboardContent = memo(() => {
           fetchTransactions(),
           fetchRecentOrders(),
           fetchRecentSales(),
+          fetchProductionActivos(),
         ]);
 
         setPedidosPendientes(ordersCount);
         setChartData(weeklySales);
+        setProd3dActivos(produccion.d3);
+        setProdSubliActivos(produccion.subli);
 
         const allActivity = [...(recentOrders || []), ...(recentSales || [])]
           .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
@@ -217,16 +301,7 @@ const DashboardContent = memo(() => {
     ? Math.round(((ingresosMes - ingresosMesAnterior) / ingresosMesAnterior) * 100)
     : 0;
 
-  const modules = [
-    { name: 'POS', path: '/ventas', icon: <ShoppingCart className="w-5 h-5" />, color: 'from-emerald-500 to-emerald-600', shadow: 'shadow-emerald-500/30' },
-    { name: 'Inventario', path: '/inventario', icon: <Package className="w-5 h-5" />, color: 'from-blue-500 to-blue-600', shadow: 'shadow-blue-500/30' },
-    { name: 'Cotizar', path: '/cotizador', icon: <FileText className="w-5 h-5" />, color: 'from-violet-500 to-violet-600', shadow: 'shadow-violet-500/30' },
-    { name: 'CRM', path: '/clientes', icon: <Users className="w-5 h-5" />, color: 'from-rose-500 to-rose-600', shadow: 'shadow-rose-500/30' },
-    { name: 'Logistica', path: '/remitos', icon: <Truck className="w-5 h-5" />, color: 'from-amber-500 to-amber-600', shadow: 'shadow-amber-500/30' },
-    { name: 'Tesoreria', path: '/tesoreria', icon: <CircleDollarSign className="w-5 h-5" />, color: 'from-cyan-500 to-cyan-600', shadow: 'shadow-cyan-500/30' },
-    { name: 'Pedidos', path: '/pedidos', icon: <Route className="w-5 h-5" />, color: 'from-indigo-500 to-indigo-600', shadow: 'shadow-indigo-500/30' },
-    { name: 'Reportes', path: '/finanzas', icon: <BarChart3 className="w-5 h-5" />, color: 'from-slate-500 to-slate-600', shadow: 'shadow-slate-500/30' },
-  ];
+  const produccionTotal = prod3dActivos + prodSubliActivos;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
@@ -309,26 +384,78 @@ const DashboardContent = memo(() => {
         )}
       </div>
 
-      {/* Module Grid - Quick Access */}
+      {/* Producción en curso */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <Link
+          to="/produccion-3d"
+          className="group relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-rose-500 to-rose-600 p-6 shadow-lg shadow-rose-500/30 transition-transform hover:scale-[1.01]"
+        >
+          <div className="absolute -right-6 -top-6 w-24 h-24 bg-white/10 rounded-full blur-2xl" />
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+              <Factory className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-[10px] font-black text-white/80 uppercase tracking-widest">Impresión 3D</span>
+          </div>
+          <p className="text-3xl font-black text-white tabular-nums">{isLoadingCounts ? '—' : prod3dActivos}</p>
+          <p className="text-[10px] font-bold text-white/80 uppercase tracking-widest mt-1">Trabajos en curso</p>
+        </Link>
+
+        <Link
+          to="/produccion-sublimacion"
+          className="group relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-fuchsia-500 to-fuchsia-600 p-6 shadow-lg shadow-fuchsia-500/30 transition-transform hover:scale-[1.01]"
+        >
+          <div className="absolute -right-6 -top-6 w-24 h-24 bg-white/10 rounded-full blur-2xl" />
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+              <Shirt className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-[10px] font-black text-white/80 uppercase tracking-widest">Sublimación</span>
+          </div>
+          <p className="text-3xl font-black text-white tabular-nums">{isLoadingCounts ? '—' : prodSubliActivos}</p>
+          <p className="text-[10px] font-bold text-white/80 uppercase tracking-widest mt-1">Trabajos en curso</p>
+        </Link>
+
+        <div className="relative overflow-hidden rounded-[2rem] bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 p-6 shadow-sm flex flex-col justify-center">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Producción total activa</p>
+          <p className="text-3xl font-black text-slate-900 dark:text-white tabular-nums">
+            {isLoadingCounts ? '—' : produccionTotal}
+          </p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+            {prod3dActivos} 3D · {prodSubliActivos} Subli
+          </p>
+        </div>
+      </div>
+
+      {/* Accesos rápidos por rubro */}
       <div className="bg-white dark:bg-slate-800/50 backdrop-blur-sm rounded-[2.5rem] border border-slate-200 dark:border-slate-700/50 p-8 shadow-sm">
         <div className="flex items-center gap-2 mb-6">
           <LayoutGrid className="w-4 h-4 text-slate-400" />
-          <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em]">Modulos</h2>
+          <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em]">Accesos Rápidos</h2>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-          {modules.map((m) => (
-            <Link
-              key={m.path}
-              to={m.path}
-              className="flex flex-col items-center gap-3 p-4 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all group cursor-pointer"
-            >
-              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${m.color} text-white flex items-center justify-center shadow-lg ${m.shadow} group-hover:scale-110 transition-transform`}>
-                {m.icon}
+        <div className="space-y-6">
+          {QUICK_ACCESS.map((group) => (
+            <div key={group.label}>
+              <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">
+                {group.label}
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {group.items.map((m) => (
+                  <Link
+                    key={m.path}
+                    to={m.path}
+                    className="flex items-center gap-3 p-3 rounded-2xl border border-slate-200 dark:border-slate-700/60 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-all group"
+                  >
+                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${m.color} text-white flex items-center justify-center shadow-lg shrink-0 group-hover:scale-110 transition-transform`}>
+                      <m.icon className="w-5 h-5" />
+                    </div>
+                    <span className="text-[11px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider leading-tight">
+                      {m.name}
+                    </span>
+                  </Link>
+                ))}
               </div>
-              <span className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider text-center">
-                {m.name}
-              </span>
-            </Link>
+            </div>
           ))}
         </div>
       </div>

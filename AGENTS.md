@@ -137,6 +137,11 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 reestructura del dashboard de inicio** — `DashboardInicio` rediseñado manteniendo el
+  estilo (gradientes, tarjetas redondeadas): KPIs existentes + nueva franja "Producción en curso"
+  (3D y Sublimación con counts en vivo desde `print_jobs_3d`/`sublimation_jobs`) + grid de
+  "Accesos Rápidos" agrupados por rubro (Operación / 3D / Textil-Subli / Stock-Finanzas) que
+  incluye los módulos nuevos. Sustituye la grilla de 8 íconos sueltos.
 - **2026-08 colores de filamento visibles** — La tarjeta `FilamentCard` ya usaba `color_hex`
   pero las filas venían sin ese campo (swatch gris). Nuevo `filaments/utils/filamentColors.ts`
   con `colorHexForName()` (fallback por nombre) + backfill `029_backfill_filament_colors.sql`
