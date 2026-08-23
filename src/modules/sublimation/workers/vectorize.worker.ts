@@ -7,7 +7,10 @@ interface VectorizeRequest {
   options: Record<string, unknown>;
 }
 
-const ctx = self as unknown as DedicatedWorkerGlobalScope;
+const ctx = self as unknown as {
+  onmessage: ((e: MessageEvent<VectorizeRequest>) => void) | null;
+  postMessage: (msg: { ok: boolean; svg?: string; error?: string }) => void;
+};
 
 ctx.onmessage = (e: MessageEvent<VectorizeRequest>) => {
   const { buffer, width, height, options } = e.data;

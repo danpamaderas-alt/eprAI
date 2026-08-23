@@ -423,6 +423,6 @@ export const useOrderStore = create<OrderState>((set, get) => ({  orders: [],
 
 useTenantStore.subscribe((state, prev) => {
   if (state.activeCompanyId !== prev.activeCompanyId) {
-    set({ orders: [], selectedOrders: new Set<string>(), isLoading: false });
+    useOrderStore.setState({ orders: [], selectedOrders: new Set<string>(), isLoading: false });
   }
 });

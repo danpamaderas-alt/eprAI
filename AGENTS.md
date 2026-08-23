@@ -136,6 +136,13 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 hotfix dashboard/pedidos** — Tres referencias rotas que el build NO detecta
+  (no hay gate tsc): `KpiSkeleton` sin importar en DashboardInicio (crash visible:
+  "Error en el dashboard"), `set(...)` fuera de scope en la suscripción tenant-reset de
+  useOrderStore (debía ser `useOrderStore.setState`, como sí hizo bien useSublimationStore),
+  y cast a `DedicatedWorkerGlobalScope` sin tipo en vectorize.worker. **Lección: tras cada
+  feature correr `npx tsc --noEmit -p tsconfig.app.json` y grepear "Cannot find name"**;
+  ESLint no caza no-undef en este proyecto.
 - **2026-08 `bcefbf3`** — AGENTS.md con contexto completo para sesiones multi-PC.
 - **2026-08 `3a20f5a`** — .env/.dev.vars commiteados TEMPORALMENTE (2 PCs); rotar claves al revertir.
 - **2026-08 `ad3366a`** — Imágenes de diseños a Supabase Storage: bucket privado

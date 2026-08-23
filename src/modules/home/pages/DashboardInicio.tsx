@@ -13,7 +13,7 @@ import { ErrorBoundary } from '../../../shared/components/ui/ErrorBoundary';
 const SalesTrendChart = lazy(() =>
   import('../../../shared/components/charts/SalesTrendChart').then((m) => ({ default: m.SalesTrendChart })),
 );
-import { Skeleton } from '../../../shared/components/ui/Skeleton';
+import { KpiSkeleton, Skeleton } from '../../../shared/components/ui/Skeleton';
 import {
   ShoppingCart,
   Package,
