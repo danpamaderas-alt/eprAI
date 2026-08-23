@@ -137,6 +137,16 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 stats de G-code: peso/tiempo extraídos del archivo** — Nuevo parser puro
+  `printrepo/utils/gcodeStats.ts` (+12 tests, suite en 37): lee comentarios de slicers
+  (PrusaSlicer `estimated printing time`/`filament used [g]`, Orca `model printing
+  time`/`total filament weight`, Cura `TIME:`/`Filament used: X m`→gramos vía densidad
+  por material detectada, Simplify3D HH:MM:SS, M73 R fallback) leyendo solo head 128KB +
+  tail 384KB del blob. Al cargar un G-code: toast muestra "· HH:MM · N g" y Swal ofrece
+  actualizar estimated_time_hours/estimated_grams del modelo. Lecciones regex: la clase
+  de unidades debe incluir d/h SUELTAS con variantes (`d(?:ias?|ays?)?|h(?:oras?|ours?
+  |rs?)?`) — dos iteraciones para dejar de perder '1d' y '2h'; `\b` evita falsos
+  positivos con medidas mm (X120.55).
 - **2026-08 UX carga de G-code: archivo primero, impresora después** — El dueño no podía
   cargar G-codes: el flujo exigía escribir la impresora ANTES de elegir el archivo (si
   elegías primero, se rechazaba y quedaba sin asignar) y el file picker filtraba por

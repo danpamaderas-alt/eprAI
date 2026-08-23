@@ -2,8 +2,11 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Download, FileCode2, FileUp, Loader2, Trash2, Boxes } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { usePrintModelFileStore } from '../store/usePrintModelFileStore';
+import { usePrintModelStore } from '../store/usePrintModelStore';
 import { useToastStore } from '../../../store/useToastStore';
-import type { PrintModelFile, PrintModelFileKind } from '../types';
+import { hoursToTime } from '../../../shared/utils/format';
+import { readGcodeStats, type GcodeStats } from '../utils/gcodeStats';
+import type { PrintModelFile, PrintModelFileKind, PrintModelInput } from '../types';
 
 const fmtSize = (bytes: number | null): string => {
   if (bytes == null) return '—';
@@ -22,6 +25,7 @@ interface Props {
 
 export const PrintModelFilesSection = memo(function PrintModelFilesSection({ modelId }: Props) {
   const toast = useToastStore((s) => s.toast);
+  const updateModel = usePrintModelStore((s) => s.updateModel);
   const { files, isLoading, error, fetchFiles, attachFile, removeFile, getSignedDownloadUrl } =
     usePrintModelFileStore();
   const [uploading, setUploading] = useState<PrintModelFileKind | null>(null);
@@ -62,6 +66,47 @@ export const PrintModelFilesSection = memo(function PrintModelFilesSection({ mod
     }
   };
 
+  /** Lee peso/tiempo del G-code y ofrece actualizar las estimaciones del modelo. */
+  const extractAndOfferStats = async (file: File): Promise<string> => {
+    let stats: GcodeStats;
+    try {
+      stats = await readGcodeStats(file);
+    } catch (err) {
+      console.error('lectura de stats del gcode:', err);
+      return '';
+    }
+    const parts: string[] = [];
+    if (stats.timeSeconds != null && stats.timeSeconds > 60) {
+      parts.push(hoursToTime(stats.timeSeconds / 3600));
+    }
+    if (stats.grams != null && stats.grams > 0) parts.push(`${stats.grams} g`);
+    if (parts.length === 0) return '';
+
+    try {
+      const res = await Swal.fire({
+        title: '¿Actualizar estimaciones del modelo?',
+        html: `El G-code indica:<br><b>${parts.join(' · ')}</b>`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, actualizar',
+        cancelButtonText: 'Dejar como está',
+        confirmButtonColor: '#7c3aed',
+      });
+      if (res.isConfirmed) {
+        const patch: Partial<PrintModelInput> = {};
+        if (stats.timeSeconds != null && stats.timeSeconds > 60) {
+          patch.estimated_time_hours = +(stats.timeSeconds / 3600).toFixed(2);
+        }
+        if (stats.grams != null && stats.grams > 0) patch.estimated_grams = stats.grams;
+        await updateModel(modelId, patch);
+        toast('Estimaciones del modelo actualizadas', { type: 'success' });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    return ` · ${parts.join(' · ')}`;
+  };
+
   const handlePick = async (kind: PrintModelFileKind, file: File | undefined) => {
     if (!file) return;
 
@@ -90,9 +135,11 @@ export const PrintModelFilesSection = memo(function PrintModelFilesSection({ mod
     setUploading(kind);
     try {
       await attachFile({ modelId, file, kind, printerName: printer });
+      let extra = '';
+      if (kind === 'gcode') extra = await extractAndOfferStats(file);
       toast(
         kind === 'gcode'
-          ? `G-code guardado para «${printer}»`
+          ? `G-code guardado para «${printer}»${extra}`
           : `${(file.name.split('.').pop() ?? 'archivo').toUpperCase()} adjuntado`,
         { type: 'success' },
       );
