@@ -8,6 +8,7 @@ import {
   Link2,
   Palette,
   Pencil,
+  Share2,
   StickyNote,
   Tag,
   Trash2,
@@ -28,6 +29,7 @@ interface SublimationDesignDetailModalProps {
   onClose: () => void;
   onEdit: (design: SublimationDesign) => void;
   onOpenStudio?: (design: SublimationDesign) => void;
+  onOpenMockup?: (design: SublimationDesign) => void;
 }
 
 const formatDate = (d: string | null): string => {
@@ -66,6 +68,7 @@ export const SublimationDesignDetailModal = memo(function SublimationDesignDetai
   onClose,
   onEdit,
   onOpenStudio,
+  onOpenMockup,
 }: SublimationDesignDetailModalProps) {
   const setStatus = useSublimationStore((s) => s.setStatus);
   const deleteDesign = useSublimationStore((s) => s.deleteDesign);
@@ -165,6 +168,16 @@ export const SublimationDesignDetailModal = memo(function SublimationDesignDetai
           )}
         </div>
         <div className="flex items-center gap-2">
+          {onOpenMockup && design.imagen && (
+            <button
+              type="button"
+              onClick={() => onOpenMockup(design)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-widest transition-colors"
+            >
+              <Share2 className="w-3.5 h-3.5" aria-hidden="true" />
+              Mockup
+            </button>
+          )}
           {onOpenStudio && (
             <button
               type="button"

@@ -23,6 +23,7 @@ import { SublimationDesignCard } from '../components/SublimationDesignCard';
 import { SublimationDesignFormModal } from '../components/SublimationDesignFormModal';
 import { SublimationDesignDetailModal } from '../components/SublimationDesignDetailModal';
 import { DesignStudioModal } from '../components/DesignStudioModal';
+import { MockupPreviewModal } from '../components/MockupPreviewModal';
 import { exportDesignsCSV, exportDesignsPDF } from '../utils/export';
 import type { SublimationDesign } from '../types';
 import { EmptyState } from '../../../shared/components/ui/EmptyState';
@@ -53,8 +54,10 @@ export const SublimationRepository = () => {
   const [editingDesign, setEditingDesign] = useState<SublimationDesign | null>(null);
   const [detailDesign, setDetailDesign] = useState<SublimationDesign | null>(null);
   const [isExportingPDF, setIsExportingPDF] = useState(false);
-  const [isStudioOpen, setIsStudioOpen] = useState(false);
-  const [studioDesign, setStudioDesign] = useState<SublimationDesign | null>(null);
+const [isStudioOpen, setIsStudioOpen] = useState(false);
+const [studioDesign, setStudioDesign] = useState<SublimationDesign | null>(null);
+const [isMockupOpen, setIsMockupOpen] = useState(false);
+const [mockupDesign, setMockupDesign] = useState<SublimationDesign | null>(null);
 
   useEffect(() => {
     fetchDesigns();
@@ -375,6 +378,11 @@ export const SublimationRepository = () => {
           setStudioDesign(d);
           setIsStudioOpen(true);
         }}
+        onOpenMockup={(d) => {
+          setDetailDesign(null);
+          setMockupDesign(d);
+          setIsMockupOpen(true);
+        }}
       />
       <DesignStudioModal
         key={`studio-${studioDesign?.id ?? 'blank'}`}
@@ -384,6 +392,15 @@ export const SublimationRepository = () => {
           setStudioDesign(null);
         }}
         initialDesign={studioDesign}
+      />
+      <MockupPreviewModal
+        key={`mockup-${mockupDesign?.id ?? 'blank'}`}
+        design={mockupDesign}
+        isOpen={isMockupOpen}
+        onClose={() => {
+          setIsMockupOpen(false);
+          setMockupDesign(null);
+        }}
       />
     </div>
   );
