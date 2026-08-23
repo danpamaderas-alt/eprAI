@@ -19,6 +19,7 @@ export const ClientFormModal = memo(
       email: "",
       address: "",
       cuit: "",
+      is_supplier: false,
     });
     const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -31,6 +32,7 @@ export const ClientFormModal = memo(
           email: "",
           address: "",
           cuit: "",
+          is_supplier: false,
         });
         requestAnimationFrame(() => nameInputRef.current?.focus());
       }
@@ -51,6 +53,7 @@ export const ClientFormModal = memo(
             address: formData.address || null,
             cuit: formData.cuit || null,
             balance: 0,
+            is_supplier: formData.is_supplier,
           });
 
           if (success) {
@@ -185,6 +188,19 @@ export const ClientFormModal = memo(
                   }
                 />
               </div>
+              <label className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.is_supplier}
+                  onChange={(e) =>
+                    setFormData({ ...formData, is_supplier: e.target.checked })
+                  }
+                  className="w-5 h-5 rounded accent-blue-600"
+                />
+                <span className="text-sm font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">
+                  Es proveedor
+                </span>
+              </label>
               <button
                 type="submit"
                 disabled={isSubmitting}

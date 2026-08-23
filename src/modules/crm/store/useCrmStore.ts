@@ -20,6 +20,7 @@ export interface CustomerBalance {
   company_id?: string | null;
   loyalty_points: number | null;
   type: string;
+  is_supplier?: boolean | null;
 }
 
 interface CrmState {
@@ -49,7 +50,7 @@ export const useCrmStore = create<CrmState>((set, get) => ({
     try {
       let query = supabase
         .from('customers')
-        .select('id, name, phone, address, email, cuit, notes, balance, created_at, company_id, loyalty_points, type')
+        .select('id, name, phone, address, email, cuit, notes, balance, created_at, company_id, loyalty_points, type, is_supplier')
         .eq('company_id', companyId);
 
       if (searchTerm) {

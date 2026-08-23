@@ -46,7 +46,7 @@ export const CustomerCRM = memo(() => {
   const [orderHistory, setOrderHistory] = useState<OrderHistory[]>([]);
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editData, setEditData] = useState({ name: '', phone: '', email: '', address: '', cuit: '', notes: '' });
+  const [editData, setEditData] = useState({ name: '', phone: '', email: '', address: '', cuit: '', notes: '', is_supplier: false });
   const [activeTab, setActiveTab] = useState<'movimientos' | 'puntos' | 'pedidos' | 'notas' | 'ia'>('movimientos');
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -136,6 +136,7 @@ export const CustomerCRM = memo(() => {
       address: customer.address ?? '',
       cuit: customer.cuit ?? '',
       notes: customer.notes ?? '',
+      is_supplier: customer.is_supplier ?? false,
     });
     setIsEditModalOpen(true);
   };
@@ -166,6 +167,7 @@ export const CustomerCRM = memo(() => {
         address: editData.address || null,
         cuit: editData.cuit || null,
         notes: editData.notes || null,
+        is_supplier: editData.is_supplier,
       });
       const updated = useCrmStore.getState().balances.find(c => c.id === selectedCustomer.id);
       if (updated) setSelectedCustomer(updated);
@@ -415,7 +417,14 @@ Reglas:
               </div>
               <div className="flex gap-3 mt-0.5 ml-10">
                 <p className="text-[10px] opacity-60">Saldo: ${(c.balance ?? 0).toLocaleString('es-AR')}</p>
-                <Badge variant={c.type === 'mayorista' ? 'info' : c.type === 'revendedor' ? 'warning' : 'default'} size="sm">{c.type}</Badge>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <Badge variant={c.type === 'mayorista' ? 'info' : c.type === 'revendedor' ? 'warning' : 'default'} size="sm">{c.type}</Badge>
+                  {c.is_supplier && (
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-orange-500/15 text-orange-500 border border-orange-500/30">
+                      Proveedor
+                    </span>
+                  )}
+                </div>
               </div>
               {c.email && (
                 <p className="text-[9px] opacity-40 truncate mt-0.5 ml-10">{c.email}</p>
@@ -454,6 +463,11 @@ Reglas:
                     </button>
                   </div>
                   <p className="text-slate-500 text-xs uppercase font-bold mt-0.5">{selectedCustomer.type} — {selectedCustomer.phone ?? 'Sin teléfono'}</p>
+                  {selectedCustomer.is_supplier && (
+                    <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-orange-500/15 text-orange-500 border border-orange-500/30">
+                      Proveedor
+                    </span>
+                  )}
                   {selectedCustomer.email && (
                     <p className="text-slate-400 text-[10px] uppercase font-bold mt-0.5">{selectedCustomer.email}</p>
                   )}
@@ -833,6 +847,17 @@ Reglas:
                     placeholder="Notas sobre el cliente..."
                   />
                 </div>
+                <label className="flex items-center gap-3 p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editData.is_supplier}
+                    onChange={e => setEditData({ ...editData, is_supplier: e.target.checked })}
+                    className="w-5 h-5 rounded accent-blue-600"
+                  />
+                  <span className="text-sm font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">
+                    Es proveedor
+                  </span>
+                </label>
                 <div className="flex gap-3">
                   <button
                     onClick={handleSaveEdit}

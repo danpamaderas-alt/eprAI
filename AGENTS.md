@@ -137,6 +137,11 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 clientes: campo "Es proveedor"** — Nuevo bool separado `customers.is_supplier`
+  (migración `030_customer_is_supplier.sql` APLICADA; `database.types.ts` actualizado).
+  Se marca en el alta (`ClientFormModal`), en la edición (`CustomerCRM` edit modal) y se
+  muestra como badge "Proveedor" en la lista y el detalle del cliente. Es independiente
+  del `type` (minorista/mayorista/revendedor/institucion).
 - **2026-08 mejora módulo Clientes** — En `CustomerCRM.tsx` se sumaron dos funcionalidades:
   (1) **Registrar Movimiento de Cuenta** desde la pestaña Movimientos (CARGO/PAGO con monto,
   fecha y concepto) usando `useCrmStore.addMovement` + tabla `account_movements`; y

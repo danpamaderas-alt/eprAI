@@ -439,6 +439,7 @@ export type Database = {
           notes: string | null
           phone: string | null
           portal_access: boolean | null
+          is_supplier: boolean | null
           type: string
         }
         Insert: {
@@ -455,6 +456,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           portal_access?: boolean | null
+          is_supplier?: boolean | null
           type: string
         }
         Update: {
@@ -471,6 +473,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           portal_access?: boolean | null
+          is_supplier?: boolean | null
           type?: string
         }
         Relationships: [
