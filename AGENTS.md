@@ -136,6 +136,19 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 repos por rubro** — Separación del negocio en módulos por rubro:
+  Filamentos (`print_filaments`, sql/017, costo/kg real que alimenta la Calculadora 3D
+  vía selector "Filamento del inventario"), Blanks e Insumos (`textile_blanks`, sql/018,
+  stock mínimo con aviso de reposición) y Mockups Base (`mockup_templates`, sql/019,
+  áreas de impresión en mm). Menú lateral reagrupado en secciones: Operación /
+  Impresión 3D / Textil y Sublimación / Stock y Compras / Finanzas / CRM. Los tres
+  stores copian el patrón printrepo (tenant-reset incluido). `database.types.ts`
+  parcheado a mano con las 3 tablas.
+- **2026-08 formato de hora** — Campos de tiempo de la Calc. 3D migrados a HH:MM
+  (`TimeField` con horas decimales debajo; soporta >24 h). Helpers nuevos en
+  `shared/utils/format.ts`: `formatDate`, `formatDateTime`, `hoursToTime`,
+  `timeToHours`. PDF usa fecha explícita dd/mm/aaaa hh:mm. Lección: `toLocaleString`
+  en el PDF era ambiguo para el dueño; preferir formato explícito es-AR armado a mano.
 - **2026-08 hotfix dashboard/pedidos** — Tres referencias rotas que el build NO detecta
   (no hay gate tsc): `KpiSkeleton` sin importar en DashboardInicio (crash visible:
   "Error en el dashboard"), `set(...)` fuera de scope en la suscripción tenant-reset de

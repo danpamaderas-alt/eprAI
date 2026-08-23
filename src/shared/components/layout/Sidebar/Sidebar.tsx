@@ -7,6 +7,7 @@ import {
   ClipboardList,
   Truck,
   Package,
+  PackageOpen,
   Warehouse,
   Landmark,
   BarChart3,
@@ -19,6 +20,8 @@ import {
   Printer,
   Boxes,
   Palette,
+  Rainbow,
+  Frame,
   Users,
   CreditCard,
   Moon,
@@ -43,27 +46,60 @@ interface NavRoute {
   readonly path: string;
   readonly label: string;
   readonly icon: LucideIcon;
-  readonly highlight?: 'indigo' | 'rose' | 'emerald' | 'fuchsia';
+  readonly highlight?: 'indigo' | 'rose' | 'emerald' | 'fuchsia' | 'orange' | 'sky';
 }
 
-const DESKTOP_ROUTES: readonly NavRoute[] = [
-  { path: '/inicio', label: 'Inicio', icon: LayoutDashboard },
-  { path: '/ventas', label: 'Punto de Venta', icon: ShoppingCart },
-  { path: '/pedidos', label: 'Pedidos', icon: ClipboardList },
-  { path: '/remitos', label: 'Remitos / Envíos', icon: Truck },
-  { path: '/inventario', label: 'Inventario', icon: Package },
-  { path: '/proveedores', label: 'Proveedores', icon: Warehouse },
-  { path: '/tesoreria', label: 'Tesorería', icon: Landmark },
-  { path: '/finanzas', label: 'Centro Financiero', icon: BarChart3 },
-  { path: '/rentabilidad', label: 'Rentabilidad', icon: TrendingUp },
-  { path: '/cotizador', label: 'Presupuestos B2B', icon: FileText, highlight: 'indigo' },
-  { path: '/produccion', label: 'A Fabricar', icon: Factory, highlight: 'rose' },
-  { path: '/talleristas', label: 'Equipo y Taller', icon: Scissors, highlight: 'emerald' },
-  { path: '/insumos', label: 'Insumos y Taller', icon: Ruler, highlight: 'indigo' },
-  { path: '/calculadora', label: 'Calculadora de Costos', icon: Calculator, highlight: 'indigo' },
-  { path: '/calculadora-3d', label: 'Calc. Impresión 3D', icon: Printer, highlight: 'indigo' },
-  { path: '/impresiones-3d', label: 'Repositorio 3D', icon: Boxes, highlight: 'indigo' },
-  { path: '/sublimacion', label: 'Repos. Sublimación', icon: Palette, highlight: 'fuchsia' },
+interface NavSection {
+  readonly label: string;
+  readonly routes: readonly NavRoute[];
+}
+
+const NAV_SECTIONS: readonly NavSection[] = [
+  {
+    label: 'Operación',
+    routes: [
+      { path: '/inicio', label: 'Inicio', icon: LayoutDashboard },
+      { path: '/ventas', label: 'Punto de Venta', icon: ShoppingCart },
+      { path: '/pedidos', label: 'Pedidos', icon: ClipboardList },
+      { path: '/remitos', label: 'Remitos / Envíos', icon: Truck },
+      { path: '/produccion', label: 'A Fabricar', icon: Factory, highlight: 'rose' },
+      { path: '/talleristas', label: 'Equipo y Taller', icon: Scissors, highlight: 'emerald' },
+    ],
+  },
+  {
+    label: 'Impresión 3D',
+    routes: [
+      { path: '/impresiones-3d', label: 'Repositorio 3D', icon: Boxes, highlight: 'indigo' },
+      { path: '/filamentos', label: 'Filamentos', icon: Rainbow, highlight: 'orange' },
+      { path: '/calculadora-3d', label: 'Calc. Impresión 3D', icon: Printer, highlight: 'indigo' },
+    ],
+  },
+  {
+    label: 'Textil y Sublimación',
+    routes: [
+      { path: '/sublimacion', label: 'Repos. Sublimación', icon: Palette, highlight: 'fuchsia' },
+      { path: '/blanks', label: 'Blanks e Insumos', icon: PackageOpen, highlight: 'fuchsia' },
+      { path: '/mockups', label: 'Mockups Base', icon: Frame, highlight: 'sky' },
+    ],
+  },
+  {
+    label: 'Stock y Compras',
+    routes: [
+      { path: '/inventario', label: 'Inventario', icon: Package },
+      { path: '/insumos', label: 'Insumos y Taller', icon: Ruler, highlight: 'indigo' },
+      { path: '/proveedores', label: 'Proveedores', icon: Warehouse },
+    ],
+  },
+  {
+    label: 'Finanzas',
+    routes: [
+      { path: '/tesoreria', label: 'Tesorería', icon: Landmark },
+      { path: '/finanzas', label: 'Centro Financiero', icon: BarChart3 },
+      { path: '/rentabilidad', label: 'Rentabilidad', icon: TrendingUp },
+      { path: '/cotizador', label: 'Presupuestos B2B', icon: FileText, highlight: 'indigo' },
+      { path: '/calculadora', label: 'Calculadora de Costos', icon: Calculator, highlight: 'indigo' },
+    ],
+  },
 ];
 
 const CRM_ROUTES: readonly NavRoute[] = [
@@ -83,6 +119,8 @@ const SidebarItem = memo(({ path, label, icon: Icon, highlight }: SidebarItemPro
       case 'rose': return `${base} bg-danger-600 text-white shadow-lg shadow-danger-600/30`;
       case 'emerald': return `${base} bg-success-600 text-white shadow-lg shadow-success-600/20`;
       case 'fuchsia': return `${base} bg-fuchsia-600 text-white shadow-lg shadow-fuchsia-600/30`;
+      case 'orange': return `${base} bg-orange-600 text-white shadow-lg shadow-orange-600/30`;
+      case 'sky': return `${base} bg-sky-600 text-white shadow-lg shadow-sky-600/30`;
       default: return `${base} bg-brand-600 text-white shadow-lg shadow-brand-600/20`;
     }
   };
@@ -257,12 +295,17 @@ export const Sidebar = memo(() => {
 
         {/* NAVIGATION */}
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5 custom-scrollbar">
-          <p className="text-[9px] font-bold text-slate-600 uppercase tracking-[0.3em] mb-3 ml-3" aria-hidden="true">Módulos</p>
-          
-          {DESKTOP_ROUTES.map((route) => (
-            <SidebarItem key={route.path} {...route} />
+          {NAV_SECTIONS.map((section, sectionIndex) => (
+            <div key={section.label} className={sectionIndex > 0 ? 'pt-3 mt-3 border-t border-slate-800' : ''}>
+              <p className="text-[9px] font-bold text-slate-600 uppercase tracking-[0.3em] mb-3 ml-3" aria-hidden="true">
+                {section.label}
+              </p>
+              {section.routes.map((route) => (
+                <SidebarItem key={route.path} {...route} />
+              ))}
+            </div>
           ))}
-          
+
           <div className="pt-3 mt-3 border-t border-slate-800">
             <p className="text-[9px] font-bold text-slate-600 uppercase tracking-[0.3em] mb-3 ml-3" aria-hidden="true">CRM</p>
             {CRM_ROUTES.map((route) => (

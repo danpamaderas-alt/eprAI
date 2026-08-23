@@ -806,6 +806,53 @@ export type Database = {
         }
         Relationships: []
       }
+      mockup_templates: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          id: string
+          name: string
+          notes: string | null
+          print_area_height_mm: number | null
+          print_area_width_mm: number | null
+          product_type: string
+          template_image: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          print_area_height_mm?: number | null
+          print_area_width_mm?: number | null
+          product_type?: string
+          template_image?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          print_area_height_mm?: number | null
+          print_area_width_mm?: number | null
+          product_type?: string
+          template_image?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mockup_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       niches: {
         Row: {
           created_at: string | null
@@ -1177,6 +1224,65 @@ export type Database = {
         }
         Relationships: []
       }
+      print_filaments: {
+        Row: {
+          brand: string
+          color_hex: string | null
+          color_name: string | null
+          company_id: string | null
+          cost_per_kg: number | null
+          created_at: string | null
+          id: string
+          material: string
+          min_stock_g: number
+          notes: string | null
+          provider: string | null
+          remaining_g: number
+          spool_weight_g: number
+          updated_at: string | null
+        }
+        Insert: {
+          brand?: string
+          color_hex?: string | null
+          color_name?: string | null
+          company_id?: string | null
+          cost_per_kg?: number | null
+          created_at?: string | null
+          id?: string
+          material?: string
+          min_stock_g?: number
+          notes?: string | null
+          provider?: string | null
+          remaining_g?: number
+          spool_weight_g?: number
+          updated_at?: string | null
+        }
+        Update: {
+          brand?: string
+          color_hex?: string | null
+          color_name?: string | null
+          company_id?: string | null
+          cost_per_kg?: number | null
+          created_at?: string | null
+          id?: string
+          material?: string
+          min_stock_g?: number
+          notes?: string | null
+          provider?: string | null
+          remaining_g?: number
+          spool_weight_g?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "print_filaments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       print_models: {
         Row: {
           category: string
@@ -1345,6 +1451,65 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "sublimation_designs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      textile_blanks: {
+        Row: {
+          color: string | null
+          company_id: string | null
+          cost_price: number
+          created_at: string | null
+          id: string
+          imagen: string | null
+          min_stock: number
+          name: string
+          notes: string | null
+          provider: string | null
+          size: string | null
+          stock_qty: number
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          color?: string | null
+          company_id?: string | null
+          cost_price?: number
+          created_at?: string | null
+          id?: string
+          imagen?: string | null
+          min_stock?: number
+          name: string
+          notes?: string | null
+          provider?: string | null
+          size?: string | null
+          stock_qty?: number
+          type?: string
+          updated_at?: string | null
+        }
+        Update: {
+          color?: string | null
+          company_id?: string | null
+          cost_price?: number
+          created_at?: string | null
+          id?: string
+          imagen?: string | null
+          min_stock?: number
+          name?: string
+          notes?: string | null
+          provider?: string | null
+          size?: string | null
+          stock_qty?: number
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "textile_blanks_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
