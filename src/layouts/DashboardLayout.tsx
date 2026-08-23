@@ -27,6 +27,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/historial-stock': 'Historial de Stock',
   '/calculadora': 'Calculadora de Costos',
   '/calculadora-3d': 'Calculadora Impresión 3D',
+  '/calculadora-sublimacion': 'Calculadora Sublimación',
   '/produccion-3d': 'Producción 3D',
   '/impresiones-3d': 'Repositorio Impresión 3D',
   '/sublimacion': 'Sublimación',

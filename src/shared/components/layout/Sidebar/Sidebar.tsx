@@ -19,6 +19,7 @@ import {
   Calculator,
   Printer,
   Boxes,
+  Shirt,
   Palette,
   Rainbow,
   Frame,
@@ -80,6 +81,7 @@ const NAV_SECTIONS: readonly NavSection[] = [
     routes: [
       { path: '/sublimacion', label: 'Repos. Sublimación', icon: Palette, highlight: 'fuchsia' },
       { path: '/blanks', label: 'Blanks e Insumos', icon: PackageOpen, highlight: 'fuchsia' },
+      { path: '/calculadora-sublimacion', label: 'Calc. Sublimación', icon: Shirt, highlight: 'fuchsia' },
       { path: '/mockups', label: 'Mockups Base', icon: Frame, highlight: 'sky' },
     ],
   },

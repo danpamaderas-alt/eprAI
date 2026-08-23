@@ -137,6 +137,15 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 calculadora de sublimación (paridad con 3D)** — Nueva `SublimationCalculator`
+  en `finances/pages/`: ruta /calculadora-sublimacion + menú (icono Shirt). Modelo de
+  costo: producto base (auto-selección desde textile_blanks con localStorage
+  `raices-subli3d-lastblank` + fallback al único), insumos papel+tinta, prensa
+  (tiempo/potencia/luz/amort), mano de obra, margen+IVA, redondeo, historial y PDF.
+  Helpers compartidos extraídos a `finances/shared/calcShared.tsx`
+  (Field/TimeField/SectionCard/fmt/mergeDefaults) SIN tocar la 3D. mergeDefaults usa
+  genérico `T extends object` para no exigir índice; el effect de auto-blank usa patrón
+  async anidado (convención #4).
 - **2026-08 defaults guardados pisaban electricidad 160** — mergeDefaults aplicaba el
   electricityCost=0 de localStorage por encima del DEFAULT nuevo (160). Regla: un valor
   GUARDADO igual a 0 cuando el default de código es >0 se ignora ("0" nunca fue config
