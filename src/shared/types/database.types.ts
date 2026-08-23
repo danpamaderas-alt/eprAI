@@ -1528,27 +1528,33 @@ export type Database = {
       }
       quotes: {
         Row: {
+          company_id: string | null
           created_at: string | null
           customer_id: string | null
           id: string
+          items: Json | null
           notes: string | null
           quote_number: string
           status: string | null
           total: number | null
         }
         Insert: {
+          company_id?: string | null
           created_at?: string | null
           customer_id?: string | null
           id?: string
+          items?: Json | null
           notes?: string | null
           quote_number: string
           status?: string | null
           total?: number | null
         }
         Update: {
+          company_id?: string | null
           created_at?: string | null
           customer_id?: string | null
           id?: string
+          items?: Json | null
           notes?: string | null
           quote_number?: string
           status?: string | null

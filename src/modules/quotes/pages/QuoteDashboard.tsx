@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { useCatalogStore } from '../../../store/useCatalogStore';
+import { useCatalogStore, type Product } from '../../../store/useCatalogStore';
 import { useTenantStore } from '../../../store/useTenantStore';
 import { generateQuotePDF } from '../../../utils/printQuotePDF';
 import { ARS } from '../../../shared/utils/format';
@@ -26,7 +26,18 @@ interface QuoteItemForm {
   description: string;
   quantity: number;
   unit_price: number;
+  unit_cost: number;
 }
+
+const TARGET_MARGIN_KEY = 'raices_quote_target_margin';
+
+const emptyItem = (): QuoteItemForm => ({
+  product_id: '',
+  description: '',
+  quantity: 1,
+  unit_price: 0,
+  unit_cost: 0,
+});
 
 interface QuoteRecord {
   id: string;
@@ -57,9 +68,11 @@ export function QuoteDashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState('');
   const [quoteNotes, setQuoteNotes] = useState('');
-  const [quoteItems, setQuoteItems] = useState<QuoteItemForm[]>([
-    { product_id: '', description: '', quantity: 1, unit_price: 0 },
-  ]);
+  const [quoteItems, setQuoteItems] = useState<QuoteItemForm[]>([emptyItem()]);
+  const [targetMargin, setTargetMargin] = useState<number>(() => {
+    const stored = Number(localStorage.getItem(TARGET_MARGIN_KEY));
+    return Number.isFinite(stored) && stored > 0 && stored < 95 ? stored : 30;
+  });
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -98,7 +111,7 @@ export function QuoteDashboard() {
   };
 
   const addItemRow = () => {
-    setQuoteItems([...quoteItems, { product_id: '', description: '', quantity: 1, unit_price: 0 }]);
+    setQuoteItems([...quoteItems, emptyItem()]);
   };
 
   const removeItemRow = (index: number) => {
@@ -112,6 +125,7 @@ export function QuoteDashboard() {
       const product = products.find(p => p.id === value);
       if (product) {
         newItems[index].unit_price = Number(product.price || 0);
+        newItems[index].unit_cost = Number((product as Product).cost_price || 0);
         newItems[index].description = product.name || '';
       }
     }
@@ -121,6 +135,20 @@ export function QuoteDashboard() {
   const calculateTotal = useCallback(() => {
     return quoteItems.reduce((acc, item) => acc + item.quantity * item.unit_price, 0);
   }, [quoteItems]);
+
+  const totals = useMemo(() => {
+    const sale = quoteItems.reduce((acc, i) => acc + i.quantity * Number(i.unit_price || 0), 0);
+    const cost = quoteItems.reduce((acc, i) => acc + i.quantity * Number(i.unit_cost || 0), 0);
+    const profit = sale - cost;
+    const marginPct = sale > 0 ? (profit / sale) * 100 : 0;
+    const suggested = targetMargin < 100 && targetMargin > 0 ? cost / (1 - targetMargin / 100) : 0;
+    return { sale, cost, profit, marginPct, suggested };
+  }, [quoteItems, targetMargin]);
+
+  const handleTargetMarginChange = (v: number) => {
+    setTargetMargin(v);
+    localStorage.setItem(TARGET_MARGIN_KEY, String(v));
+  };
 
   const handleSaveQuote = async () => {
     if (!selectedClient) return;
@@ -143,6 +171,7 @@ export function QuoteDashboard() {
           total: totalAmount,
           notes: quoteNotes,
           status: 'PENDIENTE',
+          items: quoteItems as never,
         }])
         .select()
         .single();
@@ -164,7 +193,7 @@ export function QuoteDashboard() {
       setIsModalOpen(false);
       setSelectedClient('');
       setQuoteNotes('');
-      setQuoteItems([{ product_id: '', description: '', quantity: 1, unit_price: 0 }]);
+      setQuoteItems([emptyItem()]);
       await fetchData();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Error desconocido';
@@ -188,7 +217,7 @@ export function QuoteDashboard() {
   const handleDuplicate = (quote: QuoteRecord) => {
     setSelectedClient(quote.customer_id);
     setQuoteNotes(quote.notes || '');
-    setQuoteItems([{ product_id: '', description: '', quantity: 1, unit_price: 0 }]);
+    setQuoteItems([emptyItem()]);
     setIsModalOpen(true);
   };
 
@@ -513,7 +542,15 @@ export function QuoteDashboard() {
                     <div className="w-full md:w-28">
                       <input type="number" value={item.unit_price}
                         onChange={e => updateItemRow(index, 'unit_price', Number(e.target.value))}
+                        title="Precio de venta"
                         className="w-full p-2.5 bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800 rounded-lg text-[10px] font-black text-emerald-600 dark:text-emerald-400 outline-none" />
+                    </div>
+                    <div className="w-full md:w-24">
+                      <input type="number" value={item.unit_cost || ''}
+                        placeholder="Costo"
+                        onChange={e => updateItemRow(index, 'unit_cost', Number(e.target.value))}
+                        title="Costo real por unidad (insumos + blank)"
+                        className="w-full p-2.5 bg-rose-50 dark:bg-rose-900/10 border border-rose-200 dark:border-rose-800 rounded-lg text-[10px] font-black text-rose-600 dark:text-rose-400 outline-none" />
                     </div>
                     <div className="w-full md:w-28 text-right">
                       <span className="text-xs font-black text-slate-800 dark:text-white tabular-nums">{ARS.format(item.quantity * item.unit_price)}</span>
@@ -535,9 +572,41 @@ export function QuoteDashboard() {
                     value={quoteNotes} onChange={e => setQuoteNotes(e.target.value)}
                     className="w-full p-3 bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-xl dark:text-white font-medium resize-none text-xs" rows={3} />
                 </div>
-                <div className="w-full md:w-1/3 bg-slate-50 dark:bg-slate-900 p-5 rounded-xl border dark:border-slate-700 text-right">
-                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1">Total</p>
-                  <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums">{ARS.format(calculateTotal())}</p>
+                <div className="w-full md:w-[42%] bg-slate-50 dark:bg-slate-900 p-5 rounded-xl border dark:border-slate-700">
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 mb-4">
+                    <div className="text-right">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Costo estimado</p>
+                      <p className="text-sm font-black text-rose-600 dark:text-rose-400 tabular-nums">{ARS.format(totals.cost)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Venta total</p>
+                      <p className="text-lg font-black text-emerald-600 dark:text-emerald-400 tabular-nums leading-tight">{ARS.format(totals.sale)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Ganancia</p>
+                      <p className={`text-xs font-black tabular-nums ${totals.profit > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>{ARS.format(totals.profit)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Margen real</p>
+                      <p className={`text-xs font-black tabular-nums ${
+                        totals.sale === 0 ? 'text-slate-400'
+                          : totals.marginPct >= 30 ? 'text-emerald-600 dark:text-emerald-400'
+                          : totals.marginPct >= 10 ? 'text-amber-500'
+                          : 'text-rose-500'
+                      }`}>
+                        {totals.sale > 0 ? `${totals.marginPct.toFixed(1)}%` : '—'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-end gap-2 pt-3 border-t dark:border-slate-700">
+                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap" htmlFor="q-target-margin">Margen objetivo</label>
+                    <input id="q-target-margin" type="number" min="1" max="95" value={targetMargin}
+                      onChange={e => handleTargetMarginChange(Number(e.target.value))}
+                      className="w-14 p-1.5 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded-lg text-[10px] font-black text-center dark:text-white outline-none" />
+                    <span className="text-[9px] font-bold text-indigo-500 tabular-nums whitespace-nowrap">
+                      → Sugerido: {ARS.format(totals.suggested)}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
