@@ -11,6 +11,8 @@ import {
   PackageOpen,
   Scale,
   AlertOctagon,
+  Truck,
+  Receipt,
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { usePrintJobStore } from '../store/usePrintJobStore';
@@ -25,6 +27,8 @@ import type { PrintJob3D } from '../types';
 import { useToastStore } from '../../../store/useToastStore';
 import { Spinner } from '../../../shared/components/ui/Spinner';
 import { formatDate, hoursToTime, timeToHours } from '../../../shared/utils/format';
+import { NewJobFromRepoModal } from '../components/NewJobFromRepoModal';
+import { DeliverJobModal } from '../components/DeliverJobModal';
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('es-AR', {
@@ -45,6 +49,8 @@ export const PrintJobsPage = () => {
   const { jobs, isLoading, error, fetchJobs, setStatus, completeJob, deleteJob } =
     usePrintJobStore();
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [showNewJob, setShowNewJob] = useState(false);
+  const [deliverTarget, setDeliverTarget] = useState<PrintJob3D | null>(null);
 
   useEffect(() => {
     void fetchJobs();
@@ -209,12 +215,20 @@ export const PrintJobsPage = () => {
             </p>
           </div>
         </div>
-        <Link
-          to="/calculadora-3d"
-          className="flex items-center gap-2 px-5 py-3 bg-violet-600 hover:bg-violet-500 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-colors"
-        >
-          <Plus size={14} aria-hidden /> Nuevo trabajo
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/calculadora-3d"
+            className="px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white font-black text-xs uppercase tracking-widest rounded-xl transition-colors"
+          >
+            Calculadora
+          </Link>
+          <button
+            onClick={() => setShowNewJob(true)}
+            className="flex items-center gap-2 px-5 py-3 bg-orange-600 hover:bg-orange-500 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-colors"
+          >
+            <Plus size={14} aria-hidden /> Desde repositorio
+          </button>
+        </div>
       </div>
 
       {/* KPIS */}
@@ -271,7 +285,7 @@ export const PrintJobsPage = () => {
           <PackageOpen size={36} className="mx-auto text-slate-600 mb-3" aria-hidden />
           <p className="text-sm font-bold text-slate-400">Sin trabajos en esta vista</p>
           <p className="text-xs text-slate-600 font-bold mt-1">
-            Generá un presupuesto en la Calculadora 3D y tocá «Enviar a producción».
+            Creá uno desde el Repositorio 3D con «Desde repositorio» o enviá un presupuesto desde la Calculadora.
           </p>
         </div>
       ) : (
@@ -290,12 +304,29 @@ export const PrintJobsPage = () => {
                 className="flex flex-col md:flex-row md:items-center gap-3 px-5 py-4 bg-slate-900 rounded-2xl border border-slate-800 hover:border-slate-700 transition-colors"
               >
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-black text-white truncate">{job.name}</p>
+                  <p className="text-sm font-black text-white truncate">
+                    {job.name}
+                    {job.print_models && (
+                      <span className="ml-2 px-1.5 py-0.5 rounded-md bg-indigo-500/15 border border-indigo-500/30 text-[9px] font-black uppercase text-indigo-300 align-middle">
+                        🧊 {job.print_models.name}
+                      </span>
+                    )}
+                  </p>
                   <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5 truncate">
                     {job.created_at ? formatDate(job.created_at) : '—'} · {job.quantity}× pieza
                     {job.printer_name ? ` · ${job.printer_name}` : ''}
                     {job.filament_label ? ` · 🧶 ${job.filament_label}` : ''}
                   </p>
+                  {st === 'entregado' && (
+                    <p className="flex items-center gap-1.5 text-[10px] font-bold text-violet-400/90 mt-1">
+                      <Receipt size={11} aria-hidden /> Venta registrada · Remito generado
+                    </p>
+                  )}
+                  {isDone && job.actual_cost_total != null && (
+                    <p className="text-[10px] font-bold text-emerald-500/80 mt-0.5 tabular-nums">
+                      Costo real material: ${Number(job.actual_cost_total).toFixed(2)}
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-4 shrink-0 text-right">
@@ -328,6 +359,16 @@ export const PrintJobsPage = () => {
                 </div>
 
                 <div className="flex gap-1.5 shrink-0 md:ml-2">
+                  {st === 'completado' && (
+                    <button
+                      onClick={() => setDeliverTarget(job)}
+                      title="Entregar: registra venta y genera remito"
+                      className="flex items-center gap-1.5 px-3 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg transition-colors text-[9px] font-black uppercase"
+                    >
+                      <Truck size={14} aria-hidden />
+                      Entregar
+                    </button>
+                  )}
                   {canAdvance && (
                     <button
                       onClick={() => void handleAdvance(job)}
@@ -373,7 +414,7 @@ export const PrintJobsPage = () => {
       {/* Nota al pie */}
       <p className="flex items-center gap-2 text-[11px] font-bold text-slate-600">
         <Scale size={12} aria-hidden />
-        Al completar un trabajo se descuenta el peso real del rollo seleccionado en la calculadora.
+        Al completar se descuenta filamento y registra el costo real; al entregar se registra la venta y se genera el remito.
         <Clock size={12} className="ml-2" aria-hidden />
         El desvío de tiempo compara lo estimado vs lo real para ajustar futuros presupuestos.
         {kpis.fallidos > 0 && (
@@ -382,6 +423,15 @@ export const PrintJobsPage = () => {
           </span>
         )}
       </p>
+
+      {/* MODALES */}
+      {showNewJob && <NewJobFromRepoModal onClose={() => setShowNewJob(false)} />}
+      {deliverTarget && (
+        <DeliverJobModal
+          job={jobs.find((j) => j.id === deliverTarget.id) ?? deliverTarget}
+          onClose={() => setDeliverTarget(null)}
+        />
+      )}
     </div>
   );
 };

@@ -3,6 +3,7 @@ import {
   Box,
   Clock,
   ExternalLink,
+  Factory,
   Layers,
   Link2,
   Pencil,
@@ -12,6 +13,7 @@ import {
 import { Modal } from '../../../shared/components/ui/Modal';
 import { useToastStore } from '../../../store/useToastStore';
 import { usePrintModelStore } from '../store/usePrintModelStore';
+import { usePrintJobStore } from '../../printjobs/store/usePrintJobStore';
 import { type PrintModel, type PrintStatus } from '../types';
 import { PrintStatusBadge } from './PrintStatusBadge';
 
@@ -50,10 +52,39 @@ export const PrintModelDetailModal = memo(function PrintModelDetailModal({
 }: PrintModelDetailModalProps) {
   const setStatus = usePrintModelStore((s) => s.setStatus);
   const deleteModel = usePrintModelStore((s) => s.deleteModel);
+  const addJob = usePrintJobStore((s) => s.addJob);
   const toast = useToastStore((s) => s.toast);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSendingToProduction, setIsSendingToProduction] = useState(false);
 
   if (!model) return null;
+
+  const handleSendToProduction = async () => {
+    setIsSendingToProduction(true);
+    try {
+      await addJob({
+        name: model.name,
+        status: 'presupuestado',
+        inputs: {
+          source: 'repositorio-detalle',
+          category: model.category,
+          material_modelo: model.material,
+          estimated_grams_modelo: model.estimated_grams,
+          estimated_time_hours_modelo: model.estimated_time_hours,
+        },
+        quantity: 1,
+        est_weight_g: model.estimated_grams ?? null,
+        est_time_h: model.estimated_time_hours ?? null,
+        model_id: model.id,
+      });
+      toast('Enviado a Producción 3D como presupuestado', { type: 'success' });
+    } catch (err) {
+      console.error(err);
+      toast('No se pudo enviar a producción', { type: 'error' });
+    } finally {
+      setIsSendingToProduction(false);
+    }
+  };
 
   const handleStatusChange = async (status: PrintStatus) => {
     try {
@@ -133,6 +164,15 @@ export const PrintModelDetailModal = memo(function PrintModelDetailModal({
             </p>
           )}
         </div>
+        <button
+          type="button"
+          onClick={() => void handleSendToProduction()}
+          disabled={isSendingToProduction}
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-[10px] font-black uppercase tracking-widest transition-colors disabled:opacity-50"
+        >
+          <Factory className="w-3.5 h-3.5" aria-hidden="true" />
+          {isSendingToProduction ? 'Enviando…' : 'A Producción'}
+        </button>
         <button
           type="button"
           onClick={() => onEdit(model)}

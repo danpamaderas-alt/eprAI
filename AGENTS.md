@@ -137,6 +137,19 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 producción 3D ↔ repositorio/ventas/remitos** — Integración completa del flujo:
+  migración `021_print_jobs_3d_model_link.sql` (APLICADA: columnas model_id FK→print_models,
+  actual_cost_total, sale_id FK→sales, remito_id FK→remitos), botón "A Producción" en el
+  detalle del modelo (crea trabajo presupuestado con estimaciones del modelo) y modal
+  "Desde repositorio" en PrintJobsPage (modelo+cantidad+impresora+filamento, estimaciones
+  auto-editables). `completeJob` ahora registra costo real (peso real × cost_per_kg del
+  rollo). Nuevo `deliverJob`: inserta venta directa en `sales` (business_unit
+  'impresion-3d', status COBRADO/DEUDA según método — la política FOR ALL de sales cubre
+  INSERT, no hace falta RPC) + remito DELIVERED/VALUED con specs técnicas embebidas en
+  items.details + vincula job a ambos. Modal de entrega pide método pago/total/cliente.
+  Lección TS: tipo Update derivado de Row NO debe incluir campos de join (`print_models`)
+  o supabase lo rechaza como `never`; anotar retorno explícito en acciones que llaman
+  `getState()` para cortar ciclos de inferencia.
 - **2026-08 UI simplificada** — Eliminados los botones flotantes de arriba a la derecha
   (buscador Ctrl+K y ThemeToggle) y la CommandPalette completa (componente borrado).
   El modo oscuro ahora vive en Configuración → General → "Apariencia" (usa useThemeStore,

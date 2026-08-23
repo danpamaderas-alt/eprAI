@@ -1363,6 +1363,7 @@ export type Database = {
       }
       print_jobs_3d: {
         Row: {
+          actual_cost_total: number | null
           actual_notes: string | null
           actual_time_h: number | null
           actual_weight_g: number | null
@@ -1377,13 +1378,17 @@ export type Database = {
           filament_label: string | null
           id: string
           inputs: Json
+          model_id: string | null
           name: string
           printer_name: string | null
           quantity: number
+          remito_id: string | null
+          sale_id: string | null
           status: string
           updated_at: string | null
         }
         Insert: {
+          actual_cost_total?: number | null
           actual_notes?: string | null
           actual_time_h?: number | null
           actual_weight_g?: number | null
@@ -1398,13 +1403,17 @@ export type Database = {
           filament_label?: string | null
           id?: string
           inputs?: Json
+          model_id?: string | null
           name?: string
           printer_name?: string | null
           quantity?: number
+          remito_id?: string | null
+          sale_id?: string | null
           status?: string
           updated_at?: string | null
         }
         Update: {
+          actual_cost_total?: number | null
           actual_notes?: string | null
           actual_time_h?: number | null
           actual_weight_g?: number | null
@@ -1419,9 +1428,12 @@ export type Database = {
           filament_label?: string | null
           id?: string
           inputs?: Json
+          model_id?: string | null
           name?: string
           printer_name?: string | null
           quantity?: number
+          remito_id?: string | null
+          sale_id?: string | null
           status?: string
           updated_at?: string | null
         }
@@ -1438,6 +1450,27 @@ export type Database = {
             columns: ["filament_id"]
             isOneToOne: false
             referencedRelation: "print_filaments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_jobs_3d_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "print_models"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_jobs_3d_remito_id_fkey"
+            columns: ["remito_id"]
+            isOneToOne: false
+            referencedRelation: "remitos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_jobs_3d_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
             referencedColumns: ["id"]
           },
         ]

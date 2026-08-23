@@ -6,6 +6,12 @@ export type PrintJob3DStatus =
   | 'entregado'
   | 'fallido';
 
+export interface PrintJobModelRef {
+  name: string;
+  imagen: string | null;
+  material: string | null;
+}
+
 export interface PrintJob3D {
   id: string;
   company_id: string | null;
@@ -23,6 +29,11 @@ export interface PrintJob3D {
   actual_weight_g: number | null;
   actual_time_h: number | null;
   actual_notes: string | null;
+  actual_cost_total: number | null;
+  model_id: string | null;
+  sale_id: string | null;
+  remito_id: string | null;
+  print_models?: PrintJobModelRef | null;
   completed_at: string | null;
   created_at: string | null;
   updated_at: string | null;
@@ -40,10 +51,11 @@ export interface PrintJob3DInput {
   est_time_h?: number | null;
   est_cost_total?: number | null;
   est_price_total?: number | null;
+  model_id?: string | null;
 }
 
 export type PrintJob3DUpdate = Partial<
-  Omit<PrintJob3D, 'id' | 'company_id' | 'created_at' | 'updated_at'>
+  Omit<PrintJob3D, 'id' | 'company_id' | 'created_at' | 'updated_at' | 'print_models'>
 >;
 
 export const PRINT_JOB_STATUSES = [
