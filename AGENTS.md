@@ -137,6 +137,14 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 auditoría detalle modelo 3D: delete seguro + purga de storage** — Dos bugs
+  reales corregidos en PrintModelDetailModal: (1) "Eliminar" borraba el modelo SIN
+  confirmación (la página sí preguntaba con Swal, el modal no) — ahora Swal.fire
+  idéntico al patrón de PrintRepository.tsx; (2) deleteModel borra filas por CASCADE
+  pero los STL/G-code quedaban huérfanos para siempre en el bucket print-files — nuevo
+  `removeAllForModel(modelId)` en usePrintModelFileStore purga binarios (best-effort) +
+  filas antes de eliminar. Menores: label de originales ahora incluye OBJ, fmtFormat con
+  regex de extensión en vez de split().pop().
 - **2026-08 fix RLS global: permission denied for user_company_id** — "Error al cargar
   los archivos" destapó un bug de la migración 008 (del 17/08): su `REVOKE EXECUTE ...
   FROM PUBLIC, anon, authenticated` sobre `private.user_company_id()` asumía que las

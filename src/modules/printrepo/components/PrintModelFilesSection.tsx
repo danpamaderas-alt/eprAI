@@ -11,7 +11,7 @@ const fmtSize = (bytes: number | null): string => {
 };
 
 const fmtFormat = (f: PrintModelFile): string =>
-  (f.format ?? f.file_name.split('.').pop() ?? 'bin').toUpperCase();
+  (f.format ?? f.file_name.match(/\.([a-z0-9]{1,5})$/i)?.[1] ?? 'bin').toUpperCase();
 
 const ORIGINAL_ACCEPT = '.stl,.3mf,.step,.stp,.obj';
 
@@ -94,7 +94,7 @@ export const PrintModelFilesSection = memo(function PrintModelFilesSection({ mod
 
       {/* ORIGINALES (STL / 3MF / STEP / OBJ) */}
       <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider pt-1">
-        Originales · STL · 3MF · STEP
+        Originales · STL · 3MF · STEP · OBJ
       </p>
       {originals.map((f) => (
         <div key={f.id} className="flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">

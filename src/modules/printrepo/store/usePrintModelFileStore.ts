@@ -39,6 +39,8 @@ interface PrintModelFileState {
     printerName?: string | null;
   }) => Promise<void>;
   removeFile: (id: string) => Promise<void>;
+  /** Borra TODOS los archivos del modelo (storage + filas). Usar antes de eliminar el modelo. */
+  removeAllForModel: (modelId: string) => Promise<void>;
   getSignedDownloadUrl: (storagePath: string) => Promise<string | null>;
 }
 
@@ -107,6 +109,26 @@ export const usePrintModelFileStore = create<PrintModelFileState>((set, get) => 
     await supabase.storage.from(PRINT_FILES_BUCKET).remove([existing.storage_path]);
 
     set((state) => ({ files: state.files.filter((f) => f.id !== id) }));
+  },
+
+  removeAllForModel: async (modelId) => {
+    const paths = get()
+      .files.filter((f) => f.model_id === modelId)
+      .map((f) => f.storage_path);
+    // La purga de binarios es best-effort: si falla, la DB igual queda consistente
+    if (paths.length > 0) {
+      try {
+        await supabase.storage.from(PRINT_FILES_BUCKET).remove(paths);
+      } catch (err) {
+        console.error('removeAllForModel storage purge:', err);
+      }
+    }
+    const { error } = await supabase
+      .from('print_model_files')
+      .delete()
+      .eq('model_id', modelId);
+    if (error) throw error;
+    set((state) => ({ files: state.files.filter((f) => f.model_id !== modelId) }));
   },
 
   getSignedDownloadUrl: async (storagePath) => {

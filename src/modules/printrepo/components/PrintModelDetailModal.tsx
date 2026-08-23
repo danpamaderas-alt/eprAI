@@ -13,8 +13,10 @@ import {
   Calculator,
 } from 'lucide-react';
 import { Modal } from '../../../shared/components/ui/Modal';
+import Swal from 'sweetalert2';
 import { useToastStore } from '../../../store/useToastStore';
 import { usePrintModelStore } from '../store/usePrintModelStore';
+import { usePrintModelFileStore } from '../store/usePrintModelFileStore';
 import { usePrintJobStore } from '../../printjobs/store/usePrintJobStore';
 import { formatHoursHuman, hoursToTime } from '../../../shared/utils/format';
 import { type PrintModel, type PrintStatus } from '../types';
@@ -56,6 +58,7 @@ export const PrintModelDetailModal = memo(function PrintModelDetailModal({
 }: PrintModelDetailModalProps) {
   const setStatus = usePrintModelStore((s) => s.setStatus);
   const deleteModel = usePrintModelStore((s) => s.deleteModel);
+  const removeAllForModel = usePrintModelFileStore((s) => s.removeAllForModel);
   const addJob = usePrintJobStore((s) => s.addJob);
   const toast = useToastStore((s) => s.toast);
   const navigate = useNavigate();
@@ -113,18 +116,34 @@ export const PrintModelDetailModal = memo(function PrintModelDetailModal({
     }
   };
 
-  const handleDelete = async () => {
-    setIsDeleting(true);
-    try {
-      await deleteModel(model.id);
-      toast('Modelo eliminado del repositorio', { type: 'info' });
-      onClose();
-    } catch (err) {
-      console.error(err);
-      toast('No se pudo eliminar el modelo', { type: 'error' });
-    } finally {
-      setIsDeleting(false);
-    }
+  const handleDelete = () => {
+    void Swal.fire({
+      title: '¿Eliminar este modelo?',
+      text: `«${model.name}» se eliminará junto con sus archivos adjuntos (originales y G-codes).`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#e11d48',
+    }).then(async (result) => {
+      if (!result.isConfirmed) return;
+      setIsDeleting(true);
+      try {
+        await removeAllForModel(model.id);
+      } catch (err) {
+        console.error('purga de archivos del modelo:', err);
+      }
+      try {
+        await deleteModel(model.id);
+        toast('Modelo eliminado del repositorio', { type: 'info' });
+        onClose();
+      } catch (err) {
+        console.error(err);
+        toast('No se pudo eliminar el modelo', { type: 'error' });
+      } finally {
+        setIsDeleting(false);
+      }
+    });
   };
 
   const specs: { label: string; value: string; icon: typeof Clock }[] = [
