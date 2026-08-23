@@ -1,3 +1,5 @@
+import { createRateLimiter, rateLimitKey } from './shared/utils/rateLimit';
+
 export interface Env {
   GEMINI_API_KEY: string;
   SUPABASE_URL: string;
@@ -517,32 +519,10 @@ async function verifySupabaseJWT(
   }
 }
 
-const RATE_WINDOW_MS = 60_000;
-const rateBuckets = new Map<string, number[]>();
-
-function rateLimitKey(prefix: string, authHeader: string | null): string {
-  const token = authHeader?.slice(7) ?? '';
-  let h = 0;
-  for (let i = 0; i < token.length; i++) h = (Math.imul(h, 31) + token.charCodeAt(i)) | 0;
-  return `${prefix}:${h.toString(36)}`;
-}
-
-function checkRateLimit(key: string, maxPerMinute: number): boolean {
-  const now = Date.now();
-  const hits = (rateBuckets.get(key) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
-  if (hits.length >= maxPerMinute) {
-    rateBuckets.set(key, hits);
-    return false;
-  }
-  hits.push(now);
-  rateBuckets.set(key, hits);
-  if (rateBuckets.size > 5000) {
-    for (const [k, v] of rateBuckets) {
-      if (v.every((t) => now - t >= RATE_WINDOW_MS)) rateBuckets.delete(k);
-    }
-  }
-  return true;
-}
+const designToolsLimiter = createRateLimiter(12);
+const scrape3dLimiter = createRateLimiter(20);
+const scrapeSublimationLimiter = createRateLimiter(20);
+const geminiProxyLimiter = createRateLimiter(30);
 
 function rateLimitedResponse(): Response {
   return new Response(
@@ -588,7 +568,7 @@ export default {
           { status: 401, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } },
         );
       }
-      if (!checkRateLimit(rateLimitKey('gem', authHeader), 30)) return rateLimitedResponse();
+      if (!geminiProxyLimiter.check(rateLimitKey('gem', authHeader))) return rateLimitedResponse();
 
       try {
         const body = await request.json();
@@ -626,7 +606,7 @@ export default {
           { status: 401, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } },
         );
       }
-      if (!checkRateLimit(rateLimitKey('s3d', authHeader), 20)) return rateLimitedResponse();
+      if (!scrape3dLimiter.check(rateLimitKey('s3d', authHeader))) return rateLimitedResponse();
 
       try {
         const body = (await request.json()) as { url?: string };
@@ -660,7 +640,7 @@ export default {
           { status: 401, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } },
         );
       }
-      if (!checkRateLimit(rateLimitKey('ssu', authHeader), 20)) return rateLimitedResponse();
+      if (!scrapeSublimationLimiter.check(rateLimitKey('ssu', authHeader))) return rateLimitedResponse();
 
       try {
         const body = (await request.json()) as { url?: string };
@@ -694,7 +674,7 @@ export default {
           { status: 401, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } },
         );
       }
-      if (!checkRateLimit(rateLimitKey('dt', authHeader), 12)) return rateLimitedResponse();
+      if (!designToolsLimiter.check(rateLimitKey('dt', authHeader))) return rateLimitedResponse();
 
       try {
         const body = (await request.json()) as DesignToolBody;
