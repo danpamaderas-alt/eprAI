@@ -4,7 +4,7 @@ import { useCrmStore, type CustomerBalance } from '../crm/store/useCrmStore';
 import { useTenantStore } from '../../store/useTenantStore';
 import { ClientFormModal } from '../crm/pages/ClientFormModal';
 import { Badge, ExportButton, Avatar } from '../../shared/components/ui';
-import { Star, Gift, TrendingUp, ArrowDownLeft, ArrowUpRight, Search, Pencil, Trash2, FileText, ShoppingCart, StickyNote, Users, Store, Building2 } from 'lucide-react';
+import { Star, Gift, TrendingUp, ArrowDownLeft, ArrowUpRight, Search, Pencil, Trash2, FileText, ShoppingCart, StickyNote, Users, Store, Building2, Sparkles, Plus, Loader2, Send, AlertCircle } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 interface Movement {
@@ -39,7 +39,7 @@ const TYPE_FILTERS = [
 ] as const;
 
 export const CustomerCRM = memo(() => {
-  const { balances: customers, fetchBalances, updateCustomer, deleteCustomer, awardLoyaltyPoints, redeemLoyaltyPoints } = useCrmStore();
+  const { balances: customers, fetchBalances, updateCustomer, deleteCustomer, addMovement, awardLoyaltyPoints, redeemLoyaltyPoints } = useCrmStore();
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerBalance | null>(null);
   const [history, setHistory] = useState<Movement[]>([]);
   const [loyaltyHistory, setLoyaltyHistory] = useState<LoyaltyEntry[]>([]);
@@ -47,7 +47,7 @@ export const CustomerCRM = memo(() => {
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editData, setEditData] = useState({ name: '', phone: '', email: '', address: '', cuit: '', notes: '' });
-  const [activeTab, setActiveTab] = useState<'movimientos' | 'puntos' | 'pedidos' | 'notas'>('movimientos');
+  const [activeTab, setActiveTab] = useState<'movimientos' | 'puntos' | 'pedidos' | 'notas' | 'ia'>('movimientos');
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [notesValue, setNotesValue] = useState('');
@@ -55,6 +55,18 @@ export const CustomerCRM = memo(() => {
   const [pointsInput, setPointsInput] = useState('');
   const [pointsReason, setPointsReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Registrar movimiento de cuenta
+  const [movementType, setMovementType] = useState<'CARGO' | 'PAGO'>('CARGO');
+  const [movementAmount, setMovementAmount] = useState('');
+  const [movementDesc, setMovementDesc] = useState('');
+  const [movementDate, setMovementDate] = useState(new Date().toISOString().slice(0, 10));
+  const [isSavingMovement, setIsSavingMovement] = useState(false);
+
+  // Análisis IA del cliente
+  const [aiAnalysis, setAiAnalysis] = useState('');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [aiError, setAiError] = useState('');
 
   useEffect(() => { fetchBalances(searchTerm); }, [fetchBalances, searchTerm]);
 
@@ -231,6 +243,84 @@ export const CustomerCRM = memo(() => {
   };
 
   const pointsToDiscount = (points: number) => `$${points.toLocaleString('es-AR')}`;
+
+  const handleAddMovement = async () => {
+    if (!selectedCustomer || !movementAmount) return;
+    const amount = parseFloat(movementAmount.replace(',', '.'));
+    if (isNaN(amount) || amount <= 0) {
+      Swal.fire({ icon: 'warning', title: 'Monto inválido', text: 'Ingresá un importe mayor a 0', background: '#0f172a', color: '#fff' });
+      return;
+    }
+    setIsSavingMovement(true);
+    try {
+      await addMovement({
+        customer_id: selectedCustomer.id,
+        movement_type: movementType,
+        amount,
+        description: movementDesc.trim() || (movementType === 'PAGO' ? 'Pago de cliente' : 'Cargo a cliente'),
+        date: movementDate,
+      });
+      setMovementAmount('');
+      setMovementDesc('');
+      setMovementDate(new Date().toISOString().slice(0, 10));
+      await loadCustomerData(selectedCustomer);
+      Swal.fire({ icon: 'success', title: 'Movimiento registrado', timer: 1200, showConfirmButton: false, background: '#0f172a', color: '#fff' });
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'Error', text: err instanceof Error ? err.message : 'No se pudo registrar', background: '#0f172a', color: '#fff' });
+    } finally {
+      setIsSavingMovement(false);
+    }
+  };
+
+  const handleAnalyze = async () => {
+    if (!selectedCustomer) return;
+    setIsAnalyzing(true);
+    setAiError('');
+    setAiAnalysis('');
+    try {
+      const session = await supabase.auth.getSession();
+      const recentMoves = history.slice(0, 8).map(h => `- ${h.date ? new Date(h.date).toLocaleDateString('es-AR') : '?'} ${h.movement_type} $${h.amount} ${h.description ?? ''}`).join('\n');
+      const recentOrders = orderHistory.slice(0, 8).map(o => `- ${o.created_at ? new Date(o.created_at).toLocaleDateString('es-AR') : '?'} $${o.total_amount ?? 0} (${o.status ?? 'pendiente'})`).join('\n');
+      const prompt = `
+Eres el asesor comercial de "Raíces", un emprendimiento de indumentaria y sublimación.
+Analizá este cliente y dame 3 recomendaciones accionables y concretas para aumentar la venta o retenerlo.
+Datos del cliente:
+- Nombre: ${selectedCustomer.name}
+- Tipo: ${selectedCustomer.type}
+- Saldo de cuenta: $${selectedCustomer.balance ?? 0} (positivo = nos debe)
+- Puntos de fidelización: ${selectedCustomer.loyalty_points ?? 0}
+Últimos movimientos:
+${recentMoves || 'Sin movimientos'}
+Últimos pedidos:
+${recentOrders || 'Sin pedidos'}
+Reglas:
+- Tono comercial, en español argentino, directo al grano.
+- Máximo 6 líneas. Usá viñetas.
+`;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+      const response = await fetch('/api/gemini', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session.data.session?.access_token && { Authorization: `Bearer ${session.data.session.access_token}` }),
+        },
+        signal: controller.signal,
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+      });
+      clearTimeout(timeoutId);
+      if (!response.ok) throw new Error(`Error del servicio de IA (código ${response.status}).`);
+      const data = await response.json();
+      const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!aiText) throw new Error('La respuesta de la IA estaba vacía.');
+      setAiAnalysis(aiText);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'No se pudo generar el análisis.';
+      setAiError(msg + ' (Si es por límite de la capa gratuita de Gemini, activá billing para usar esta función.)');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   return (
     <div className="flex flex-col md:flex-row h-auto md:h-[calc(100vh-120px)] gap-4 md:gap-6 p-4">
@@ -418,12 +508,64 @@ export const CustomerCRM = memo(() => {
                 >
                   <StickyNote className="w-3 h-3" /> Notas
                 </button>
+                <button
+                  onClick={() => { setActiveTab('ia'); if (!aiAnalysis && !isAnalyzing) handleAnalyze(); }}
+                  className={`px-4 py-1.5 rounded-full text-xs font-black uppercase transition-all flex items-center gap-1 ${activeTab === 'ia' ? 'bg-fuchsia-500 text-white' : 'text-slate-500 hover:text-fuchsia-400'}`}
+                >
+                  <Sparkles className="w-3 h-3" /> IA
+                </button>
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
               {activeTab === 'movimientos' && (
-                <div className="space-y-2">
+                <div className="space-y-4">
+                  {/* Registrar movimiento */}
+                  <div className="bg-gradient-to-br from-slate-900 to-blue-900 rounded-2xl p-5 text-white border border-blue-500/20 space-y-3">
+                    <h4 className="font-black uppercase text-xs flex items-center gap-2">
+                      <Plus className="w-4 h-4" /> Registrar Movimiento de Cuenta
+                    </h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <select
+                        value={movementType}
+                        onChange={e => setMovementType(e.target.value as 'CARGO' | 'PAGO')}
+                        className="bg-white/10 rounded-xl px-2 py-2 text-xs font-bold outline-none"
+                      >
+                        <option value="CARGO" className="text-slate-900">Cargo (debe)</option>
+                        <option value="PAGO" className="text-slate-900">Pago (abona)</option>
+                      </select>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={movementAmount}
+                        onChange={e => setMovementAmount(e.target.value)}
+                        placeholder="Monto"
+                        className="bg-white/10 rounded-xl px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-blue-400"
+                      />
+                      <input
+                        type="date"
+                        value={movementDate}
+                        onChange={e => setMovementDate(e.target.value)}
+                        className="bg-white/10 rounded-xl px-2 py-2 text-xs outline-none"
+                      />
+                      <button
+                        onClick={handleAddMovement}
+                        disabled={isSavingMovement || !movementAmount}
+                        className="flex items-center justify-center gap-1 bg-blue-500 hover:bg-blue-400 disabled:opacity-40 text-white font-black text-xs uppercase py-2 rounded-xl transition-colors"
+                      >
+                        <Send className="w-3.5 h-3.5" /> {isSavingMovement ? '...' : 'Registrar'}
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      value={movementDesc}
+                      onChange={e => setMovementDesc(e.target.value)}
+                      placeholder="Concepto (opcional): ej. Seña, adelanto, ajuste..."
+                      className="w-full bg-white/10 rounded-xl px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-blue-400"
+                    />
+                  </div>
+
                   {history.length === 0 && (
                     <p className="text-slate-600 text-center text-xs uppercase font-black italic mt-10">Sin movimientos registrados</p>
                   )}
@@ -576,6 +718,45 @@ export const CustomerCRM = memo(() => {
                     >
                       {isSavingNotes ? 'Guardando...' : 'Guardar Notas'}
                     </button>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'ia' && (
+                <div className="space-y-4">
+                  <div className="bg-gradient-to-br from-fuchsia-600 to-purple-700 rounded-2xl p-5 text-white border border-fuchsia-400/20 space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <h4 className="font-black uppercase text-sm flex items-center gap-2">
+                        <Sparkles className="w-4 h-4" /> Análisis Inteligente del Cliente
+                      </h4>
+                      <button
+                        onClick={handleAnalyze}
+                        disabled={isAnalyzing}
+                        className="flex items-center gap-1 bg-white/20 hover:bg-white/30 disabled:opacity-40 text-white font-black text-[10px] uppercase px-3 py-1.5 rounded-xl transition-colors"
+                      >
+                        {isAnalyzing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                        {isAnalyzing ? 'Analizando...' : 'Generar'}
+                      </button>
+                    </div>
+                    {isAnalyzing && (
+                      <p className="text-xs opacity-80 italic">Consultando al asesor comercial IA...</p>
+                    )}
+                    {aiError && (
+                      <div className="bg-white/10 rounded-xl p-3 flex items-start gap-2 text-xs">
+                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                        <span>{aiError}</span>
+                      </div>
+                    )}
+                    {aiAnalysis && !isAnalyzing && (
+                      <div className="bg-white/10 rounded-xl p-4 text-sm leading-relaxed whitespace-pre-wrap">
+                        {aiAnalysis}
+                      </div>
+                    )}
+                    {!aiAnalysis && !isAnalyzing && !aiError && (
+                      <p className="text-xs opacity-80 italic">
+                        Generá recomendaciones accionables basadas en el historial de movimientos y pedidos de {selectedCustomer?.name}.
+                      </p>
+                    )}
                   </div>
                 </div>
               )}

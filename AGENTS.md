@@ -137,6 +137,13 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 mejora módulo Clientes** — En `CustomerCRM.tsx` se sumaron dos funcionalidades:
+  (1) **Registrar Movimiento de Cuenta** desde la pestaña Movimientos (CARGO/PAGO con monto,
+  fecha y concepto) usando `useCrmStore.addMovement` + tabla `account_movements`; y
+  (2) pestaña **IA** "Análisis Inteligente del Cliente" que llama al worker `/api/gemini`
+  (mismo patrón de `AIAnalyticBrain`) con el historial del cliente y devuelve
+  recomendaciones; degrada con aviso si Gemini está en free tier (`limit:0`).
+  Lint: persisten 2 `any` preexistentes en handleAward/RedeemPoints (no tocar).
 - **2026-08 logo Raíces ERP (marca SVG)** — Nuevo componente `src/shared/components/ui/RaicesLogo.tsx`
   (ícono de brote con raíces en badge de gradiente azul-cian, reusable con `size`/`withText`/`href`).
   Aplicado en Sidebar (reemplaza Sprout), LoginPage (reemplaza emoji 🌱) y hero del DashboardInicio.
