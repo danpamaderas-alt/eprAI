@@ -1,4 +1,5 @@
 import { memo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Clock,
@@ -9,11 +10,13 @@ import {
   Pencil,
   Trash2,
   Weight,
+  Calculator,
 } from 'lucide-react';
 import { Modal } from '../../../shared/components/ui/Modal';
 import { useToastStore } from '../../../store/useToastStore';
 import { usePrintModelStore } from '../store/usePrintModelStore';
 import { usePrintJobStore } from '../../printjobs/store/usePrintJobStore';
+import { formatHoursHuman, hoursToTime } from '../../../shared/utils/format';
 import { type PrintModel, type PrintStatus } from '../types';
 import { PrintStatusBadge } from './PrintStatusBadge';
 
@@ -33,7 +36,7 @@ const formatDate = (d: string | null): string => {
 };
 
 const formatHours = (hours: number | null): string =>
-  hours == null ? '—' : `${hours} h`;
+  hours == null ? '—' : formatHoursHuman(hours);
 
 const formatGrams = (grams: number | null): string =>
   grams == null ? '—' : `${grams} g`;
@@ -54,10 +57,23 @@ export const PrintModelDetailModal = memo(function PrintModelDetailModal({
   const deleteModel = usePrintModelStore((s) => s.deleteModel);
   const addJob = usePrintJobStore((s) => s.addJob);
   const toast = useToastStore((s) => s.toast);
+  const navigate = useNavigate();
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSendingToProduction, setIsSendingToProduction] = useState(false);
 
   if (!model) return null;
+
+  const handleCalculateCost = () => {
+    const params = new URLSearchParams();
+    params.set('fromModel', model.id);
+    params.set('name', model.name);
+    if (model.estimated_grams != null) params.set('weight', String(model.estimated_grams));
+    if (model.estimated_time_hours != null) {
+      params.set('time', hoursToTime(model.estimated_time_hours));
+    }
+    onClose();
+    void navigate(`/calculadora-3d?${params.toString()}`);
+  };
 
   const handleSendToProduction = async () => {
     setIsSendingToProduction(true);
@@ -164,15 +180,25 @@ export const PrintModelDetailModal = memo(function PrintModelDetailModal({
             </p>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => void handleSendToProduction()}
-          disabled={isSendingToProduction}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-[10px] font-black uppercase tracking-widest transition-colors disabled:opacity-50"
-        >
-          <Factory className="w-3.5 h-3.5" aria-hidden="true" />
-          {isSendingToProduction ? 'Enviando…' : 'A Producción'}
-        </button>
+        <div className="flex flex-col gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={handleCalculateCost}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest transition-colors"
+          >
+            <Calculator className="w-3.5 h-3.5" aria-hidden="true" />
+            Calcular costo
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleSendToProduction()}
+            disabled={isSendingToProduction}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-[10px] font-black uppercase tracking-widest transition-colors disabled:opacity-50"
+          >
+            <Factory className="w-3.5 h-3.5" aria-hidden="true" />
+            {isSendingToProduction ? 'Enviando…' : 'A Producción'}
+          </button>
+        </div>
         <button
           type="button"
           onClick={() => onEdit(model)}

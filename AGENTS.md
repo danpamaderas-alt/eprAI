@@ -137,6 +137,14 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 repositorio 3D: tiempo HH:MM + puente a calculadora** — Tiempo del repositorio
+  migrado a HH:MM: formulario con input HH:MM (muestra horas decimales y días debajo),
+  cards y detalle usan `formatHoursHuman` (nuevo helper en shared/utils/format.ts:
+  "2d 03:30" si ≥24h). Botón "Calcular costo" en el detalle navega a
+  `/calculadora-3d?fromModel=..&name=..&weight=..&time=HH:MM`; Print3DCalculator precarga
+  pieceWeight/printTime/jobName vía lazy initializer con useSearchParams (sin setState en
+  effects) y guarda `fromModelRef` para vincular model_id al "Enviar a producción".
+  Lección: leer searchParams en lazy initializers de useState, no en effects.
 - **2026-08 producción 3D ↔ repositorio/ventas/remitos** — Integración completa del flujo:
   migración `021_print_jobs_3d_model_link.sql` (APLICADA: columnas model_id FK→print_models,
   actual_cost_total, sale_id FK→sales, remito_id FK→remitos), botón "A Producción" en el

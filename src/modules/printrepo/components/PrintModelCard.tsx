@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import type { PrintModel } from '../types';
 import { PrintStatusBadge } from './PrintStatusBadge';
+import { formatHoursHuman } from '../../../shared/utils/format';
 
 interface PrintModelCardProps {
   model: PrintModel;
@@ -20,7 +21,7 @@ interface PrintModelCardProps {
 
 const formatHours = (hours: number | null): string => {
   if (hours == null) return '—';
-  return `${hours}h`;
+  return formatHoursHuman(hours);
 };
 
 const formatGrams = (grams: number | null): string => {

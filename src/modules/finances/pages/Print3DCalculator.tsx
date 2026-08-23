@@ -1,4 +1,5 @@
-﻿import { useState, useMemo, useCallback, useEffect } from "react";
+﻿import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Printer,
   Zap,
@@ -367,8 +368,21 @@ const TimeField = ({
 // ====================================================
 export const Print3DCalculator = () => {
   const toast = useToastStore((s) => s.toast);
-  const [inputs, setInputs] = useState<Inputs>(() => mergeDefaults(DEFAULT));
-  const [jobName, setJobName] = useState("");
+  const [searchParams] = useSearchParams();
+
+  // Precarga desde Repositorio 3D: /calculadora-3d?fromModel=..&name=..&weight=..&time=HH:MM
+  const fromModelRef = useRef<string | null>(searchParams.get("fromModel"));
+  const [inputs, setInputs] = useState<Inputs>(() => {
+    const base = mergeDefaults(DEFAULT);
+    const w = parseFloat(searchParams.get("weight") ?? "");
+    const t = searchParams.get("time");
+    return {
+      ...base,
+      pieceWeight: isFinite(w) && w > 0 ? w : base.pieceWeight,
+      printTime: t ? timeToHours(t) : base.printTime,
+    };
+  });
+  const [jobName, setJobName] = useState(() => searchParams.get("name") ?? "");
   const [history, setHistory] = useState<SavedJob[]>(() => loadJSON<SavedJob[]>(HISTORY_KEY) ?? []);
   const [showHistory, setShowHistory] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -587,6 +601,7 @@ export const Print3DCalculator = () => {
         est_time_h: Number((inputs.printTime * qty).toFixed(2)),
         est_cost_total: Number(bd.cpTotal.toFixed(2)),
         est_price_total: Number(bd.roundedTotal.toFixed(2)),
+        model_id: fromModelRef.current || null,
       });
       toast("Trabajo enviado a Producción 3D", { type: "success" });
     } catch (err) {

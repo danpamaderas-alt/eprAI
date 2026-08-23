@@ -64,3 +64,11 @@ export const timeToHours = (time: string) => {
   const ss = m[3] ? parseInt(m[3], 10) : 0;
   return hh + mm / 60 + ss / 3600;
 };
+
+/** Duración legible: "2d 03:30" si supera 24 h, sino "03:30" */
+export const formatHoursHuman = (hours: number | null | undefined) => {
+  if (hours == null) return '—';
+  const days = Math.floor(hours / 24);
+  const time = hoursToTime(hours % 24);
+  return days > 0 ? `${days}d ${time}` : time;
+};

@@ -6,6 +6,7 @@ import { Select } from '../../../shared/components/ui/Select';
 import { useToastStore } from '../../../store/useToastStore';
 import { usePrintModelStore } from '../store/usePrintModelStore';
 import { useAuthStore } from '../../../store/useAuthStore';
+import { hoursToTime, timeToHours } from '../../../shared/utils/format';
 import {
   DEFAULT_CATEGORIES,
   PRINT_STATUS_OPTIONS,
@@ -266,15 +267,24 @@ export function PrintModelFormModal({
           />
         </FormField>
 
-        <FormField label="Tiempo estimado (horas)">
+        <FormField label="Tiempo estimado (HH:MM)">
           <Input
-            type="number"
-            step="0.5"
-            min="0"
-            value={form.estimated_time_hours ?? ''}
-            onChange={(e) => set('estimated_time_hours', toNumber(e.target.value))}
-            placeholder="4.5"
+            type="text"
+            inputMode="numeric"
+            value={form.estimated_time_hours != null ? hoursToTime(form.estimated_time_hours) : ''}
+            onChange={(e) => {
+              const raw = e.target.value.trim();
+              set('estimated_time_hours', raw === '' ? null : timeToHours(raw));
+            }}
+            placeholder="04:30"
           />
+          {form.estimated_time_hours != null && (
+            <p className="mt-1 text-[10px] font-bold text-slate-400">
+              = {form.estimated_time_hours.toFixed(2)} h
+              {form.estimated_time_hours >= 24 &&
+                ` (${Math.floor(form.estimated_time_hours / 24)}d)`}
+            </p>
+          )}
         </FormField>
 
         <FormField label="Gramos estimados (g)">
