@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, lazy, Suspense } from 'react';
 import {
   Palette,
   Plus,
@@ -22,8 +22,12 @@ import {
 import { SublimationDesignCard } from '../components/SublimationDesignCard';
 import { SublimationDesignFormModal } from '../components/SublimationDesignFormModal';
 import { SublimationDesignDetailModal } from '../components/SublimationDesignDetailModal';
-import { DesignStudioModal } from '../components/DesignStudioModal';
-import { MockupPreviewModal } from '../components/MockupPreviewModal';
+const DesignStudioModal = lazy(() =>
+  import('../components/DesignStudioModal').then((m) => ({ default: m.DesignStudioModal })),
+);
+const MockupPreviewModal = lazy(() =>
+  import('../components/MockupPreviewModal').then((m) => ({ default: m.MockupPreviewModal })),
+);
 import { exportDesignsCSV, exportDesignsPDF } from '../utils/export';
 import type { SublimationDesign } from '../types';
 import { EmptyState } from '../../../shared/components/ui/EmptyState';
@@ -384,24 +388,26 @@ const [mockupDesign, setMockupDesign] = useState<SublimationDesign | null>(null)
           setIsMockupOpen(true);
         }}
       />
-      <DesignStudioModal
-        key={`studio-${studioDesign?.id ?? 'blank'}`}
-        isOpen={isStudioOpen}
-        onClose={() => {
-          setIsStudioOpen(false);
-          setStudioDesign(null);
-        }}
-        initialDesign={studioDesign}
-      />
-      <MockupPreviewModal
-        key={`mockup-${mockupDesign?.id ?? 'blank'}`}
-        design={mockupDesign}
-        isOpen={isMockupOpen}
-        onClose={() => {
-          setIsMockupOpen(false);
-          setMockupDesign(null);
-        }}
-      />
+      <Suspense fallback={null}>
+        <DesignStudioModal
+          key={`studio-${studioDesign?.id ?? 'blank'}`}
+          isOpen={isStudioOpen}
+          onClose={() => {
+            setIsStudioOpen(false);
+            setStudioDesign(null);
+          }}
+          initialDesign={studioDesign}
+        />
+        <MockupPreviewModal
+          key={`mockup-${mockupDesign?.id ?? 'blank'}`}
+          design={mockupDesign}
+          isOpen={isMockupOpen}
+          onClose={() => {
+            setIsMockupOpen(false);
+            setMockupDesign(null);
+          }}
+        />
+      </Suspense>
     </div>
   );
 };

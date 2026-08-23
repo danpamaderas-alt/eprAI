@@ -17,6 +17,8 @@ export const loadImageElement = (src: string): Promise<HTMLImageElement> =>
 
 /**
  * Convierte una imagen rasterizada a SVG trazando sus colores.
+ * El trazado pesado corre en un Web Worker para no congelar la UI;
+ * si el worker no está disponible, cae al hilo principal.
  * La imagen se procesa localmente en el navegador (no sale al servidor).
  * Lanza error de CORS si la imagen remota no permite lectura de píxeles:
  * en ese caso conviene descargar la imagen y subirla como archivo local.
@@ -46,7 +48,7 @@ export const vectorizeImage = async (
     );
   }
 
-  return ImageTracer.imagedataToSVG(imgd, {
+  const traceOptions = {
     numberofcolors: options?.colors ?? 16,
     colorsampling: 2,
     mincolorratio: 0,
@@ -55,6 +57,39 @@ export const vectorizeImage = async (
     qtres: 1,
     pathomit: 8,
     scale: scale > 0 ? 1 / scale : 1,
+  };
+
+  return new Promise<string>((resolve, reject) => {
+    let worker: Worker;
+    try {
+      worker = new Worker(
+        new URL('../workers/vectorize.worker.ts', import.meta.url),
+        { type: 'module' },
+      );
+    } catch {
+      resolve(ImageTracer.imagedataToSVG(imgd, traceOptions));
+      return;
+    }
+
+    worker.onmessage = (e: MessageEvent<{ ok: boolean; svg?: string; error?: string }>) => {
+      worker.terminate();
+      if (e.data?.ok && e.data.svg) resolve(e.data.svg);
+      else reject(new Error(e.data?.error || 'Fallo la vectorización.'));
+    };
+    worker.onerror = () => {
+      worker.terminate();
+      resolve(ImageTracer.imagedataToSVG(imgd, traceOptions));
+    };
+    const transferBuffer = imgd.data.buffer.slice(0) as ArrayBuffer;
+    worker.postMessage(
+      {
+        buffer: transferBuffer,
+        width: imgd.width,
+        height: imgd.height,
+        options: traceOptions,
+      },
+      [transferBuffer],
+    );
   });
 };
 
