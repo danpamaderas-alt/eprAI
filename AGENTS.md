@@ -137,6 +137,11 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 seed de colores PLA en stock 0** — Migración `027_seed_pla_colors.sql` (APLICADA,
+  idempotente: no re-inserta si ya hay >=12 PLA en MI EMPRESA): 12 colores PLA Generica
+  Negro/Blanco/Rojo/Azul/Verde/Amarillo/Naranja/Violeta/Rosa/Celeste/Gris/Marron a
+  $/kg 19000, remaining_g=0, min_stock 250. El dueño los edita según stock real.
+  Nombres en ASCII plano para evitar el bug de encoding de la Management API (á/é).
 - **2026-08 calculadora de sublimación (paridad con 3D)** — Nueva `SublimationCalculator`
   en `finances/pages/`: ruta /calculadora-sublimacion + menú (icono Shirt). Modelo de
   costo: producto base (auto-selección desde textile_blanks con localStorage
