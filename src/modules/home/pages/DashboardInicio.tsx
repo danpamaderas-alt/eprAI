@@ -3,18 +3,13 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { useCatalogStore } from '../../../store/useCatalogStore';
 import { useCrmStore } from '../../crm/store/useCrmStore';
-import { useTreasuryStore } from '../../inventory/treasury/store/useTreasuryStore';
 import { useTenantStore } from '../../../store/useTenantStore';
 import { useAuthStore } from '../../../store/useAuthStore';
-import { ARS } from '../../../shared/utils/format';
-import { KpiCard } from '../../../shared/components/ui/KpiCard';
 import { Breadcrumbs } from '../../../shared/components/ui/Breadcrumbs';
 import { ErrorBoundary } from '../../../shared/components/ui/ErrorBoundary';
-import { KpiSkeleton } from '../../../shared/components/ui/Skeleton';
 import {
   ShoppingCart,
   Package,
-  Users,
   Route,
   Sparkles,
   LayoutGrid,
@@ -89,7 +84,6 @@ const QUICK_ACCESS: QuickAccessGroup[] = [
 const DashboardContent = memo(() => {
   const { inventory, fetchAllCatalogs } = useCatalogStore();
   const { balances, fetchBalances } = useCrmStore();
-  const { transactions, fetchTransactions } = useTreasuryStore();
   const activeCompanyId = useTenantStore((state) => state.activeCompanyId);
   const user = useAuthStore((state) => state.user);
 
@@ -133,11 +127,10 @@ const DashboardContent = memo(() => {
           return { d3: d3.count || 0, subli: subli.count || 0 };
         };
 
-        const [ordersCount, , , , produccion] = await Promise.all([
+        const [ordersCount, , , produccion] = await Promise.all([
           fetchOrdersCount(),
           fetchAllCatalogs(),
           fetchBalances(),
-          fetchTransactions(),
           fetchProductionActivos(),
         ]);
 
@@ -152,44 +145,12 @@ const DashboardContent = memo(() => {
     };
 
     loadDashboardData();
-  }, [fetchAllCatalogs, fetchBalances, fetchTransactions, activeCompanyId]);
+  }, [fetchAllCatalogs, fetchBalances, activeCompanyId]);
 
   const totalStock = useMemo(
     () => inventory?.reduce((sum, item) => sum + (item.stock_quantity || 0), 0) || 0,
     [inventory],
   );
-
-  const ingresosMes = useMemo(() => {
-    if (!transactions) return 0;
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    return transactions
-      .filter((tx) => {
-        const txDate = new Date(tx.date);
-        const isValidStatus = tx.status === 'COMPLETADO' || !tx.status;
-        return isValidStatus && tx.type === 'INCOME' && txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
-      })
-      .reduce((sum, tx) => sum + (Number.parseFloat(tx.amount.toString()) || 0), 0);
-  }, [transactions]);
-
-  const ingresosMesAnterior = useMemo(() => {
-    if (!transactions) return 0;
-    const now = new Date();
-    const prevMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
-    const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
-    return transactions
-      .filter((tx) => {
-        const txDate = new Date(tx.date);
-        const isValidStatus = tx.status === 'COMPLETADO' || !tx.status;
-        return isValidStatus && tx.type === 'INCOME' && txDate.getMonth() === prevMonth && txDate.getFullYear() === prevYear;
-      })
-      .reduce((sum, tx) => sum + (Number.parseFloat(tx.amount.toString()) || 0), 0);
-  }, [transactions]);
-
-  const ingresoTrend = ingresosMesAnterior > 0
-    ? Math.round(((ingresosMes - ingresosMesAnterior) / ingresosMesAnterior) * 100)
-    : 0;
 
   const prodCounts: Record<string, number | undefined> = {
     '/produccion-3d': prod3dActivos,
@@ -237,47 +198,13 @@ const DashboardContent = memo(() => {
         </div>
       </header>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        {isLoadingCounts ? (
-          <>
-            <KpiSkeleton />
-            <KpiSkeleton />
-            <KpiSkeleton />
-            <KpiSkeleton />
-          </>
-        ) : (
-          <>
-            <KpiCard
-              label="Ingresos del Mes"
-              value={ARS.format(ingresosMes)}
-              trend={ingresoTrend}
-              icon={<CircleDollarSign className="w-16 h-16" />}
-              variant="emerald"
-            />
-            <KpiCard
-              label="Stock Disponible"
-              value={`${totalStock} Prendas`}
-              icon={<Package className="w-16 h-16" />}
-              variant="default"
-            />
-            <KpiCard
-              label="Cartera de Clientes"
-              value={`${balances?.length || 0} Activos`}
-              icon={<Users className="w-16 h-16" />}
-              variant="default"
-            />
-            <KpiCard
-              label="Pedidos Pendientes"
-              value={`${pedidosPendientes} en cola`}
-              icon={<Route className="w-16 h-16" />}
-              variant="dark"
-            />
-          </>
-        )}
-      </div>
-
       {/* Producción en curso */}
+      <div className="flex items-center gap-2 mb-4">
+        <span className="w-1.5 h-5 rounded-full bg-gradient-to-b from-rose-500 to-fuchsia-500" aria-hidden="true" />
+        <h2 className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.25em]">
+          Producción en curso
+        </h2>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <Link
           to="/produccion-3d"
@@ -324,12 +251,15 @@ const DashboardContent = memo(() => {
       <div className="bg-white dark:bg-slate-800/50 backdrop-blur-sm rounded-[2.5rem] border border-slate-200 dark:border-slate-700/50 p-8 shadow-sm">
         <div className="flex items-center gap-2 mb-6">
           <LayoutGrid className="w-4 h-4 text-slate-400" />
-          <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em]">Accesos Rápidos</h2>
+          <h2 className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.25em]">
+            Accesos Rápidos
+          </h2>
         </div>
         <div className="space-y-6">
           {QUICK_ACCESS.map((group) => (
             <div key={group.label}>
-              <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">
+              <p className="flex items-center gap-2 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">
+                <span className="w-1 h-3 rounded-full bg-slate-300 dark:bg-slate-600" aria-hidden="true" />
                 {group.label}
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -339,8 +269,9 @@ const DashboardContent = memo(() => {
                     <Link
                       key={m.path}
                       to={m.path}
-                      className="group relative flex items-center gap-3 p-4 rounded-2xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-900/40 hover:border-slate-300 dark:hover:border-slate-500 hover:-translate-y-0.5 hover:shadow-lg transition-all"
+                      className="group relative flex items-center gap-3 p-4 rounded-2xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-900/40 overflow-hidden hover:border-slate-300 dark:hover:border-slate-500 hover:-translate-y-0.5 hover:shadow-lg transition-all"
                     >
+                      <span className={`absolute inset-y-0 left-0 w-1 bg-gradient-to-b ${m.color}`} aria-hidden="true" />
                       <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${m.color} text-white flex items-center justify-center shadow-lg shrink-0 group-hover:scale-110 transition-transform`}>
                         <m.icon className="w-5 h-5" />
                       </div>

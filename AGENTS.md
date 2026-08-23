@@ -137,6 +137,10 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 dashboard: quitar KPIs** — En `DashboardInicio` se removió la sección de 4 KPI Cards
+  (Ingresos del Mes, Stock Disponible, Cartera de Clientes, Pedidos Pendientes). Quedaron el
+  hero (con esos datos resumidos), la franja "Producción en curso" y los Accesos Rápidos.
+  Limpieza de imports/cálculos sin uso (useTreasuryStore, ARS, KpiCard, ingresos useMemos).
 - **2026-08 dashboard: quitar gráfico y actividad** — En `DashboardInicio` se removieron la
   sección "Tendencia" (SalesTrendChart) y "Actividad Reciente"; se mejoraron las tarjetas de
   "Accesos Rápidos" (más grandes, subtítulo de rubro y badge de contador en vivo en Producción
