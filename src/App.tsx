@@ -57,7 +57,7 @@ export default function App() {
   }, [initializeAuth]);
 
   const handleCommandPaletteKeyDown = useCallback((e: KeyboardEvent) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'k') {
       e.preventDefault();
       setIsCommandPaletteOpen((v) => !v);
     }
