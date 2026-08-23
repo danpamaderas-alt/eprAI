@@ -92,8 +92,8 @@ Archivos numerados en `sql/`. Aplicar con Management API (requiere SUPABASE_TOKE
 $env:SUPABASE_TOKEN="sbp_..."; node "$env:TEMP\opencode\apply-migration.cjs" sql\NNN_nombre.sql
 ```
 
-Proyecto Supabase: `gjzvdepevoviygrcdwqj`. Aplicada más reciente: `019_mockup_templates.sql`
-(`020_print_jobs_3d.sql` creada, PENDIENTE de token). Última aplicada con bucket:
+Proyecto Supabase: `gjzvdepevoviygrcdwqj`. Aplicada más reciente: `020_print_jobs_3d.sql`
+(token rotado tras usar: pedir al usuario revocarlo si no lo hizo). Última aplicada con bucket:
 `016_design_storage.sql` (bucket privado `design-images` + políticas para authenticated).
 
 ## Estado del proyecto (agosto 2026)
