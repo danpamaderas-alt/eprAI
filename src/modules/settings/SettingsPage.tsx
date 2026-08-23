@@ -14,7 +14,10 @@ import {
   Smartphone,
   Pencil,
   Trash2,
+  Sun,
+  Moon,
 } from 'lucide-react';
+import { useThemeStore } from '../../store/useThemeStore';
 import { PageHeader } from '../../shared/components/ui/PageHeader';
 import { Card, CardHeader, CardTitle } from '../../shared/components/ui/Card';
 import { Tabs } from '../../shared/components/ui/Tabs';
@@ -139,8 +142,10 @@ function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void 
 
 function GeneralTab({ settings, onChange }: { settings: SettingsState; onChange: (s: SettingsState) => void }) {
   const { company } = settings;
+  const { isDarkMode, toggleDarkMode } = useThemeStore();
 
   return (
+    <div className="space-y-6">
     <Card>
       <CardHeader>
         <CardTitle>Datos de la Empresa</CardTitle>
@@ -172,6 +177,26 @@ function GeneralTab({ settings, onChange }: { settings: SettingsState; onChange:
         />
       </div>
     </Card>
+    <Card>
+      <CardHeader>
+        <CardTitle>Apariencia</CardTitle>
+      </CardHeader>
+      <div className="flex items-center justify-between px-1 py-4">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400 shrink-0">
+            {isDarkMode ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+          </div>
+          <div>
+            <p className="text-xs font-bold text-slate-900 dark:text-white">Modo Oscuro</p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+              Cambiá entre tema claro y oscuro en toda la aplicación
+            </p>
+          </div>
+        </div>
+        <Toggle enabled={isDarkMode} onToggle={toggleDarkMode} />
+      </div>
+    </Card>
+    </div>
   );
 }
 

@@ -137,6 +137,12 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 UI simplificada** — Eliminados los botones flotantes de arriba a la derecha
+  (buscador Ctrl+K y ThemeToggle) y la CommandPalette completa (componente borrado).
+  El modo oscuro ahora vive en Configuración → General → "Apariencia" (usa useThemeStore,
+  mismo store de antes). Borrados `src/components/ThemeToggle.tsx` y
+  `src/shared/components/command-palette/`. Motivo: pedido directo del dueño ("dejá solo
+  lo que está en el menú").
 - **2026-08 producción 3D (print_jobs_3d)** — Nuevo flujo de cola de trabajos de impresión 3D:
   migración `sql/020_print_jobs_3d.sql` (PENDIENTE de aplicar: no había SUPABASE_TOKEN
   vigente en esta sesión), módulo `src/modules/printjobs/` (types con NEXT_STATUS map +

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState, useCallback } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import { useAuthStore } from "./store/useAuthStore";
@@ -6,7 +6,6 @@ import { ProtectedRoute } from "./shared/components/layout/ProtectedRoute";
 import { DashboardLayout } from "./layouts/DashboardLayout";
 import { ErrorBoundary } from "./shared/components/ui/ErrorBoundary";
 import { ToastContainer } from "./shared/components/ui/Toast";
-import { CommandPalette } from "./shared/components/command-palette/CommandPalette";
 
 const LoginPage = lazy(() => import("./modules/auth/LoginPage").then(m => ({ default: m.LoginPage })));
 const CustomerCRM = lazy(() => import("./modules/customers/CustomerCRM").then(m => ({ default: m.CustomerCRM })));
@@ -50,31 +49,13 @@ const LoadingFallback = () => (
 
 export default function App() {
   const initializeAuth = useAuthStore((state) => state.initialize);
-  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-
   useEffect(() => {
     return initializeAuth();
   }, [initializeAuth]);
 
-  const handleCommandPaletteKeyDown = useCallback((e: KeyboardEvent) => {
-    if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'k') {
-      e.preventDefault();
-      setIsCommandPaletteOpen((v) => !v);
-    }
-  }, []);
-
-  useEffect(() => {
-    document.addEventListener('keydown', handleCommandPaletteKeyDown);
-    return () => document.removeEventListener('keydown', handleCommandPaletteKeyDown);
-  }, [handleCommandPaletteKeyDown]);
-
   return (
     <BrowserRouter>
       <ToastContainer />
-      <CommandPalette
-        isOpen={isCommandPaletteOpen}
-        onClose={() => setIsCommandPaletteOpen(false)}
-      />
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
