@@ -10,6 +10,7 @@ import Swal from "sweetalert2";
 import type { Database } from "../../../shared/types/database.types";
 
 import { OrderMatrixModal } from "./OrderMatrixModal";
+import { OrderDesignLink, type OrderDesignMeta } from "./OrderDesignLink";
 
 interface OrderFormProps {
   orderToEdit?: {
@@ -22,6 +23,10 @@ interface OrderFormProps {
     total_amount?: number;
     advance_payment?: number;
     customer_id?: string;
+    design_id?: string | null;
+    design_product?: string | null;
+    design_verdict?: 'ok' | 'warn' | 'bad' | null;
+    design_client_approved?: boolean | null;
   } | null;
   onClose: () => void;
   onSuccess: () => void;
@@ -53,6 +58,15 @@ export const OrderForm = memo(
     const [activeMatrixIndex, setActiveMatrixIndex] = useState<number | null>(
       null,
     );
+    const [designMeta, setDesignMeta] = useState<OrderDesignMeta>({
+      designId: orderToEdit?.design_id || null,
+      productName: orderToEdit?.design_product || null,
+      verdict: orderToEdit?.design_verdict ?? null,
+      clientApproved: orderToEdit?.design_client_approved || false,
+    });
+
+    const handleDesignMetaChange = (patch: Partial<OrderDesignMeta>) =>
+      setDesignMeta((prev) => ({ ...prev, ...patch }));
 
     useEffect(() => {
       const sync = async () => {
@@ -111,6 +125,16 @@ export const OrderForm = memo(
         const companyId = useTenantStore.getState().activeCompanyId;
         if (!companyId) throw new Error('Acción rechazada: Falta ID de compañía activa (Tenant).');
 
+        if (designMeta.verdict === 'bad' && !designMeta.clientApproved) {
+          setIsSubmitting(false);
+          Swal.fire(
+            'Diseño pixelado',
+            "El diseño seleccionado no alcanza calidad para el producto elegido. Pedí aprobación al cliente y marcá la casilla, o cambiá el diseño/producto.",
+            "warning",
+          );
+          return;
+        }
+
         let totalOrdered = 0;
         let totalDelivered = 0;
 
@@ -142,6 +166,14 @@ export const OrderForm = memo(
           advance_payment: Number(data.advancePayment || 0),
           items: data.items as never, // JSONB backup required by schema
           customer_id: selectedClientId === "CONSUMIDOR_FINAL" ? null : selectedClientId,
+          design_id: designMeta.designId ?? null,
+          design_product: designMeta.designId ? designMeta.productName : null,
+          design_verdict: designMeta.designId ? designMeta.verdict : null,
+          design_client_approved: designMeta.clientApproved,
+          design_approved_at:
+            designMeta.verdict === 'bad' && designMeta.clientApproved
+              ? new Date().toISOString()
+              : null,
         };
 
         const upsertPayload: Database['public']['Tables']['orders']['Insert'] = orderToEdit
@@ -291,6 +323,8 @@ export const OrderForm = memo(
                   ))}
                 </select>
               </div>
+
+              <OrderDesignLink value={designMeta} onChange={handleDesignMetaChange} />
 
               <div className="grid grid-cols-2 gap-4 bg-emerald-50 dark:bg-emerald-900/10 p-6 rounded-3xl border border-emerald-100 dark:border-emerald-900/30">
                 <div className="space-y-1">

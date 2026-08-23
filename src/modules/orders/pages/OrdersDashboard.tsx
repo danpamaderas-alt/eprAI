@@ -27,6 +27,7 @@ import {
   BarChart3, Bell, Send, MoreVertical, X, Save,
   Eye, EyeOff, Zap, Target, Truck, Scissors, Shirt,
   Box, ClipboardCheck, PackageCheck, ArrowRight,
+  Palette, CheckCheck,
 } from 'lucide-react';
 
 type StatusFilter = 'ALL' | 'PENDING' | 'PARTIAL' | 'DELIVERED' | 'CANCELLED';
@@ -462,6 +463,19 @@ const OrderCard = memo(({ order, onDeliver, onEdit, onOpenRemito, onPrintLabel, 
               </span>
               {isOverdue && <span className="flex items-center gap-1 px-2 py-0.5 text-[8px] font-black bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-md"><AlertTriangle className="w-2.5 h-2.5" /> VENCIDO</span>}
               {currentStage && <span className={cn('flex items-center gap-1 px-2 py-0.5 text-[8px] font-black rounded-md', currentStage.color)}><currentStage.icon className="w-2.5 h-2.5" /> {currentStage.label}</span>}
+              {order.design_id && (() => {
+                const dv = order.design_verdict;
+                const approved = order.design_client_approved === true;
+                const designCfg = dv === 'bad'
+                  ? (approved
+                    ? 'bg-slate-100 dark:bg-slate-700 text-slate-500'
+                    : 'bg-rose-100 dark:bg-rose-900/30 text-rose-600')
+                  : dv === 'warn'
+                    ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600'
+                    : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600';
+                const designLabel = dv === 'ok' ? 'DISEÑO OK' : dv === 'warn' ? 'DISEÑO AJUSTADO' : dv === 'bad' ? (approved ? 'PIXELADO APROBADO' : 'PIXELADO') : 'CON DISEÑO';
+                return <span title={order.design_product || undefined} className={cn('flex items-center gap-1 px-2 py-0.5 text-[8px] font-black rounded-md', designCfg)}>{dv === 'bad' && approved ? <CheckCheck className="w-2.5 h-2.5" /> : <Palette className="w-2.5 h-2.5" />} {designLabel}</span>;
+              })()}
               {order.notes && order.notes.length > 0 && <StickyNote className="w-3 h-3 text-amber-500" />}
               {order.photos && order.photos.length > 0 && <Camera className="w-3 h-3 text-indigo-500" />}
             </div>

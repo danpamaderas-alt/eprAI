@@ -82,6 +82,11 @@ export interface Order {
   customer_phone?: string;
   customer_email?: string;
   internal_notes?: string;
+  design_id?: string | null;
+  design_product?: string | null;
+  design_verdict?: 'ok' | 'warn' | 'bad' | null;
+  design_client_approved?: boolean | null;
+  design_approved_at?: string | null;
 }
 
 interface OrderState {
@@ -110,7 +115,7 @@ interface OrderState {
   addPhoto: (orderId: string, url: string, name: string) => Promise<void>;
 }
 
-const META_COLUMNS = 'priority, production_stage, activity_log, notes, payments, photos, customer_phone, customer_email, internal_notes';
+const META_COLUMNS = 'priority, production_stage, activity_log, notes, payments, photos, customer_phone, customer_email, internal_notes, design_id, design_product, design_verdict, design_client_approved, design_approved_at';
 
 function loadTemplates(): OrderTemplate[] {
   try {
