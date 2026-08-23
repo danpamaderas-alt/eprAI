@@ -53,7 +53,7 @@ function getCategoryGradient(category: string | null) {
 }
 
 const SalesContent = memo(() => {
-  const { products, inventory, fetchAllCatalogs, processSale } = useCatalogStore();
+  const { products, inventory, fetchAllCatalogs } = useCatalogStore();
   const { balances, fetchBalances } = useCrmStore();
   const { resellers, fetchData: fetchResellers } = useResellerStore();
   const activeCompanyId = useTenantStore((s) => s.activeCompanyId);
@@ -167,7 +167,7 @@ const SalesContent = memo(() => {
             variantId: variant.id,
             name: product.name,
             sku: product.sku || 'S/N',
-            category: product.category,
+            category: product.category ?? null,
             price: Number.parseFloat(String(product.price || 0)),
             qty,
             maxQty: variant.finished_quantity || 0,
@@ -339,7 +339,7 @@ const SalesContent = memo(() => {
                       )}
                     >
                       {/* Gradient Header */}
-                      <div className={cn('h-20 bg-gradient-to-br flex items-center justify-center relative', getCategoryGradient(p.category))}>
+                      <div className={cn('h-20 bg-gradient-to-br flex items-center justify-center relative', getCategoryGradient(p.category ?? null))}>
                         <Package className="w-8 h-8 text-white/60" />
                         <div className={cn('absolute top-2 right-2 px-1.5 py-0.5 rounded text-[8px] font-black uppercase flex items-center gap-0.5', stockColor.bg, stockColor.text)}>
                           {stock <= 2 && <AlertTriangle className="w-2.5 h-2.5" />}
@@ -547,7 +547,6 @@ const SalesContent = memo(() => {
                         className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors border-b border-slate-50 dark:border-slate-700 last:border-0"
                       >
                         <span className="font-bold text-slate-800 dark:text-white">{c.name}</span>
-                        {c.company && <span className="text-slate-400 ml-1">({c.company})</span>}
                         {c.loyalty_points != null && c.loyalty_points > 0 && (
                           <span className="ml-1 text-amber-500"><Star className="w-2.5 h-2.5 inline" /> {c.loyalty_points}</span>
                         )}

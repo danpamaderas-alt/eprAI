@@ -94,7 +94,7 @@ function Toggle({ enabled, onToggle }: { enabled: boolean; onToggle: () => void 
 
 export const ProfilePage = () => {
   const user = useAuthStore((state) => state.user);
-  const { mode, setMode, isDarkMode } = useThemeStore();
+  const { setMode, isDarkMode } = useThemeStore();
 
   const authName = user?.user_metadata?.full_name || user?.email || 'Operador';
   const authEmail = user?.email || '';
@@ -119,17 +119,6 @@ export const ProfilePage = () => {
   useEffect(() => {
     saveProfile(profile);
   }, [profile]);
-
-  const initials = useMemo(
-    () =>
-      profile.fullName
-        .split(' ')
-        .map((w: string) => w[0])
-        .slice(0, 2)
-        .join('')
-        .toUpperCase(),
-    [profile.fullName],
-  );
 
   const handleSaveProfile = useCallback(() => {
     saveProfile(profile);

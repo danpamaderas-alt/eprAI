@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useProductionStore } from '../store/useProductionStore';
 import { useCatalogStore } from '../../../store/useCatalogStore';
 import Swal from 'sweetalert2';

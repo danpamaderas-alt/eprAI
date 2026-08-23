@@ -1,9 +1,8 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { useWorkerStore, type Worker } from '../../quotes/store/useWorkerStore';
+import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useWorkerStore } from '../../quotes/store/useWorkerStore';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod/v4';
 import { zodResolver } from '@hookform/resolvers/zod';
-import Swal from 'sweetalert2';
 import { Modal, FormField } from '../../../shared/components/ui/Modal';
 
 const workerSchema = z.object({

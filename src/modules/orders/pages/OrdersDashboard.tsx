@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback, memo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, memo, type ComponentProps } from 'react';
 import {
   useOrderStore,
   type Order,
@@ -19,14 +19,14 @@ import { useReactToPrint } from 'react-to-print';
 import Swal from 'sweetalert2';
 import {
   Search, Package, Calendar, Clock, CheckCircle, XCircle,
-  AlertTriangle, Plus, Filter, ArrowUpDown, Phone, MessageSquare,
-  FileText, Printer, ChevronDown, ChevronUp, TrendingUp,
-  DollarSign, Users, PackageX, Edit3, Copy, Trash2,
-  Pin, StickyNote, Camera, Upload, Play, Pause,
+  AlertTriangle, Plus, ArrowUpDown,
+  FileText, Printer, ChevronDown, ChevronUp,
+  DollarSign, PackageX, Edit3, Copy,
+  StickyNote, Camera, Upload,
   LayoutGrid, List, CalendarDays, CheckSquare, Square,
-  BarChart3, Bell, Send, MoreVertical, X, Save,
-  Eye, EyeOff, Zap, Target, Truck, Scissors, Shirt,
-  Box, ClipboardCheck, PackageCheck, ArrowRight,
+  X, Save,
+  Eye, Zap, Target, Truck, Scissors, Shirt,
+  Box, ClipboardCheck,
   Palette, CheckCheck,
 } from 'lucide-react';
 
@@ -96,11 +96,11 @@ const OrdersContent = memo(() => {
     orders = [], fetchOrders, registerPartialDelivery, updateOrder,
     addNote, addPayment, addActivityLog, setPriority, setProductionStage,
     viewMode, setViewMode, selectedOrders, toggleOrderSelection,
-    selectAllOrders, clearSelection, bulkChangeStatus, duplicateOrder,
-    saveTemplate, templates, deleteTemplate,
+    clearSelection, bulkChangeStatus, duplicateOrder,
+    saveTemplate,
   } = useOrderStore();
 
-  const { balances, fetchBalances } = useCrmStore();
+  const { fetchBalances } = useCrmStore();
 
   const [filter, setFilter] = useState<StatusFilter>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
@@ -118,7 +118,7 @@ const OrdersContent = memo(() => {
 
   useEffect(() => { fetchOrders(); fetchBalances(); }, [fetchOrders, fetchBalances]);
 
-  const handlePrintLabelAction = useReactToPrint({ content: () => labelRef.current });
+  const handlePrintLabelAction = useReactToPrint({ contentRef: labelRef });
   const triggerLabelPrint = useCallback((order: Order) => {
     setOrderForLabel(order);
     setTimeout(() => { handlePrintLabelAction(); }, 300);
@@ -399,9 +399,9 @@ const OrdersContent = memo(() => {
       {viewMode === 'calendar' && <CalendarView orders={filteredOrders} onOpenDetail={(o) => { setDetailOrder(o); setDetailTab('info'); }} />}
 
       {/* Modals */}
-      {showForm && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4"><OrderForm orderToEdit={editingOrder} onClose={() => setShowForm(false)} onSuccess={() => { fetchOrders(); setShowForm(false); }} /></div>}
+      {showForm && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4"><OrderForm orderToEdit={editingOrder as unknown as ComponentProps<typeof OrderForm>['orderToEdit']} onClose={() => setShowForm(false)} onSuccess={() => { fetchOrders(); setShowForm(false); }} /></div>}
       <RemitoModal isOpen={isRemitoOpen} onClose={() => setIsRemitoOpen(false)} order={activeOrder} />
-      <div style={{ height: 0, overflow: 'hidden', position: 'absolute', left: '-9999px' }}><div ref={labelRef}>{orderForLabel && <OrderLabel order={orderForLabel} />}</div></div>
+      <div style={{ height: 0, overflow: 'hidden', position: 'absolute', left: '-9999px' }}><div ref={labelRef}>{orderForLabel && <OrderLabel order={orderForLabel as unknown as ComponentProps<typeof OrderLabel>['order']} />}</div></div>
 
       {/* Order Detail Drawer */}
       {detailOrder && <OrderDetailDrawer order={detailOrder} tab={detailTab} onTabChange={setDetailTab} onClose={() => setDetailOrder(null)} onAddNote={handleAddNote} onAddPayment={handleAddPayment} onStatusChange={handleStatusChange} onSetPriority={setPriority} onSetProductionStage={setProductionStage} />}
@@ -423,10 +423,24 @@ EmptyState.displayName = 'EmptyState';
 
 // ========== ORDER CARD ==========
 const OrderCard = memo(({ order, onDeliver, onEdit, onOpenRemito, onPrintLabel, onStatusChange, onCancel, onAddNote, onAddPayment, onDuplicate, onSaveTemplate, onSetPriority, onSetProductionStage, onSelect, isSelected, onOpenDetail }: {
-  order: Order; onDeliver: any; onEdit: any; onOpenRemito: any; onPrintLabel: any; onStatusChange: any; onCancel: any; onAddNote: any; onAddPayment: any; onDuplicate: any; onSaveTemplate: any; onSetPriority: any; onSetProductionStage: any; onSelect: any; isSelected: boolean; onOpenDetail: any;
+  order: Order;
+  onDeliver: (orderId: string, itemId: string, variantId: string, pendingQty: number, desc: string) => void;
+  onEdit: (order: Order) => void;
+  onOpenRemito: (order: Order) => void;
+  onPrintLabel: (order: Order) => void;
+  onStatusChange: (orderId: string, newStatus: Order['status']) => void;
+  onCancel: (orderId: string) => void;
+  onAddNote: (orderId: string) => void;
+  onAddPayment: (orderId: string) => void;
+  onDuplicate: (orderId: string) => void;
+  onSaveTemplate: (orderId: string) => void;
+  onSetPriority: (orderId: string, priority: OrderPriority) => void;
+  onSetProductionStage: (orderId: string, stage: ProductionStage) => void;
+  onSelect: (orderId: string) => void;
+  isSelected: boolean;
+  onOpenDetail: (order: Order) => void;
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [showActions, setShowActions] = useState(false);
   const totalAmount = order.total_amount || 0;
   const advancePayment = order.advance_payment || 0;
   const debt = totalAmount - advancePayment;
@@ -610,14 +624,14 @@ const OrderCard = memo(({ order, onDeliver, onEdit, onOpenRemito, onPrintLabel, 
 });
 OrderCard.displayName = 'OrderCard';
 
-const ActionBtn = ({ icon: Icon, label, onClick, color, primary }: { icon: any; label: string; onClick: any; color?: string; primary?: boolean }) => (
+const ActionBtn = ({ icon: Icon, label, onClick, color, primary }: { icon: any; label: string; onClick: (e: { stopPropagation(): void; preventDefault(): void }) => void; color?: string; primary?: boolean }) => (
   <button onClick={onClick} className={cn('flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all active:scale-95', primary ? 'bg-brand text-white hover:bg-brand-700 shadow-md shadow-brand/20' : color === 'indigo' ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 hover:bg-indigo-200' : color === 'amber' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 hover:bg-amber-200' : color === 'emerald' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 hover:bg-emerald-200' : color === 'rose' ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 hover:bg-rose-200' : color === 'brand' ? 'bg-brand/10 text-brand hover:bg-brand/20' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-600')}>
     <Icon className="w-3 h-3" /> {label}
   </button>
 );
 
 // ========== KANBAN BOARD ==========
-const KanbanBoard = memo(({ orders, onStatusChange, onOpenDetail }: { orders: Order[]; onStatusChange: any; onOpenDetail: any }) => {
+const KanbanBoard = memo(({ orders, onStatusChange, onOpenDetail }: { orders: Order[]; onStatusChange: (orderId: string, newStatus: Order['status']) => void; onOpenDetail: (order: Order) => void }) => {
   const columns = ['PENDING', 'PARTIAL', 'DELIVERED', 'CANCELLED'] as const;
   const [draggedOrder, setDraggedOrder] = useState<string | null>(null);
 
@@ -668,7 +682,7 @@ const KanbanBoard = memo(({ orders, onStatusChange, onOpenDetail }: { orders: Or
 KanbanBoard.displayName = 'KanbanBoard';
 
 // ========== CALENDAR VIEW ==========
-const CalendarView = memo(({ orders, onOpenDetail }: { orders: Order[]; onOpenDetail: any }) => {
+const CalendarView = memo(({ orders, onOpenDetail }: { orders: Order[]; onOpenDetail: (order: Order) => void }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
   const year = currentMonth.getFullYear();
@@ -827,7 +841,6 @@ const OrderDetailDrawer = memo(({ order, tab, onTabChange, onClose, onAddNote, o
                 <div className="space-y-2">
                   {order.items?.map((item) => item.variations?.map((v) => {
                     const delivered = v.quantityDelivered || 0;
-                    const pending = v.quantity - delivered;
                     const progress = v.quantity > 0 ? Math.round((delivered / v.quantity) * 100) : 0;
                     return (
                       <div key={v.variationId || `${item.id}-${v.sizeId}`} className="bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-700">

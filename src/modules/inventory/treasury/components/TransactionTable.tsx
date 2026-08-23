@@ -46,10 +46,10 @@ export const TransactionTable = ({ data, onDelete, onUpdateStatus }: Transaction
     setResolveModal(tx);
   }, [onUpdateStatus, resolveForm]);
 
-  const onSubmitResolve = useCallback(async (formData: ResolveForm) => {
+  const onSubmitResolve = useCallback(async (_formData: ResolveForm) => {
     if (!resolveModal) return;
     try {
-      await resolvePayment(resolveModal.id, formData.amount, formData.method);
+      await resolvePayment(resolveModal.id);
       setResolveModal(null);
       Swal.fire({ icon: 'success', title: 'Registrado!', timer: 1500, showConfirmButton: false });
     } catch {

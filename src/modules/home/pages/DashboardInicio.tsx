@@ -19,9 +19,6 @@ import {
   Package,
   Users,
   Route,
-  TrendingUp,
-  ArrowUpRight,
-  ArrowDownLeft,
   Clock,
   Sparkles,
   Zap,
@@ -29,7 +26,6 @@ import {
   CreditCard,
   BarChart3,
   Truck,
-  Wrench,
   FileText,
   CircleDollarSign,
 } from 'lucide-react';
@@ -102,7 +98,7 @@ const DashboardContent = memo(() => {
           }
 
           salesData.forEach((s) => {
-            const key = new Date(s.created_at).toISOString().split('T')[0];
+            const key = new Date(s.created_at ?? new Date().toISOString()).toISOString().split('T')[0];
             if (dailyTotals[key] !== undefined) {
               dailyTotals[key] += Number.parseFloat(String(s.total_amount || 0));
             }
@@ -129,7 +125,7 @@ const DashboardContent = memo(() => {
             title: `Pedido #${o.id.slice(0, 8)}`,
             subtitle: (o.customers as any)?.name || 'Cliente',
             amount: Number(o.total_amount) || undefined,
-            time: new Date(o.created_at).toLocaleString('es-AR', { hour: '2-digit', minute: '2-digit' }),
+            time: new Date(o.created_at ?? new Date().toISOString()).toLocaleString('es-AR', { hour: '2-digit', minute: '2-digit' }),
             icon: <ShoppingCart className="w-4 h-4" />,
             color: 'text-blue-500 bg-blue-500/10',
           }));
@@ -150,7 +146,7 @@ const DashboardContent = memo(() => {
             title: 'Venta registrada',
             subtitle: 'Punto de Venta',
             amount: Number(s.total_amount) || undefined,
-            time: new Date(s.created_at).toLocaleString('es-AR', { hour: '2-digit', minute: '2-digit' }),
+            time: new Date(s.created_at ?? new Date().toISOString()).toLocaleString('es-AR', { hour: '2-digit', minute: '2-digit' }),
             icon: <CreditCard className="w-4 h-4" />,
             color: 'text-emerald-500 bg-emerald-500/10',
           }));

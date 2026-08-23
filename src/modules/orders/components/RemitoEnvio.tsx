@@ -5,7 +5,7 @@ export const RemitoEnvio = () => {
   const componentRef = useRef(null);
 
   const handlePrint = useReactToPrint({
-    content: () => componentRef.current,
+    contentRef: componentRef,
     documentTitle: 'Remito_Raices_001',
     pageStyle: `
       @media print {

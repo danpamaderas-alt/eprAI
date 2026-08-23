@@ -5,10 +5,10 @@ import { useTreasuryStore } from '../treasury/store/useTreasuryStore';
 import { useCrmStore } from '../../crm/store/useCrmStore';
 import { ARS } from '../../../shared/utils/format';
 import {
-  BarChart3, TrendingUp, TrendingDown, DollarSign, Package,
-  AlertTriangle, Download, Clock, Target, Activity, Layers,
-  Truck, Banknote, FileText, ChevronDown, ChevronUp, Calendar,
-  ArrowRight, Wallet, Building2, RefreshCw, Eye, Zap, Printer,
+  BarChart3, TrendingUp, TrendingDown, Package,
+  AlertTriangle, Download, Clock, Target, Activity,
+  Truck, Banknote, Calendar,
+  Zap, Printer,
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
@@ -23,7 +23,7 @@ export const FinancialDashboard = memo(() => {
   const { metrics, monthlyTrend, categoryBreakdown, businessUnitBreakdown, agingReceivables, agingPayables, orderPipeline, projections, todayActivity, isLoading: financeLoading, fetchAll } = useFinanceStore();
   const { products, inventory, fetchAllCatalogs } = useCatalogStore();
   const { transactions, fetchTransactions } = useTreasuryStore();
-  const { balances: crmBalances, fetchBalances } = useCrmStore();
+  const { fetchBalances } = useCrmStore();
 
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [showTxModal, setShowTxModal] = useState(false);

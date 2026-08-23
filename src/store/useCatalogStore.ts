@@ -2,6 +2,9 @@ import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { useTenantStore } from './useTenantStore';
 import type { PostgrestError } from '@supabase/supabase-js';
+import type { Database } from '../shared/types/database.types';
+
+type ProductUpdate = Database['public']['Tables']['products']['Update'];
 
 export interface CatalogItem { 
   id: string; 
@@ -83,7 +86,7 @@ interface CatalogState {
   updateProductComplete: (productId: string, updates: Partial<Product>) => Promise<void>;
   updateStock: (productId: string, sizeId: string, colorId: string, quantity: number) => Promise<void>;
   transformToFinished: (variantId: string, quantityToTransform: number) => Promise<void>; 
-  processSale: (customerId: string | null, cart: CartItem[], total: number, payments?: { method_id: string; amount: number }[]) => Promise<void>;
+  processSale: (customerId: string | null, cart: CartItem[], total: number) => Promise<void>;
   
   addService: (data: Omit<Service, 'id' | 'company_id'>) => Promise<Service>;
   addCustomer: (data: Omit<Customer, 'id' | 'balance' | 'company_id'>) => Promise<Customer>;
@@ -144,7 +147,6 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
         fetchSafe<Product>(supabase.from('products').select('id, company_id, sku, name, category, cost_price, price').eq('company_id', companyId).order('name')),
         fetchSafe<Customer>(supabase.from('customers').select('id, company_id, name, company, phone, balance, type, loyalty_points, portal_access').eq('company_id', companyId).order('name')),
         fetchSafe<CatalogItem>(
-          // @ts-expect-error personalization_types may not be in generated types
           supabase.from('personalization_types').select('id, name, base_price').eq('company_id', companyId).order('name')
         ),
         fetchSafe<Service>(supabase.from('services').select('id, company_id, name, price, description').eq('company_id', companyId).order('name')),
@@ -175,7 +177,7 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
   },
 
   updateProductComplete: async (productId, updates) => {
-    const { error } = await supabase.from('products').update(updates).eq('id', productId);
+    const { error } = await supabase.from('products').update(updates as ProductUpdate).eq('id', productId);
     if (error) throw error;
     await get().fetchAllCatalogs();
   },
@@ -205,17 +207,16 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
     await get().fetchAllCatalogs();
   },
 
-  processSale: async (customerId, cart, total, payments) => {
+  processSale: async (customerId, cart, total) => {
     const cartItems = cart.map(item => ({
       variantId: item.variantId,
       qty: item.qty
     }));
 
     const { error } = await supabase.rpc('process_sale_atomic', {
-      customer_id_param: customerId,
+      customer_id_param: customerId as string,
       cart_items: cartItems,
       total_amount_param: total,
-      ...(payments && payments.length > 0 ? { payments_param: payments } : {}),
     });
     if (error) throw error;
     await get().fetchAllCatalogs();
@@ -274,7 +275,6 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
     const companyId = useTenantStore.getState().activeCompanyId;
     if (!companyId) throw new Error('No hay compañía activa.');
     const { data, error } = await supabase
-      // @ts-expect-error personalization_types may not be in generated types
       .from('personalization_types')
       .insert([{ name, base_price: price, company_id: companyId }])
       .select('id, name, base_price')

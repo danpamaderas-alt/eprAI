@@ -48,16 +48,6 @@ const COLOR_KEYWORDS: Record<string, string> = {
   wallet: 'emerald',
 };
 
-const COLOR_MAP: Record<string, string> = {
-  success: 'bg-success/10 text-success border-success/30 ring-success/20',
-  brand: 'bg-brand/10 text-brand border-brand/30 ring-brand/20',
-  amber: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-300/30 ring-amber-300/20',
-  indigo: 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border-indigo-300/30 ring-indigo-300/20',
-  violet: 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 border-violet-300/30 ring-violet-300/20',
-  teal: 'bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 border-teal-300/30 ring-teal-300/20',
-  emerald: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-300/30 ring-emerald-300/20',
-};
-
 const ACTIVE_COLOR_MAP: Record<string, string> = {
   success: 'bg-success text-white border-success shadow-lg shadow-success/20',
   brand: 'bg-brand text-white border-brand shadow-lg shadow-brand/20',
@@ -72,7 +62,7 @@ function resolveMethod(method: PaymentMethod) {
   const lower = method.name.toLowerCase().replace(/[_\s]+/g, '');
   let iconKey = 'default';
   let colorKey = 'brand';
-  for (const [kw, icon] of Object.entries(ICON_KEYWORDS)) {
+  for (const kw of Object.keys(ICON_KEYWORDS)) {
     if (lower.includes(kw)) { iconKey = kw; break; }
   }
   for (const [kw, color] of Object.entries(COLOR_KEYWORDS)) {

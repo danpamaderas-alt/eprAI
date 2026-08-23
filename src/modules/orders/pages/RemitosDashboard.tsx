@@ -1,18 +1,21 @@
 import { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { useCatalogStore, type Product } from '../../../store/useCatalogStore';
+import { useCatalogStore } from '../../../store/useCatalogStore';
 import { useTenantStore } from '../../../store/useTenantStore';
 import { useCrmStore } from '../../crm/store/useCrmStore';
-import { useOrderStore, type Order } from '../store/useOrderStore';
+import { useOrderStore } from '../store/useOrderStore';
+import type { Database } from '../../../shared/types/database.types';
+
+type RemitoJson = Database['public']['Tables']['remitos']['Insert']['items'];
 import { ARS } from '../../../shared/utils/format';
 import { cn } from '../../../shared/utils/cn';
 import { ErrorBoundary } from '../../../shared/components/ui/ErrorBoundary';
 import {
-  Printer, Plus, Trash2, FileText, User, MapPin, CheckSquare,
-  DollarSign, MessageCircle, Copy, Download, Save, Clock,
-  CheckCircle, XCircle, Send, Eye, Search, Filter, MoreVertical,
-  Package, Hash, Calendar, Truck, QrCode, Mail, Camera,
-  MapPin as MapPinIcon, Edit3, Archive, AlertTriangle,
+  Printer, Plus, Trash2, FileText, User, MapPin,
+  MessageCircle, Copy, Download, Save,
+  CheckCircle, XCircle, Send, Search,
+  Package, Mail,
+  Edit3, Archive,
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
@@ -69,7 +72,7 @@ function toDb(remito: Remito) {
     customer: remito.customer,
     address: remito.address,
     status: remito.status,
-    items: remito.items,
+    items: remito.items as unknown as RemitoJson,
     view_type: remito.viewType,
     total: remito.total,
     order_id: remito.orderId ?? null,
@@ -94,7 +97,6 @@ function fromDb(row: RemitoRow): Remito {
 }
 
 function generateRemitoNumber(): string {
-  const now = new Date();
   const seq = String(Math.floor(Math.random() * 9999)).padStart(4, '0');
   return `0001-${seq}`;
 }
@@ -775,7 +777,7 @@ const RemitosContent = memo(() => {
               { label: 'Enviados', value: stats.sent, color: 'blue' },
               { label: 'Entregados', value: stats.delivered, color: 'emerald' },
               { label: 'Valor Total', value: ARS.format(stats.totalValue), color: 'brand' },
-            ].map(({ label, value, color }) => (
+            ].map(({ label, value }) => (
               <div key={label} className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-3 shadow-sm">
                 <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest">{label}</span>
                 <p className="text-lg font-black text-slate-900 dark:text-white tabular-nums mt-0.5">{value}</p>

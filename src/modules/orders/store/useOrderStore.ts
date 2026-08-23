@@ -2,6 +2,9 @@ import { create } from 'zustand';
 import { supabase } from '../../../lib/supabase';
 import { useCatalogStore } from '../../../store/useCatalogStore';
 import { useTenantStore } from '../../../store/useTenantStore';
+import type { Database } from '../../../shared/types/database.types';
+
+type OrderDbUpdate = Database['public']['Tables']['orders']['Update'];
 
 export interface OrderVariation {
   sizeId: string;
@@ -130,12 +133,14 @@ function saveTemplates(templates: OrderTemplate[]) {
 }
 
 const Swal = {
-  fire: async (...args: [options?: import('sweetalert2').SweetAlertOptions]) =>
-    (await import('sweetalert2')).default.fire(...args),
+  fire: async (...args: [options?: import('sweetalert2').SweetAlertOptions]) => {
+    const m = (await import('sweetalert2')).default as unknown as { fire: (...a: [options?: import('sweetalert2').SweetAlertOptions]) => Promise<unknown> };
+    return m.fire(...args);
+  },
 };
 
 async function persistMeta(orderId: string, patch: Record<string, unknown>) {
-  const { error } = await supabase.from('orders').update(patch).eq('id', orderId);
+  const { error } = await supabase.from('orders').update(patch as OrderDbUpdate).eq('id', orderId);
   if (error) {
     console.error('Error persisting order meta:', error.message);
     void Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'No se pudo sincronizar el pedido', showConfirmButton: false, timer: 3000 });
@@ -162,7 +167,7 @@ export const useOrderStore = create<OrderState>((set, get) => ({  orders: [],
       .order('created_at', { ascending: false });
 
     if (!error) {
-      set({ orders: (data || []) as Order[], isLoading: false });
+      set({ orders: (data || []) as unknown as Order[], isLoading: false });
     } else {
       console.error("Error fetching 'orders':", error.message);
       set({ isLoading: false });
@@ -207,7 +212,7 @@ export const useOrderStore = create<OrderState>((set, get) => ({  orders: [],
     if (updates.internal_notes !== undefined) dbUpdates.internal_notes = updates.internal_notes;
 
     if (Object.keys(dbUpdates).length > 0) {
-      const { error } = await supabase.from('orders').update(dbUpdates).eq('id', orderId);
+      const { error } = await supabase.from('orders').update(dbUpdates as OrderDbUpdate).eq('id', orderId);
       if (error) throw error;
     }
 

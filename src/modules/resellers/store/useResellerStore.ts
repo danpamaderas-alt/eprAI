@@ -7,8 +7,15 @@ type FireArgs =
   | [title: string, html?: string, icon?: import('sweetalert2').SweetAlertIcon];
 
 const Swal = {
-  fire: async (...args: FireArgs) => (await import('sweetalert2')).default.fire(...args),
+  fire: async (...args: FireArgs) => {
+    const m = (await import('sweetalert2')).default as unknown as { fire: (...a: FireArgs) => Promise<unknown> };
+    return m.fire(...args);
+  },
 };
+
+import type { Database } from '../../../shared/types/database.types';
+type ResellerInsert = Database['public']['Tables']['resellers']['Insert'];
+type ResellerTxInsert = Database['public']['Tables']['reseller_transactions']['Insert'];
 
 export interface Reseller {
   id: string;
@@ -32,7 +39,7 @@ interface ResellerState {
   isLoading: boolean;
   fetchData: () => Promise<void>;
   addReseller: (name: string, phone: string) => Promise<void>;
-  addTransaction: (data: Omit<ResellerTransaction, 'id' | 'date'>) => Promise<void>;
+  addTransaction: (data: Omit<ResellerTransaction, 'id' | 'created_at'>) => Promise<void>;
 }
 
 export const useResellerStore = create<ResellerState>((set) => ({
@@ -64,8 +71,8 @@ export const useResellerStore = create<ResellerState>((set) => ({
     }
 
     set({
-      resellers,
-      transactions: txResult.data || [],
+      resellers: (resResult.data || []) as unknown as Reseller[],
+      transactions: (txResult.data || []) as unknown as ResellerTransaction[],
       isLoading: false
     });
   },
@@ -75,13 +82,13 @@ export const useResellerStore = create<ResellerState>((set) => ({
     if (!companyId) throw new Error('No hay company_id activo');
 
     const newReseller: Reseller = { id: crypto.randomUUID(), name, phone, created_at: new Date().toISOString() };
-    const { data, error } = await supabase.from('resellers').insert([{ ...newReseller, company_id: companyId }]).select();
+    const { data, error } = await supabase.from('resellers').insert([{ ...newReseller, company_id: companyId } as ResellerInsert]).select();
     if (error) {
       console.error("Error creating reseller:", error);
       Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo crear el revendedor.' });
       throw error;
     }
-    const saved = (data && data[0]) || newReseller;
+    const saved = ((data && data[0]) || newReseller) as Reseller;
     set((state) => ({ resellers: [...state.resellers, saved] }));
     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Revendedor creado', showConfirmButton: false, timer: 1500 });
   },
@@ -89,13 +96,13 @@ export const useResellerStore = create<ResellerState>((set) => ({
   addTransaction: async (data) => {
     const companyId = useTenantStore.getState().activeCompanyId;
     if (!companyId) throw new Error('No hay company_id activo');
-    const { data: inserted, error } = await supabase.from('reseller_transactions').insert([{ ...data, company_id: companyId }]).select();
+    const { data: inserted, error } = await supabase.from('reseller_transactions').insert([{ ...data, company_id: companyId } as ResellerTxInsert]).select();
     if (error) {
       console.error("Error registering movement:", error);
       Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo registrar el movimiento.' });
       throw error;
     }
-    const saved = (inserted && inserted[0]) || { ...data, id: crypto.randomUUID(), created_at: new Date().toISOString() };
+    const saved = ((inserted && inserted[0]) || { ...data, id: crypto.randomUUID(), created_at: new Date().toISOString() }) as ResellerTransaction;
     set((state) => ({ transactions: [saved, ...state.transactions] }));
   }
 }));

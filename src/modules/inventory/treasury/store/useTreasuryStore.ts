@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { supabase } from '../../../../lib/supabase';
 import { useTenantStore } from '../../../../store/useTenantStore';
+import type { Database } from '../../../../shared/types/database.types';
+
+type TreasuryUpdate = Database['public']['Tables']['treasury']['Update'];
 
 export interface Transaction {
   id: string;
@@ -66,7 +69,7 @@ export const useTreasuryStore = create<TreasuryState>((set, get) => ({
   },
 
   updateTransaction: async (id, data) => {
-    const { error } = await supabase.from('treasury').update(data).eq('id', id);
+    const { error } = await supabase.from('treasury').update(data as TreasuryUpdate).eq('id', id);
     if (error) throw error;
     await get().fetchTransactions();
   },

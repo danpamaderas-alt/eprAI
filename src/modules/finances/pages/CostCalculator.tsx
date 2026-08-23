@@ -155,7 +155,6 @@ export const CostCalculator = () => {
   const [showHistory, setShowHistory] = useState(false);
 
   const currentCategory = CATEGORIES[categoryKey];
-  const allVars = [...currentCategory.variables, ...SHARED_PCT_VARS];
 
   // Cargar historial desde localStorage al montar
   useEffect(() => {

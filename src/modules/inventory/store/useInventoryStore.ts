@@ -7,7 +7,10 @@ type FireArgs =
   | [title: string, html?: string, icon?: import('sweetalert2').SweetAlertIcon];
 
 const Swal = {
-  fire: async (...args: FireArgs) => (await import('sweetalert2')).default.fire(...args),
+  fire: async (...args: FireArgs) => {
+    const m = (await import('sweetalert2')).default as unknown as { fire: (...a: FireArgs) => Promise<unknown> };
+    return m.fire(...args);
+  },
 };
 
 const MIN_STOCK_DEFAULT = 5;
@@ -219,10 +222,10 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
       .from('products')
       .insert([{
         name: data.name.toUpperCase(),
-        category: data.category || null,
-        price: data.price || null,
-        cost_price: data.cost_price || null,
-        sku: data.sku || null,
+        category: data.category ?? '',
+        price: data.price ?? 0,
+        cost_price: data.cost_price ?? null,
+        sku: data.sku ?? '',
         company_id: companyId,
       }])
       .select('id')
@@ -265,7 +268,7 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
       .select('id, name, hex_code')
       .single();
     if (error) throw error;
-    set(state => ({ colors: [...state.colors, data].sort((a, b) => a.name.localeCompare(b.name)) }));
+    set(state => ({ colors: [...state.colors, { ...data, hex_code: data.hex_code ?? undefined }].sort((a, b) => a.name.localeCompare(b.name)) }));
     return data.id;
   },
 

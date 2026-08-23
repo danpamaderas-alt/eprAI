@@ -1,23 +1,9 @@
 import { useState, useEffect, useCallback, useMemo, memo } from "react";
-import { useCrmStore } from "../crm/store/useCrmStore";
+import { useCrmStore, type CustomerBalance } from "../crm/store/useCrmStore";
 import Swal from "sweetalert2";
-import { X, Search, Download, Clock, AlertTriangle, ChevronDown, ChevronUp, TrendingUp, TrendingDown, Filter } from "lucide-react";
+import { X, Search, Download, Clock, AlertTriangle, ChevronDown, ChevronUp, TrendingUp, TrendingDown } from "lucide-react";
 import { ARS } from '../../shared/utils/format';
 import { Spinner } from '../../shared/components/ui/Spinner';
-
-interface CustomerBalance {
-  id: string;
-  name: string;
-  phone?: string;
-  email?: string;
-  cuit?: string;
-  type?: string;
-  balance: number;
-  total_debt?: number;
-  total_paid?: number;
-  last_movement_date?: string;
-  movements?: any[];
-}
 
 type FilterType = 'all' | 'debtors' | 'creditors' | 'settled';
 
@@ -74,7 +60,7 @@ export const CurrentAccounts = memo(() => {
     ];
     balances.forEach(b => {
       if ((b.balance || 0) <= 0) return;
-      const lastDate = b.last_movement_date ? new Date(b.last_movement_date) : now;
+      const lastDate = b.created_at ? new Date(b.created_at) : now;
       const days = Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
       const bucket = buckets.find(bt => days >= bt.minDays && (bt.maxDays === null || days <= bt.maxDays));
       if (bucket) { bucket.amount += b.balance || 0; bucket.count += 1; }
@@ -261,8 +247,6 @@ export const CurrentAccounts = memo(() => {
                       {b.email && <p>Email: {b.email}</p>}
                       {b.cuit && <p>CUIT: {b.cuit}</p>}
                       {b.type && <p>Tipo: {b.type}</p>}
-                      {b.total_debt !== undefined && <p>Total adeudado: {ARS.format(b.total_debt)}</p>}
-                      {b.total_paid !== undefined && <p>Total pagado: {ARS.format(b.total_paid)}</p>}
                     </div>
                   )}
                 </div>

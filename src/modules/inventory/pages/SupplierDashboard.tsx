@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import {
   Search, Building2, Plus, Truck, Phone, Mail, MapPin,
   Edit3, Trash2, Save, X, DollarSign, AlertTriangle,
-  CheckCircle, Clock, FileText, Eye, ChevronDown, ChevronUp,
+  Clock, FileText, Eye, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { useSupplierStore, type Supplier, type SupplierDebt } from '../store/useSupplierStore';

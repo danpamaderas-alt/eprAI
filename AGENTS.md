@@ -136,6 +136,18 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 typecheck limpio (250→0)** — Limpieza de deuda de tipos en una sesión:
+  `database.types.ts` reconstruido contra la BD real: agregadas 7 tablas faltantes
+  (`sales`, `remitos`, `resellers`, `reseller_transactions`, `stock_movements`,
+  `3d_materials_stock`, `clients`), ~14 columnas que faltaban (address/email/etc.),
+  y 11 funciones RPC tipadas. `react-to-print` v3 usa `contentRef` (no `content`) —
+  rompía 3 archivos. Stores de datos castean a `Insert`/`Update` de la BD
+  (`OrderDbUpdate`, `ProductUpdate`, etc.) por desalineación de tipos locales.
+  Handlers de OrdersDashboard/Kanban/Calendar tipados (antes `any` → TS7006).
+  Quitado `payments_param` de `process_sale_atomic` (la RPC real no lo acepta) y
+  `payments` de la firma `processSale`. Lección: el typegen de PostgREST caza
+  columnas/relaciones reales ausentes en los tipos; reconciliar con
+  `information_schema` vía Management API es más confiable que parchear a mano.
 - **2026-08 repos por rubro** — Separación del negocio en módulos por rubro:
   Filamentos (`print_filaments`, sql/017, costo/kg real que alimenta la Calculadora 3D
   vía selector "Filamento del inventario"), Blanks e Insumos (`textile_blanks`, sql/018,

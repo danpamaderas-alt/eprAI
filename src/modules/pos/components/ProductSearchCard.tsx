@@ -1,5 +1,5 @@
-import { memo, useCallback } from 'react';
-import { useCatalogStore, type Product } from '../../../store/useCatalogStore';
+import { memo } from 'react';
+import { type Product } from '../../../store/useCatalogStore';
 import { ARS } from '../../../shared/utils/format';
 import { cn } from '../../../shared/utils/cn';
 import { Package } from 'lucide-react';
@@ -25,7 +25,7 @@ export const ProductCard = memo(({ product, onAdd }: ProductCardProps) => (
     onClick={() => onAdd(product)}
     className="group bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 hover:border-brand dark:hover:border-brand hover:shadow-2xl transition-all flex flex-col items-stretch text-left relative overflow-hidden active:scale-[0.97]"
   >
-    <div className={cn('h-24 bg-gradient-to-br flex items-center justify-center', getCategoryGradient(product.category))}>
+    <div className={cn('h-24 bg-gradient-to-br flex items-center justify-center', getCategoryGradient(product.category ?? null))}>
       <Package className="w-8 h-8 text-white/60 group-hover:scale-110 transition-transform" />
     </div>
     <div className="p-4">

@@ -4,8 +4,8 @@ import { useCrmStore } from '../../crm/store/useCrmStore';
 import Swal from 'sweetalert2';
 import {
   Wallet, Pencil, Trash2, Plus, X, Search, Download, ArrowRightLeft,
-  Calendar, Filter, TrendingUp, TrendingDown, Building2, DollarSign,
-  Clock, CheckCircle, AlertCircle, FileText, RefreshCw, Eye,
+  TrendingUp, TrendingDown, Building2, DollarSign,
+  CheckCircle, AlertCircle, FileText,
 } from 'lucide-react';
 import { ARS } from '../../../shared/utils/format';
 
@@ -38,7 +38,7 @@ function dateInRange(dateStr: string, range: DateRange): boolean {
 }
 
 export const TreasuryDashboard = memo(() => {
-  const { transactions, fetchTransactions, addTransaction, updateTransaction, deleteTransaction, transferBetweenAccounts, isLoading } = useTreasuryStore();
+  const { transactions, fetchTransactions, addTransaction, updateTransaction, deleteTransaction, transferBetweenAccounts } = useTreasuryStore();
   const { balances: crmBalances, fetchBalances } = useCrmStore();
 
   const [activeTab, setActiveTab] = useState<Tab>('overview');
@@ -132,7 +132,6 @@ export const TreasuryDashboard = memo(() => {
     for (let i = 5; i >= 0; i--) {
       const d = new Date();
       d.setMonth(d.getMonth() - i);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       const label = d.toLocaleDateString('es-AR', { month: 'short' });
       const monthTx = transactions.filter(tx => {
         const td = new Date(tx.date);

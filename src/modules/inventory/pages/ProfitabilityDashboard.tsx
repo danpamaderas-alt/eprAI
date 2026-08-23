@@ -35,23 +35,6 @@ interface CategoryProfit {
   stock: number;
 }
 
-interface UnitProfit {
-  unit: string;
-  revenue: number;
-  cost: number;
-  orders: number;
-  margin: number;
-  marginPct: number;
-}
-
-interface ChannelProfit {
-  channel: string;
-  revenue: number;
-  orders: number;
-  avgTicket: number;
-  margin: number;
-}
-
 export function ProfitabilityDashboard() {
   const { products, inventory, fetchAllCatalogs } = useCatalogStore();
   const { transactions, fetchTransactions } = useTreasuryStore();
@@ -85,7 +68,7 @@ export function ProfitabilityDashboard() {
     const catMap = new Map<string, { totalValue: number; totalCost: number; products: number; stock: number }>();
 
     inventory.forEach(v => {
-      const product = productMap.get(v.product_id) || v.products;
+      const product = productMap.get(v.product_id ?? '') || v.products;
       if (!product) return;
       const qty = v.stock_quantity || 0;
       const price = Number(product.price || 0);

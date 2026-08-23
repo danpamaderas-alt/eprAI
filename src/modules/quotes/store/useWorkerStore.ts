@@ -1,6 +1,10 @@
 import { create } from 'zustand';
 import { supabase } from '../../../lib/supabase';
 import { useTenantStore } from '../../../store/useTenantStore';
+import type { Database } from '../../../shared/types/database.types';
+
+type WorkerInsert = Database['public']['Tables']['workers']['Insert'];
+type TaskInsert = Database['public']['Tables']['worker_tasks']['Insert'];
 
 export interface Worker {
   id: string;
@@ -46,21 +50,21 @@ export const useWorkerStore = create<WorkerStore>((set, get) => ({
     ]);
 
     set({ 
-      workers: workersData.data || [], 
-      tasks: tasksData.data || [], 
+      workers: (workersData.data || []) as unknown as Worker[], 
+      tasks: (tasksData.data || []) as unknown as WorkerTask[], 
       isLoading: false 
     });
   },
 
   addWorker: async (worker) => {
     const tenantId = useTenantStore.getState().activeCompanyId;
-    await supabase.from('workers').insert([{ ...worker, company_id: tenantId }]);
+    await supabase.from('workers').insert([{ ...worker, company_id: tenantId } as WorkerInsert]);
     await get().fetchWorkersData();
   },
 
   addTask: async (task) => {
     const tenantId = useTenantStore.getState().activeCompanyId;
-    await supabase.from('worker_tasks').insert([{ ...task, company_id: tenantId }]);
+    await supabase.from('worker_tasks').insert([{ ...task, company_id: tenantId } as TaskInsert]);
     await get().fetchWorkersData();
   },
 

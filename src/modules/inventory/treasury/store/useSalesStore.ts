@@ -1,6 +1,10 @@
 import { create } from 'zustand';
 import { supabase } from '../../../../lib/supabase';
 import { useTenantStore } from '../../../../store/useTenantStore';
+import type { Database } from '../../../../shared/types/database.types';
+
+type ProductInsert = Database['public']['Tables']['products']['Insert'];
+type ProductUpdate = Database['public']['Tables']['products']['Update'];
 
 export interface Variation { id: string; size: string; color: string; stock: number; }
 
@@ -37,7 +41,7 @@ fetchProducts: async () => {
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    set({ products: (data as Product[]) || [] });
+    set({ products: (data || []) as unknown as Product[] });
   } catch (error) { 
     console.error("Error:", error); 
   } finally { 
@@ -48,13 +52,13 @@ fetchProducts: async () => {
   addProduct: async (productData) => {
     const companyId = useTenantStore.getState().activeCompanyId;
     if (!companyId) throw new Error('No hay company_id activo');
-    const { data, error } = await supabase.from('products').insert([{ ...productData, company_id: companyId }]).select().single();
+    const { data, error } = await supabase.from('products').insert([{ ...productData, company_id: companyId } as ProductInsert]).select().single();
     if (error) throw error;
-    set((state) => ({ products: [data as Product, ...state.products] }));
+    set((state) => ({ products: [data as unknown as Product, ...state.products] }));
   },
 
   updateProduct: async (id, updates) => {
-    const { error } = await supabase.from('products').update(updates).eq('id', id);
+    const { error } = await supabase.from('products').update(updates as ProductUpdate).eq('id', id);
     if (error) throw error;
     set((state) => ({ products: state.products.map(p => p.id === id ? { ...p, ...updates } : p) }));
   },

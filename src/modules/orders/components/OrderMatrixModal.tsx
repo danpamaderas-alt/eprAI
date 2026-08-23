@@ -26,7 +26,6 @@ export const OrderMatrixModal: React.FC<OrderMatrixModalProps> = ({
   currentVariations,
   onSave,
   onClose,
-  onRequestNewVariant,
 }) => {
   const {
     inventory,

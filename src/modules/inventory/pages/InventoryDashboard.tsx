@@ -3,7 +3,7 @@ import { useInventoryStore, STOCK_THRESHOLDS, type StockMovement } from '../stor
 import Swal from 'sweetalert2';
 import {
   AlertTriangle, PackageX, ArrowUpDown, History, X, Plus, Trash2,
-  Package, Search, Filter, Edit3, Save, Hash, Palette, Ruler,
+  Package, Search, Edit3, Save, Hash, Palette, Ruler,
 } from 'lucide-react';
 
 function stockStatus(qty: number) {
@@ -32,7 +32,7 @@ const EMPTY_FORM: NewProductForm = {
 
 export const InventoryDashboard = memo(() => {
   const {
-    products, sizes, colors, isLoading,
+    products, sizes, colors,
     fetchProducts, fetchCatalogs, reserveStock, processPersonalization,
     adjustStock, getStockMovements, createProduct, createVariant,
     createSize, createColor, deleteVariant, updateProduct,

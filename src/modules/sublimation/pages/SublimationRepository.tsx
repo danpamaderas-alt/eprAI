@@ -81,12 +81,12 @@ const [mockupDesign, setMockupDesign] = useState<SublimationDesign | null>(null)
   }, [fetchDesigns]);
 
   const categories = useMemo(() => {
-    const set = new Set(designs.map((d) => d.category).filter(Boolean));
+    const set = new Set(designs.map((d) => d.category).filter((c): c is string => !!c));
     return ['Todas', ...Array.from(set).sort((a, b) => a.localeCompare(b))];
   }, [designs]);
 
   const platforms = useMemo(() => {
-    const set = new Set(designs.map((d) => d.platform).filter(Boolean));
+    const set = new Set(designs.map((d) => d.platform).filter((p): p is string => !!p));
     return ['Todas', ...Array.from(set).sort((a, b) => a.localeCompare(b))];
   }, [designs]);
 

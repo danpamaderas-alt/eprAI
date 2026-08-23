@@ -2,6 +2,9 @@
 import { create } from 'zustand';
 import { supabase } from '../../../lib/supabase';
 import { useTenantStore } from '../../../store/useTenantStore';
+import type { Database } from '../../../shared/types/database.types';
+
+type RawMaterialInsert = Database['public']['Tables']['raw_materials']['Insert'];
 
 export interface RawMaterial {
   id: string;
@@ -37,7 +40,7 @@ export const useRawMaterialStore = create<RawMaterialStore>((set, get) => ({
       .eq('company_id', tenantId)
       .order('created_at', { ascending: false });
 
-    if (!error && data) set({ materials: data, isLoading: false });
+    if (!error && data) set({ materials: (data || []) as unknown as RawMaterial[], isLoading: false });
     else set({ isLoading: false });
   },
 
@@ -45,7 +48,7 @@ export const useRawMaterialStore = create<RawMaterialStore>((set, get) => ({
     const tenantId = useTenantStore.getState().activeCompanyId;
     const { error } = await supabase
       .from('raw_materials')
-      .insert([{ ...material, company_id: tenantId }]);
+      .insert([{ ...material, company_id: tenantId } as RawMaterialInsert]);
     if (!error) await get().fetchMaterials();
   },
 

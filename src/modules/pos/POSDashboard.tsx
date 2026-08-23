@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useCatalogStore } from '../../store/useCatalogStore';
+import type { CartItem as CatalogCartItem } from '../../store/useCatalogStore';
 import { useCrmStore } from '../crm/store/useCrmStore';
 import { ARS } from '../../shared/utils/format';
 import { cn } from '../../shared/utils/cn';
@@ -322,7 +323,7 @@ export const POSDashboard = () => {
 
     setIsProcessing(true);
     try {
-      await processSale(selectedCustomer || null, cart, grandTotal, payments);
+      await processSale(selectedCustomer || null, cart as unknown as CatalogCartItem[], grandTotal);
 
       const hasCtaCte = payments.some(p => {
         const m = paymentMethods.find(pm => pm.id === p.method_id);

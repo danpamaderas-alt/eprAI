@@ -129,7 +129,7 @@ async function scrapeMakerWorld(designId: string, url: URL): Promise<ScrapeResul
     );
   };
 
-  instance = findInstance(profileIdFromUrl) ?? findInstance(defaultId);
+  instance = findInstance(profileIdFromUrl ?? '') ?? findInstance(defaultId ?? '');
   if (!instance && instances.length > 0) {
     instance = instances[0] as Record<string, unknown>;
   }

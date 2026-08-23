@@ -268,26 +268,60 @@ export type Database = {
         Relationships: []
       }
       companies: {
+
         Row: {
+          address: string | null
+          city: string | null
           commercial_name: string | null
           created_at: string | null
+          default_currency: string | null
+          email: string | null
+          fiscal_condition: string | null
           id: string
+          logo_url: string | null
           name: string
+          notes: string | null
+          phone: string | null
+          postal_code: string | null
+          province: string | null
           tax_id: string | null
+          website: string | null
         }
         Insert: {
+          address?: string | null
+          city?: string | null
           commercial_name?: string | null
           created_at?: string | null
+          default_currency?: string | null
+          email?: string | null
+          fiscal_condition?: string | null
           id?: string
+          logo_url?: string | null
           name: string
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          province?: string | null
           tax_id?: string | null
+          website?: string | null
         }
         Update: {
+          address?: string | null
+          city?: string | null
           commercial_name?: string | null
           created_at?: string | null
+          default_currency?: string | null
+          email?: string | null
+          fiscal_condition?: string | null
           id?: string
+          logo_url?: string | null
           name?: string
+          notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          province?: string | null
           tax_id?: string | null
+          website?: string | null
         }
         Relationships: []
       }
@@ -521,8 +555,10 @@ export type Database = {
         ]
       }
       deals: {
+
         Row: {
           client_id: string | null
+          company_id: string | null
           created_at: string | null
           expected_revenue: number | null
           id: string
@@ -532,6 +568,7 @@ export type Database = {
         }
         Insert: {
           client_id?: string | null
+          company_id?: string | null
           created_at?: string | null
           expected_revenue?: number | null
           id?: string
@@ -541,6 +578,7 @@ export type Database = {
         }
         Update: {
           client_id?: string | null
+          company_id?: string | null
           created_at?: string | null
           expected_revenue?: number | null
           id?: string
@@ -598,8 +636,10 @@ export type Database = {
         ]
       }
       deliveries: {
+
         Row: {
           address: string
+          company_id: string | null
           created_at: string | null
           customer_name: string
           id: string
@@ -611,6 +651,7 @@ export type Database = {
         }
         Insert: {
           address: string
+          company_id?: string | null
           created_at?: string | null
           customer_name: string
           id?: string
@@ -622,6 +663,7 @@ export type Database = {
         }
         Update: {
           address?: string
+          company_id?: string | null
           created_at?: string | null
           customer_name?: string
           id?: string
@@ -854,19 +896,23 @@ export type Database = {
         ]
       }
       niches: {
+
         Row: {
+          company_id: string | null
           created_at: string | null
           id: string
           name: string
           slug: string
         }
         Insert: {
+          company_id?: string | null
           created_at?: string | null
           id?: string
           name: string
           slug: string
         }
         Update: {
+          company_id?: string | null
           created_at?: string | null
           id?: string
           name?: string
@@ -917,14 +963,18 @@ export type Database = {
         ]
       }
       orders: {
+
         Row: {
+          activity_log: Json
           advance_payment: number | null
           business_unit: string
           company_id: string | null
           created_at: string | null
           current_balance: number | null
+          customer_email: string | null
           customer_id: string | null
           customer_name: string
+          customer_phone: string | null
           delivery_history: Json | null
           design_approved_at: string | null
           design_client_approved: boolean | null
@@ -933,19 +983,28 @@ export type Database = {
           design_verdict: string | null
           due_date: string | null
           id: string
+          internal_notes: string | null
           items: Json
+          notes: Json
           paid_amount: number | null
+          payments: Json
+          photos: Json
+          priority: string | null
+          production_stage: string | null
           status: string | null
           total_amount: number | null
         }
         Insert: {
+          activity_log?: Json
           advance_payment?: number | null
           business_unit: string
           company_id?: string | null
           created_at?: string | null
           current_balance?: number | null
+          customer_email?: string | null
           customer_id?: string | null
           customer_name: string
+          customer_phone?: string | null
           delivery_history?: Json | null
           design_approved_at?: string | null
           design_client_approved?: boolean | null
@@ -954,19 +1013,28 @@ export type Database = {
           design_verdict?: string | null
           due_date?: string | null
           id?: string
+          internal_notes?: string | null
           items?: Json
+          notes?: Json
           paid_amount?: number | null
+          payments?: Json
+          photos?: Json
+          priority?: string | null
+          production_stage?: string | null
           status?: string | null
           total_amount?: number | null
         }
         Update: {
+          activity_log?: Json
           advance_payment?: number | null
           business_unit?: string
           company_id?: string | null
           created_at?: string | null
           current_balance?: number | null
+          customer_email?: string | null
           customer_id?: string | null
           customer_name?: string
+          customer_phone?: string | null
           delivery_history?: Json | null
           design_approved_at?: string | null
           design_client_approved?: boolean | null
@@ -975,8 +1043,14 @@ export type Database = {
           design_verdict?: string | null
           due_date?: string | null
           id?: string
+          internal_notes?: string | null
           items?: Json
+          notes?: Json
           paid_amount?: number | null
+          payments?: Json
+          photos?: Json
+          priority?: string | null
+          production_stage?: string | null
           status?: string | null
           total_amount?: number | null
         }
@@ -1047,20 +1121,24 @@ export type Database = {
         Relationships: []
       }
       personalization_types: {
+
         Row: {
           base_price: number | null
+          company_id: string | null
           created_at: string | null
           id: string
           name: string
         }
         Insert: {
           base_price?: number | null
+          company_id?: string | null
           created_at?: string | null
           id?: string
           name: string
         }
         Update: {
           base_price?: number | null
+          company_id?: string | null
           created_at?: string | null
           id?: string
           name?: string
@@ -1623,8 +1701,10 @@ export type Database = {
         ]
       }
       profiles: {
+
         Row: {
           company_id: string | null
+          email: string | null
           full_name: string | null
           id: string
           role: Database["public"]["Enums"]["user_role"] | null
@@ -1632,6 +1712,7 @@ export type Database = {
         }
         Insert: {
           company_id?: string | null
+          email?: string | null
           full_name?: string | null
           id: string
           role?: Database["public"]["Enums"]["user_role"] | null
@@ -1639,6 +1720,7 @@ export type Database = {
         }
         Update: {
           company_id?: string | null
+          email?: string | null
           full_name?: string | null
           id?: string
           role?: Database["public"]["Enums"]["user_role"] | null
@@ -1743,11 +1825,13 @@ export type Database = {
         ]
       }
       raw_materials: {
+
         Row: {
           brand: string | null
           category: string
           color: string | null
           company_id: string
+          composition: string | null
           created_at: string | null
           id: string
           image_url: string | null
@@ -1762,6 +1846,7 @@ export type Database = {
           category: string
           color?: string | null
           company_id: string
+          composition?: string | null
           created_at?: string | null
           id?: string
           image_url?: string | null
@@ -1776,6 +1861,7 @@ export type Database = {
           category?: string
           color?: string | null
           company_id?: string
+          composition?: string | null
           created_at?: string | null
           id?: string
           image_url?: string | null
@@ -1788,7 +1874,9 @@ export type Database = {
         Relationships: []
       }
       services: {
+
         Row: {
+          category: string | null
           company_id: string | null
           created_at: string | null
           description: string | null
@@ -1797,6 +1885,7 @@ export type Database = {
           price: number | null
         }
         Insert: {
+          category?: string | null
           company_id?: string | null
           created_at?: string | null
           description?: string | null
@@ -1805,6 +1894,7 @@ export type Database = {
           price?: number | null
         }
         Update: {
+          category?: string | null
           company_id?: string | null
           created_at?: string | null
           description?: string | null
@@ -1823,20 +1913,27 @@ export type Database = {
         ]
       }
       sizes: {
+
         Row: {
           created_at: string | null
           id: string
+          label: string | null
           name: string
+          sort_order: number | null
         }
         Insert: {
           created_at?: string | null
           id?: string
+          label?: string | null
           name: string
+          sort_order?: number | null
         }
         Update: {
           created_at?: string | null
           id?: string
+          label?: string | null
           name?: string
+          sort_order?: number | null
         }
         Relationships: []
       }
@@ -1885,34 +1982,360 @@ export type Database = {
         ]
       }
       suppliers: {
+
         Row: {
+          address: string | null
           category: string | null
           company_id: string
           contact_person: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+        }
+        Insert: {
+          address?: string | null
+          category?: string | null
+          company_id: string
+          contact_person?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+        }
+        Update: {
+          address?: string | null
+          category?: string | null
+          company_id?: string
+          contact_person?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+        }
+        Relationships: []
+      }
+      '3d_materials_stock': {
+        Row: {
+          brand: string | null
+          color_hex: string | null
+          cost_per_kg: number | null
+          id: string
+          material_name: string
+          remaining_grams: number
+          updated_at: string | null
+        }
+        Insert: {
+          brand: string | null
+          color_hex: string | null
+          cost_per_kg: number | null
+          id?: string
+          material_name: string
+          remaining_grams: number
+          updated_at: string | null
+        }
+        Update: {
+          brand?: string | null
+          color_hex?: string | null
+          cost_per_kg?: number | null
+          id?: string
+          material_name?: string
+          remaining_grams?: number
+          updated_at?: string | null
+        }
+      }
+      clients: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+        }
+        Insert: {
+          company_id: string | null
+          created_at?: string | null
+          email: string | null
+          id?: string
+          name: string
+          phone: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_clients_company_id",
+            columns: ["company_id"],
+            isOneToOne: false,
+            referencedRelation: "companies",
+            referencedColumns: ["id"],
+          },
+        ]
+      }
+      remitos: {
+        Row: {
+          address: string | null
+          company_id: string
+          created_at: string
+          customer: string | null
+          date: string
+          id: string
+          items: Json
+          notes: string | null
+          number: string
+          order_id: string | null
+          status: string
+          total: number
+          view_type: string
+        }
+        Insert: {
+          address: string | null
+          company_id: string
+          created_at?: string
+          customer: string | null
+          date?: string
+          id?: string
+          items?: Json
+          notes: string | null
+          number: string
+          order_id: string | null
+          status?: string
+          total?: number
+          view_type?: string
+        }
+        Update: {
+          address?: string | null
+          company_id?: string
+          created_at?: string
+          customer?: string | null
+          date?: string
+          id?: string
+          items?: Json
+          notes?: string | null
+          number?: string
+          order_id?: string | null
+          status?: string
+          total?: number
+          view_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remitos_company_id_fkey",
+            columns: ["company_id"],
+            isOneToOne: false,
+            referencedRelation: "companies",
+            referencedColumns: ["id"],
+          },
+          {
+            foreignKeyName: "remitos_order_id_fkey",
+            columns: ["order_id"],
+            isOneToOne: false,
+            referencedRelation: "orders",
+            referencedColumns: ["id"],
+          },
+        ]
+      }
+      reseller_transactions: {
+        Row: {
+          amount: number | null
+          company_id: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          reseller_id: string | null
+          type: string | null
+        }
+        Insert: {
+          amount?: number | null
+          company_id: string | null
+          created_at?: string | null
+          description: string | null
+          id?: string
+          reseller_id: string | null
+          type: string | null
+        }
+        Update: {
+          amount?: number | null
+          company_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          reseller_id?: string | null
+          type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_reseller_transactions_resellerid",
+            columns: ["reseller_id"],
+            isOneToOne: false,
+            referencedRelation: "resellers",
+            referencedColumns: ["id"],
+          },
+          {
+            foreignKeyName: "reseller_transactions_company_id_fkey",
+            columns: ["company_id"],
+            isOneToOne: false,
+            referencedRelation: "companies",
+            referencedColumns: ["id"],
+          },
+        ]
+      }
+      resellers: {
+        Row: {
+          balance: number | null
+          company_id: string | null
           created_at: string | null
           id: string
           name: string
           phone: string | null
         }
         Insert: {
-          category?: string | null
-          company_id: string
-          contact_person?: string | null
+          balance?: number | null
+          company_id: string | null
           created_at?: string | null
           id?: string
           name: string
-          phone?: string | null
+          phone: string | null
         }
         Update: {
-          category?: string | null
-          company_id?: string
-          contact_person?: string | null
+          balance?: number | null
+          company_id?: string | null
           created_at?: string | null
           id?: string
           name?: string
           phone?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_resellers_company_id",
+            columns: ["company_id"],
+            isOneToOne: false,
+            referencedRelation: "companies",
+            referencedColumns: ["id"],
+          },
+        ]
+      }
+      sales: {
+        Row: {
+          business_unit: string | null
+          company_id: string | null
+          created_at: string | null
+          customer_id: string | null
+          date: string | null
+          id: string
+          items: Json | null
+          payment_method: string | null
+          status: string | null
+          total: number | null
+          total_amount: number | null
+        }
+        Insert: {
+          business_unit: string | null
+          company_id: string | null
+          created_at?: string | null
+          customer_id: string | null
+          date: string | null
+          id?: string
+          items: Json | null
+          payment_method: string | null
+          status?: string | null
+          total: number | null
+          total_amount?: number | null
+        }
+        Update: {
+          business_unit?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          date?: string | null
+          id?: string
+          items?: Json | null
+          payment_method?: string | null
+          status?: string | null
+          total?: number | null
+          total_amount?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_company_id_fkey",
+            columns: ["company_id"],
+            isOneToOne: false,
+            referencedRelation: "companies",
+            referencedColumns: ["id"],
+          },
+          {
+            foreignKeyName: "sales_customer_id_fkey",
+            columns: ["customer_id"],
+            isOneToOne: false,
+            referencedRelation: "customers",
+            referencedColumns: ["id"],
+          },
+        ]
+      }
+      stock_movements: {
+        Row: {
+          color_id: string | null
+          created_at: string | null
+          id: string
+          product_id: string | null
+          quantity: number
+          reason: string | null
+          size_id: string | null
+        }
+        Insert: {
+          color_id: string | null
+          created_at?: string | null
+          id?: string
+          product_id: string | null
+          quantity?: number
+          reason: string | null
+          size_id: string | null
+        }
+        Update: {
+          color_id?: string | null
+          created_at?: string | null
+          id?: string
+          product_id?: string | null
+          quantity?: number
+          reason?: string | null
+          size_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_color_id_fkey",
+            columns: ["color_id"],
+            isOneToOne: false,
+            referencedRelation: "colors",
+            referencedColumns: ["id"],
+          },
+          {
+            foreignKeyName: "stock_movements_product_id_fkey",
+            columns: ["product_id"],
+            isOneToOne: false,
+            referencedRelation: "products",
+            referencedColumns: ["id"],
+          },
+          {
+            foreignKeyName: "stock_movements_size_id_fkey",
+            columns: ["size_id"],
+            isOneToOne: false,
+            referencedRelation: "sizes",
+            referencedColumns: ["id"],
+          },
+        ]
       }
       transactions: {
         Row: {
@@ -1957,6 +2380,7 @@ export type Database = {
         ]
       }
       treasury: {
+
         Row: {
           amount: number
           business_unit: string | null
@@ -1966,6 +2390,7 @@ export type Database = {
           date: string | null
           description: string | null
           id: string
+          notes: string | null
           payment_method: string | null
           status: string | null
           type: string | null
@@ -1979,6 +2404,7 @@ export type Database = {
           date?: string | null
           description?: string | null
           id?: string
+          notes?: string | null
           payment_method?: string | null
           status?: string | null
           type?: string | null
@@ -1992,6 +2418,7 @@ export type Database = {
           date?: string | null
           description?: string | null
           id?: string
+          notes?: string | null
           payment_method?: string | null
           status?: string | null
           type?: string | null
@@ -2088,7 +2515,9 @@ export type Database = {
         ]
       }
       v_treasury_summary: {
+
         Row: {
+          company_id: string | null
           net_balance: number | null
           total_expense: number | null
           total_income: number | null
@@ -2097,145 +2526,81 @@ export type Database = {
       }
     }
     Functions: {
+      award_loyalty_points: {
+        Args: { p_customer_id: string; p_points: number; p_reason: string; p_order_id?: string | null }
+        Returns: undefined
+      }
+      create_order_atomic: {
+        Args: {
+          order_payload?: unknown
+          p_order?: unknown
+          p_items?: unknown[]
+        }
+        Returns: unknown
+      }
+      delete_product_variation: {
+        Args: {
+          p_variant_id?: string
+          p_product_id?: string
+          p_variation_id?: string
+        }
+        Returns: undefined
+      }
       increment_stock: {
         Args: { c_id: string; increment_by: number; p_id: string; s_id: string }
+        Returns: undefined
+      }
+      process_pos_sale_atomic: {
+        Args: {
+          p_customer_id: string | null
+          p_cart: unknown[]
+          p_total: number
+          p_payment_method: string
+          p_company_id: string | null
+        }
+        Returns: string
+      }
+      process_sale_atomic: {
+        Args: { customer_id_param: string; cart_items: unknown[]; total_amount_param: number }
+        Returns: undefined
+      }
+      redeem_loyalty_points: {
+        Args: { p_customer_id: string; p_points: number; p_reason: string }
+        Returns: undefined
+      }
+      register_partial_delivery: {
+        Args: {
+          p_order_id?: string
+          p_delivery_data?: unknown
+          p_quantity?: number
+          p_items_delivered?: unknown
+          p_notes?: string | null
+        }
+        Returns: undefined
+      }
+      transform_to_finished: {
+        Args: { p_variant_id: string; p_quantity: number }
         Returns: undefined
       }
       update_customer_balance: {
         Args: { amount_param: number; id_param: string }
         Returns: undefined
       }
-    }
-    Enums: {
-      user_role: "admin" | "editor" | "viewer"
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
-}
-
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
-
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
-
-export type Tables<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
-      Row: infer R
-    }
-    ? R
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R
+      update_product_stock_atomic: {
+        Args: {
+          p_variant_id?: string
+          p_field?: string
+          p_delta?: number
+          p_product_id?: string
+          p_new_stock?: number
+          p_variation_id?: string | null
+        }
+        Returns: undefined
       }
-      ? R
-      : never
-    : never
-
-export type TablesInsert<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I
-    }
-    ? I
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
+      upsert_stock: {
+        Args: { p_product_id: string; p_size_id: string; p_color_id: string; p_quantity: number }
+        Returns: undefined
       }
-      ? I
-      : never
-    : never
-
-export type TablesUpdate<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U
     }
-    ? U
-    : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
-      }
-      ? U
-      : never
-    : never
-
-export type Enums<
-  DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
-> = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
-
-export type CompositeTypes<
-  PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
-    | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
-> = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
-
-export const Constants = {
-  public: {
-    Enums: {
-      user_role: ["admin", "editor", "viewer"],
-    },
-  },
-} as const

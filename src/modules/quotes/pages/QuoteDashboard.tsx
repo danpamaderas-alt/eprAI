@@ -6,13 +6,15 @@ import { generateQuotePDF } from '../../../utils/printQuotePDF';
 import { ARS } from '../../../shared/utils/format';
 
 const Swal = {
-  fire: async (...args: [options?: import('sweetalert2').SweetAlertOptions]) =>
-    (await import('sweetalert2')).default.fire(...args),
+  fire: async (...args: [options?: import('sweetalert2').SweetAlertOptions]) => {
+    const m = (await import('sweetalert2')).default as unknown as { fire: (...a: [options?: import('sweetalert2').SweetAlertOptions]) => Promise<unknown> };
+    return m.fire(...args);
+  },
 };
 import {
-  FileText, Plus, Search, Download, Printer, Copy, Trash2,
-  ChevronDown, ChevronUp, Send, CheckCircle, XCircle,
-  AlertTriangle, Calendar, Filter, Eye,
+  FileText, Plus, Search, Download, Copy, Trash2,
+  Send, CheckCircle, XCircle,
+  Calendar,
 } from 'lucide-react';
 
 interface Client {
@@ -63,7 +65,6 @@ export function QuoteDashboard() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState('');
@@ -98,10 +99,10 @@ export function QuoteDashboard() {
       ]);
 
       if (clientsRes.status === 'fulfilled' && !clientsRes.value.error) {
-        setClients(clientsRes.value.data || []);
+        setClients((clientsRes.value.data || []) as unknown as Client[]);
       }
       if (quotesRes.status === 'fulfilled' && !quotesRes.value.error) {
-        setQuotes(quotesRes.value.data || []);
+        setQuotes((quotesRes.value.data || []) as unknown as QuoteRecord[]);
       }
     } catch (err) {
       console.error('Error loading quotes:', err);
@@ -248,7 +249,7 @@ export function QuoteDashboard() {
       };
 
       const mappedItems = (items || []).map((item: Record<string, unknown>) => ({
-        quantity: item.quantity,
+        quantity: Number(item.quantity) || 0,
         description: String(item.description || item.product_id || ''),
         unit_price: Number(item.unit_price) || 0,
       }));

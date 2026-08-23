@@ -12,7 +12,7 @@ export const RemitoModal: React.FC<RemitoModalProps> = ({ isOpen, onClose, order
   const componentRef = useRef(null);
 
   const handlePrint = useReactToPrint({
-    content: () => componentRef.current,
+    contentRef: componentRef,
     documentTitle: `Remito_${order?.customerName || order?.customer_name || 'Generico'}_${new Date().toLocaleDateString('es-AR')}`,
   });
 
