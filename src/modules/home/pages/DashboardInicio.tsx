@@ -1,4 +1,4 @@
-﻿import { lazy, Suspense, useEffect, useState, useMemo, memo } from 'react';
+﻿import { useEffect, useState, useMemo, memo } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { useCatalogStore } from '../../../store/useCatalogStore';
@@ -10,20 +10,14 @@ import { ARS } from '../../../shared/utils/format';
 import { KpiCard } from '../../../shared/components/ui/KpiCard';
 import { Breadcrumbs } from '../../../shared/components/ui/Breadcrumbs';
 import { ErrorBoundary } from '../../../shared/components/ui/ErrorBoundary';
-const SalesTrendChart = lazy(() =>
-  import('../../../shared/components/charts/SalesTrendChart').then((m) => ({ default: m.SalesTrendChart })),
-);
-import { KpiSkeleton, Skeleton } from '../../../shared/components/ui/Skeleton';
+import { KpiSkeleton } from '../../../shared/components/ui/Skeleton';
 import {
   ShoppingCart,
   Package,
   Users,
   Route,
-  Clock,
   Sparkles,
-  Zap,
   LayoutGrid,
-  CreditCard,
   BarChart3,
   Truck,
   FileText,
@@ -39,17 +33,6 @@ import {
   Scissors,
   type LucideIcon,
 } from 'lucide-react';
-
-interface ActivityItem {
-  id: string;
-  type: 'order' | 'sale' | 'movement' | 'customer';
-  title: string;
-  subtitle: string;
-  amount?: number;
-  time: string;
-  icon: React.ReactNode;
-  color: string;
-}
 
 interface QuickAccessItem {
   name: string;
@@ -98,7 +81,7 @@ const QUICK_ACCESS: QuickAccessGroup[] = [
       { name: 'Inventario', path: '/inventario', icon: Package, color: 'from-blue-500 to-blue-600' },
       { name: 'Tesorería', path: '/tesoreria', icon: CircleDollarSign, color: 'from-cyan-500 to-cyan-600' },
       { name: 'Finanzas', path: '/finanzas', icon: BarChart3, color: 'from-slate-500 to-slate-600' },
-      { name: 'Cotizar', path: '/cotizador', icon: FileText, color: 'from-violet-500' },
+      { name: 'Cotizar', path: '/cotizador', icon: FileText, color: 'from-violet-500 to-violet-600' },
     ],
   },
 ];
@@ -113,10 +96,7 @@ const DashboardContent = memo(() => {
   const [pedidosPendientes, setPedidosPendientes] = useState(0);
   const [prod3dActivos, setProd3dActivos] = useState(0);
   const [prodSubliActivos, setProdSubliActivos] = useState(0);
-  const [chartData, setChartData] = useState<{ day: string; sales: number }[]>([]);
   const [isLoadingCounts, setIsLoadingCounts] = useState(true);
-  const [isChartLoading, setIsChartLoading] = useState(true);
-  const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
 
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Operador';
   const hour = new Date().getHours();
@@ -136,86 +116,6 @@ const DashboardContent = memo(() => {
           return count || 0;
         };
 
-        const fetchWeeklySales = async () => {
-          if (!activeCompanyId) return [];
-          const sevenDaysAgo = new Date();
-          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-          const { data: salesData } = await supabase
-            .from('sales')
-            .select('total_amount, created_at')
-            .eq('company_id', activeCompanyId)
-            .gte('created_at', sevenDaysAgo.toISOString())
-            .order('created_at', { ascending: true });
-
-          if (!salesData) return [];
-
-          const dayNames = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
-          const dailyTotals: Record<string, number> = {};
-          const today = new Date();
-
-          for (let i = 6; i >= 0; i--) {
-            const d = new Date(today);
-            d.setDate(d.getDate() - i);
-            const key = d.toISOString().split('T')[0];
-            dailyTotals[key] = 0;
-          }
-
-          salesData.forEach((s) => {
-            const key = new Date(s.created_at ?? new Date().toISOString()).toISOString().split('T')[0];
-            if (dailyTotals[key] !== undefined) {
-              dailyTotals[key] += Number.parseFloat(String(s.total_amount || 0));
-            }
-          });
-
-          return Object.entries(dailyTotals).map(([dateKey, total]) => {
-            const d = new Date(dateKey);
-            return { day: dayNames[d.getDay()], sales: total };
-          });
-        };
-
-        const fetchRecentOrders = async (): Promise<ActivityItem[]> => {
-          if (!activeCompanyId) return [];
-          const { data } = await supabase
-            .from('orders')
-            .select('id, created_at, status, total_amount, customers(name)')
-            .eq('company_id', activeCompanyId)
-            .order('created_at', { ascending: false })
-            .limit(5);
-
-          return (data || []).map((o) => ({
-            id: o.id,
-            type: 'order' as const,
-            title: `Pedido #${o.id.slice(0, 8)}`,
-            subtitle: (o.customers as any)?.name || 'Cliente',
-            amount: Number(o.total_amount) || undefined,
-            time: new Date(o.created_at ?? new Date().toISOString()).toLocaleString('es-AR', { hour: '2-digit', minute: '2-digit' }),
-            icon: <ShoppingCart className="w-4 h-4" />,
-            color: 'text-blue-500 bg-blue-500/10',
-          }));
-        };
-
-        const fetchRecentSales = async (): Promise<ActivityItem[]> => {
-          if (!activeCompanyId) return [];
-          const { data } = await supabase
-            .from('sales')
-            .select('id, created_at, total_amount')
-            .eq('company_id', activeCompanyId)
-            .order('created_at', { ascending: false })
-            .limit(5);
-
-          return (data || []).map((s) => ({
-            id: s.id,
-            type: 'sale' as const,
-            title: 'Venta registrada',
-            subtitle: 'Punto de Venta',
-            amount: Number(s.total_amount) || undefined,
-            time: new Date(s.created_at ?? new Date().toISOString()).toLocaleString('es-AR', { hour: '2-digit', minute: '2-digit' }),
-            icon: <CreditCard className="w-4 h-4" />,
-            color: 'text-emerald-500 bg-emerald-500/10',
-          }));
-        };
-
         const fetchProductionActivos = async (): Promise<{ d3: number; subli: number }> => {
           if (!activeCompanyId) return { d3: 0, subli: 0 };
           const [d3, subli] = await Promise.all([
@@ -233,31 +133,21 @@ const DashboardContent = memo(() => {
           return { d3: d3.count || 0, subli: subli.count || 0 };
         };
 
-        const [ordersCount, weeklySales, , , , recentOrders, recentSales, produccion] = await Promise.all([
+        const [ordersCount, , , , produccion] = await Promise.all([
           fetchOrdersCount(),
-          fetchWeeklySales(),
           fetchAllCatalogs(),
           fetchBalances(),
           fetchTransactions(),
-          fetchRecentOrders(),
-          fetchRecentSales(),
           fetchProductionActivos(),
         ]);
 
         setPedidosPendientes(ordersCount);
-        setChartData(weeklySales);
         setProd3dActivos(produccion.d3);
         setProdSubliActivos(produccion.subli);
-
-        const allActivity = [...(recentOrders || []), ...(recentSales || [])]
-          .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
-          .slice(0, 8);
-        setRecentActivity(allActivity);
       } catch (error) {
         console.error('[Dashboard] Error en sincronizacion:', error);
       } finally {
         setIsLoadingCounts(false);
-        setIsChartLoading(false);
       }
     };
 
@@ -301,7 +191,10 @@ const DashboardContent = memo(() => {
     ? Math.round(((ingresosMes - ingresosMesAnterior) / ingresosMesAnterior) * 100)
     : 0;
 
-  const produccionTotal = prod3dActivos + prodSubliActivos;
+  const prodCounts: Record<string, number | undefined> = {
+    '/produccion-3d': prod3dActivos,
+    '/produccion-sublimacion': prodSubliActivos,
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
@@ -419,7 +312,7 @@ const DashboardContent = memo(() => {
         <div className="relative overflow-hidden rounded-[2rem] bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 p-6 shadow-sm flex flex-col justify-center">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Producción total activa</p>
           <p className="text-3xl font-black text-slate-900 dark:text-white tabular-nums">
-            {isLoadingCounts ? '—' : produccionTotal}
+            {isLoadingCounts ? '—' : prod3dActivos + prodSubliActivos}
           </p>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
             {prod3dActivos} 3D · {prodSubliActivos} Subli
@@ -440,82 +333,42 @@ const DashboardContent = memo(() => {
                 {group.label}
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                {group.items.map((m) => (
-                  <Link
-                    key={m.path}
-                    to={m.path}
-                    className="flex items-center gap-3 p-3 rounded-2xl border border-slate-200 dark:border-slate-700/60 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-all group"
-                  >
-                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${m.color} text-white flex items-center justify-center shadow-lg shrink-0 group-hover:scale-110 transition-transform`}>
-                      <m.icon className="w-5 h-5" />
-                    </div>
-                    <span className="text-[11px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-wider leading-tight">
-                      {m.name}
-                    </span>
-                  </Link>
-                ))}
+                {group.items.map((m) => {
+                  const count = prodCounts[m.path];
+                  return (
+                    <Link
+                      key={m.path}
+                      to={m.path}
+                      className="group relative flex items-center gap-3 p-4 rounded-2xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-900/40 hover:border-slate-300 dark:hover:border-slate-500 hover:-translate-y-0.5 hover:shadow-lg transition-all"
+                    >
+                      <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${m.color} text-white flex items-center justify-center shadow-lg shrink-0 group-hover:scale-110 transition-transform`}>
+                        <m.icon className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="block text-[12px] font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider leading-tight truncate">
+                          {m.name}
+                        </span>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                          {group.label}
+                        </span>
+                      </div>
+                      {count != null && (
+                        <span
+                          className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-[9px] font-black tabular-nums ${
+                            count > 0
+                              ? 'bg-rose-500/15 text-rose-500 dark:text-rose-400'
+                              : 'bg-slate-200 dark:bg-slate-700 text-slate-400'
+                          }`}
+                        >
+                          {count}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
               </div>
             </div>
           ))}
-        </div>
-      </div>
-
-      {/* Chart + Activity Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <Suspense
-            fallback={
-              <div className="bg-white dark:bg-slate-800 p-10 rounded-[2.5rem] border border-slate-200 dark:border-slate-700 shadow-sm">
-                <Skeleton className="h-4 w-40 mb-8" />
-                <Skeleton className="h-64 w-full" />
-              </div>
-            }
-          >
-            <SalesTrendChart data={chartData} isLoading={isChartLoading} />
-          </Suspense>
-        </div>
-
-        {/* Recent Activity Feed */}
-        <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col overflow-hidden">
-          <div className="p-8 pb-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Clock className="w-4 h-4 text-slate-400" />
-              <h2 className="text-xs font-black text-slate-400 uppercase tracking-[0.3em]">
-                Actividad Reciente
-              </h2>
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto px-8 pb-8 space-y-2">
-            {recentActivity.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                <Zap className="w-8 h-8 mb-3 opacity-40" />
-                <p className="text-xs font-bold uppercase tracking-widest">Sin actividad reciente</p>
-              </div>
-            ) : (
-              recentActivity.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
-                >
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${item.color}`}>
-                    {item.icon}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-slate-800 dark:text-white truncate">{item.title}</p>
-                    <p className="text-[10px] text-slate-400 font-semibold truncate">{item.subtitle}</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    {item.amount !== undefined && (
-                      <p className="text-xs font-black text-slate-700 dark:text-white">
-                        {ARS.format(item.amount)}
-                      </p>
-                    )}
-                    <p className="text-[9px] text-slate-400 font-bold">{item.time}</p>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
         </div>
       </div>
     </div>
