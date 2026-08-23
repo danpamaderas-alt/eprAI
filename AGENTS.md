@@ -110,3 +110,39 @@ Pendientes conocidos:
 `.env` y `.dev.vars` están commiteados TEMPORALMENTE porque el dueño trabaja desde dos PCs.
 No hacer el repo público mientras duren. Cuando vuelva a una PC: quitarlos del repo,
 gitignorearlos y rotar GEMINI_API_KEY.
+
+## 📋 Registro de cambios y lecciones aprendidas
+
+**Regla permanente**: tras cada cambio significativo o bug resuelto, agregar una entrada
+acá SIN que el usuario lo pida. Incluir errores propios: documentan trampas del entorno.
+Mantener las últimas ~10 entradas y podar las viejas.
+
+### Lecciones del entorno (no repetir)
+
+- **Rutas de Web Worker**: `new URL('./x.worker.ts', import.meta.url)` resuelve relativa al
+  ARCHIVO que la escribe. Desde `utils/vectorize.ts`, el worker en `workers/` es
+  `../workers/`. Costó un build roto (`[UNRESOLVED_ENTRY]` de rolldown).
+- **PowerShell 5.1 + JSON**: reescribir package.json con `ConvertFrom-Json | ConvertTo-Json |
+  Set-Content -Encoding utf8` agrega BOM y Vite/PostCSS rompen con `Unexpected token`.
+  Fix: `[System.IO.File]::WriteAllText($ruta, $texto, [System.Text.UTF8Encoding]::new($false))`.
+- **Tests en `src/*.test.ts`**: los imports relativos parten de la ubicación del archivo:
+  módulos vecinos van con `./`, no `../`.
+- **API printPreflight**: `evaluatePrint(info, preset)` con preset custom devuelve en
+  `.verdict` un OBJETO `PresetVerdict` (el string está en `.verdict.verdict`). Así lo
+  consume DesignStudioModal; no "corregir" sin tocar el consumidor.
+- **Deploy = push a main** (CI). Verificar con poll HTTP 200 tras ~75 s. Evitar
+  `wrangler dev` local (crashea por libuv en este Windows).
+- **Tokens pegados en chat quedan comprometidos**: recordar al usuario revocar/rotar.
+
+### Historial reciente
+
+- **2026-08 `bcefbf3`** — AGENTS.md con contexto completo para sesiones multi-PC.
+- **2026-08 `3a20f5a`** — .env/.dev.vars commiteados TEMPORALMENTE (2 PCs); rotar claves al revertir.
+- **2026-08 `ad3366a`** — Imágenes de diseños a Supabase Storage: bucket privado
+  `design-images` + políticas para authenticated (SQL sobre storage.buckets/objects),
+  firma on-demand con caché, subida desde formulario y migración perezosa de data-URLs
+  al abrir detalle. Los 6 consumidores de `imagen` resuelven vía `useImageSrc`.
+- **2026-08 `cf126f2`** — Suite vitest inicial (25 tests). Rate limiter extraído a util
+  puro `shared/utils/rateLimit.ts` para poder testearlo; worker importa de ahí.
+- **2026-08 `f4dac60`** — Modales Studio/Mockup lazy + vectorización en Web Worker con
+  fallback main-thread (si Worker constructor falla o onerror dispara).
