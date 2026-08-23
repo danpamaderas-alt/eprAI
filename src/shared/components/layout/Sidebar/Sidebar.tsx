@@ -71,6 +71,7 @@ const NAV_SECTIONS: readonly NavSection[] = [
     routes: [
       { path: '/impresiones-3d', label: 'Repositorio 3D', icon: Boxes, highlight: 'indigo' },
       { path: '/filamentos', label: 'Filamentos', icon: Rainbow, highlight: 'orange' },
+      { path: '/produccion-3d', label: 'Producción 3D', icon: Factory, highlight: 'rose' },
       { path: '/calculadora-3d', label: 'Calc. Impresión 3D', icon: Printer, highlight: 'indigo' },
     ],
   },

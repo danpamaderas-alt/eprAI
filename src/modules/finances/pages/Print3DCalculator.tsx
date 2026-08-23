@@ -16,10 +16,12 @@ import {
   Pencil,
   AlertTriangle,
   Layers,
+  Factory,
 } from "lucide-react";
 import { useToastStore } from "../../../store/useToastStore";
 import { formatDate, formatDateTime, hoursToTime, timeToHours } from "../../../shared/utils/format";
 import { useFilamentStore } from "../../filaments/store/useFilamentStore";
+import { usePrintJobStore } from "../../printjobs/store/usePrintJobStore";
 
 // ====================================================
 // PRESETS DE IMPRESORAS
@@ -367,7 +369,7 @@ export const Print3DCalculator = () => {
   const toast = useToastStore((s) => s.toast);
   const [inputs, setInputs] = useState<Inputs>(() => mergeDefaults(DEFAULT));
   const [jobName, setJobName] = useState("");
-  const [history, setHistory] = useState<SavedJob[]>([]);
+  const [history, setHistory] = useState<SavedJob[]>(() => loadJSON<SavedJob[]>(HISTORY_KEY) ?? []);
   const [showHistory, setShowHistory] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedFilamentId, setSelectedFilamentId] = useState<string>("");
@@ -377,11 +379,6 @@ export const Print3DCalculator = () => {
   useEffect(() => {
     void fetchFilaments();
   }, [fetchFilaments]);
-
-  useEffect(() => {
-    const saved = loadJSON<SavedJob[]>(HISTORY_KEY);
-    if (saved) setHistory(saved);
-  }, []);
 
   const handleFilamentPick = useCallback(
     (id: string) => {
@@ -566,6 +563,37 @@ export const Print3DCalculator = () => {
     setInputs((prev) => ({ ...DEFAULT, printerModel: prev.printerModel }));
     toast("Predeterminados restaurados", { type: "info" });
   }, [toast]);
+
+  // -------------------------------------------------------
+  // ENVIAR A PRODUCCIÓN (print_jobs_3d)
+  // -------------------------------------------------------
+  const handleSendToProduction = useCallback(async () => {
+    const qty = Math.max(1, inputs.quantity || 1);
+    try {
+      const filament = useFilamentStore
+        .getState()
+        .filaments.find((f) => f.id === selectedFilamentId);
+      await usePrintJobStore.getState().addJob({
+        name: jobName.trim() || `Trabajo ${new Date().toLocaleDateString("es-AR")}`,
+        status: "en_cola",
+        inputs: { ...inputs } as unknown as Record<string, unknown>,
+        printer_name: printer.name,
+        filament_id: selectedFilamentId || null,
+        filament_label: filament
+          ? `${filament.brand} ${filament.material} ${filament.color_name ?? ""}`.replace(/\s+/g, " ").trim()
+          : null,
+        quantity: qty,
+        est_weight_g: inputs.pieceWeight * qty,
+        est_time_h: Number((inputs.printTime * qty).toFixed(2)),
+        est_cost_total: Number(bd.cpTotal.toFixed(2)),
+        est_price_total: Number(bd.roundedTotal.toFixed(2)),
+      });
+      toast("Trabajo enviado a Producción 3D", { type: "success" });
+    } catch (err) {
+      console.error(err);
+      toast("No se pudo enviar a producción", { type: "error" });
+    }
+  }, [bd, inputs, jobName, printer, selectedFilamentId, toast]);
 
   // -------------------------------------------------------
   // EXPORTAR PDF
@@ -986,6 +1014,14 @@ export const Print3DCalculator = () => {
             >
               <Save size={14} aria-hidden />
               {editingId ? "Actualizar" : "Guardar"}
+            </button>
+            <button
+              id="btn-send-production-3d"
+              onClick={() => void handleSendToProduction()}
+              className="flex-1 flex items-center justify-center gap-2 py-3 bg-orange-600 hover:bg-orange-500 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-colors min-w-40"
+            >
+              <Factory size={14} aria-hidden />
+              Enviar a producción
             </button>
             <button
               id="btn-reset-3d"

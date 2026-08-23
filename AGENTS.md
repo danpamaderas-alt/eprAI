@@ -92,8 +92,9 @@ Archivos numerados en `sql/`. Aplicar con Management API (requiere SUPABASE_TOKE
 $env:SUPABASE_TOKEN="sbp_..."; node "$env:TEMP\opencode\apply-migration.cjs" sql\NNN_nombre.sql
 ```
 
-Proyecto Supabase: `gjzvdepevoviygrcdwqj`. Aplicada más reciente: `016_design_storage.sql`
-(bucket privado `design-images` + políticas para authenticated).
+Proyecto Supabase: `gjzvdepevoviygrcdwqj`. Aplicada más reciente: `019_mockup_templates.sql`
+(`020_print_jobs_3d.sql` creada, PENDIENTE de token). Última aplicada con bucket:
+`016_design_storage.sql` (bucket privado `design-images` + políticas para authenticated).
 
 ## Estado del proyecto (agosto 2026)
 
@@ -136,6 +137,19 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 producción 3D (print_jobs_3d)** — Nuevo flujo de cola de trabajos de impresión 3D:
+  migración `sql/020_print_jobs_3d.sql` (PENDIENTE de aplicar: no había SUPABASE_TOKEN
+  vigente en esta sesión), módulo `src/modules/printjobs/` (types con NEXT_STATUS map +
+  store Zustand con tenant-reset; `completeJob` descuenta el peso real del rollo vía
+  `useFilamentStore.consumeGrams` UNA sola vez, guard contra doble descuento), página
+  `PrintJobsPage` (KPIs: activos/completados/gramos/tasa fallos/desvío tiempo real;
+  filtros por estado; modal sweetalert2 para completar pidiendo peso g + tiempo HH:MM),
+  ruta `/produccion-3d` y botón "Enviar a producción" en Print3DCalculator que inserta
+  snapshot (inputs jsonb + estimaciones). Lecciones TS: supabase rechaza
+  `Record<string, unknown>` como `Json` — castear explícito (`inputs as Json`) y armar
+  payload con tipo `Omit<T,'inputs'> & { inputs?: Json }`, los spread condicionales no
+  narrow bien. El lint error `any` de Sidebar.tsx:342 es PREEXISTENTE (verificado con
+  git stash), no tocar sin pedirlo.
 - **2026-08 features pendientes (WhatsApp/Mockups/Blanks)** — Tres integraciones cruzadas:
   botón de WhatsApp en Cotizador (`handleShareWhatsApp` abre `wa.me` con resumen del
   presupuesto), Mockups Base conectado a `MockupPreviewModal` (templates de la tabla

@@ -1361,6 +1361,87 @@ export type Database = {
           },
         ]
       }
+      print_jobs_3d: {
+        Row: {
+          actual_notes: string | null
+          actual_time_h: number | null
+          actual_weight_g: number | null
+          company_id: string | null
+          completed_at: string | null
+          created_at: string
+          est_cost_total: number | null
+          est_price_total: number | null
+          est_time_h: number | null
+          est_weight_g: number | null
+          filament_id: string | null
+          filament_label: string | null
+          id: string
+          inputs: Json
+          name: string
+          printer_name: string | null
+          quantity: number
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          actual_notes?: string | null
+          actual_time_h?: number | null
+          actual_weight_g?: number | null
+          company_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          est_cost_total?: number | null
+          est_price_total?: number | null
+          est_time_h?: number | null
+          est_weight_g?: number | null
+          filament_id?: string | null
+          filament_label?: string | null
+          id?: string
+          inputs?: Json
+          name?: string
+          printer_name?: string | null
+          quantity?: number
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          actual_notes?: string | null
+          actual_time_h?: number | null
+          actual_weight_g?: number | null
+          company_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          est_cost_total?: number | null
+          est_price_total?: number | null
+          est_time_h?: number | null
+          est_weight_g?: number | null
+          filament_id?: string | null
+          filament_label?: string | null
+          id?: string
+          inputs?: Json
+          name?: string
+          printer_name?: string | null
+          quantity?: number
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "print_jobs_3d_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_jobs_3d_filament_id_fkey"
+            columns: ["filament_id"]
+            isOneToOne: false
+            referencedRelation: "print_filaments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       print_models: {
         Row: {
           category: string
