@@ -143,6 +143,20 @@ Mantener las últimas ~10 entradas y podar las viejas.
 
 ### Historial reciente
 
+- **2026-08 push a main del worktree completo (commit `7d59997`)** — Se subió a
+  `origin/main` todo el trabajo acumulado: reconciliación anidado→padre, gate tsc en build,
+  applyRounding único, CSV/BOM, migraciones 031/032/033 aplicadas a prod, filamentos (costo
+  de rollo + colores), y el trabajo restante de todos los módulos. Además se trackearon
+  TODAS las skills instaladas bajo `.agents/skills/` (~4410 archivos, mayoría NVIDIA/skills)
+  por decisión explícita del dueño (aunque el ERP solo usa 4). Se agregó `eprAI/` al
+  `.gitignore`: era un checkout duplicado del mismo HEAD `45671f9` con `.env`/`.dev.vars`
+  propios, node_modules y dist — NO se subió (verificado: 0 archivos en el repo). Verificación
+  pre-push: `tsc --noEmit` limpio, 51 tests OK, `npm run build` (ambos entornos worker +
+  client) OK; sin secretos reales en el diff staged (solo nombres de env vars de las skills).
+  Post-push: worker desplegado por CI — poll HTTP confirma `/api/gemini` → 401 (JWT
+  obligatorio, correcto) y `/` → 405. Lección: `git push` escribe su progreso en stderr, lo
+  que PowerShell 5.1 reporta como NativeCommandError aunque el push fue EXIT 0 — no
+  confundirlo con fallo; verificar con `git log origin/main -1`.
 - **2026-08 plan de auditoría post-reconciliación: gate tsc + applyRounding único + UX** —
   Continuación del plan priorizado tras el merge. (1) **Gate de tipos en build**: `npm run
   build` ahora corre `tsc --noEmit -p tsconfig.app.json && vite build` (CRÍTICO: el build
