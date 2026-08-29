@@ -18,7 +18,7 @@ interface CartItemCardProps {
 }
 
 export const CartItemCard = memo(({ item, onRemove, onUpdateQty }: CartItemCardProps) => (
-  <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700 hover:border-slate-200 dark:hover:border-slate-600 transition-all group">
+  <div className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700 hover:border-slate-200 dark:hover:border-slate-600 transition-colors group">
     <div className="flex items-start justify-between gap-2">
       <div className="flex-1 min-w-0">
         <p className="text-[11px] font-black text-slate-800 dark:text-white uppercase leading-tight">
@@ -39,7 +39,7 @@ export const CartItemCard = memo(({ item, onRemove, onUpdateQty }: CartItemCardP
       <button
         type="button"
         onClick={() => onRemove(item.variantId)}
-        className="p-1.5 text-slate-300 hover:text-danger hover:bg-danger/10 rounded-lg transition-all"
+        className="p-1.5 text-slate-300 hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
       >
         <Trash2 className="w-3.5 h-3.5" />
       </button>
@@ -50,7 +50,7 @@ export const CartItemCard = memo(({ item, onRemove, onUpdateQty }: CartItemCardP
         <button
           onClick={() => onUpdateQty(item.variantId, -1)}
           className={cn(
-            'w-6 h-6 rounded-lg flex items-center justify-center transition-all active:scale-90',
+            'w-6 h-6 rounded-lg flex items-center justify-center transition-colors transition-transform active:scale-90',
             'bg-slate-100 dark:bg-slate-700 text-slate-500 hover:bg-danger/20 hover:text-danger'
           )}
         >
@@ -63,7 +63,7 @@ export const CartItemCard = memo(({ item, onRemove, onUpdateQty }: CartItemCardP
           onClick={() => item.qty < item.maxQty && onUpdateQty(item.variantId, 1)}
           disabled={item.qty >= item.maxQty}
           className={cn(
-            'w-6 h-6 rounded-lg flex items-center justify-center transition-all active:scale-90',
+            'w-6 h-6 rounded-lg flex items-center justify-center transition-colors transition-transform active:scale-90',
             item.qty >= item.maxQty
               ? 'bg-slate-50 dark:bg-slate-800 text-slate-300 cursor-not-allowed'
               : 'bg-brand/10 text-brand hover:bg-brand hover:text-white'

@@ -9,6 +9,7 @@ import {
   type OrderPayment,
 } from '../store/useOrderStore';
 import { useCrmStore } from '../../crm/store/useCrmStore';
+import { itemsTotals, normalizeOrderItems } from '../utils/orderItems';
 import { ARS } from '../../../shared/utils/format';
 import { cn } from '../../../shared/utils/cn';
 import { ErrorBoundary } from '../../../shared/components/ui/ErrorBoundary';
@@ -61,6 +62,10 @@ const BUSINESS_UNITS = ['TODOS', 'GENERAL', 'RAICES', 'RJ_CO', 'BITA_IT', 'ROJO_
 
 function exportToCSV(orders: Order[]) {
   const headers = ['Cliente', 'Estado', 'Prioridad', 'Total', 'Seña', 'Deuda', 'Fecha Vencimiento', 'Unidad'];
+  const escapeCell = (v: string | number | null | undefined): string => {
+    const s = v == null ? '' : String(v);
+    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
   const rows = orders.map((o) => [
     o.customer_name,
     o.status,
@@ -71,8 +76,8 @@ function exportToCSV(orders: Order[]) {
     o.due_date,
     o.business_unit,
   ]);
-  const csv = [headers, ...rows].map((r) => r.join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
+  const csv = [headers, ...rows].map((r) => r.map(escapeCell).join(',')).join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -112,7 +117,8 @@ const OrdersContent = memo(() => {
   const [isRemitoOpen, setIsRemitoOpen] = useState(false);
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
   const labelRef = useRef<HTMLDivElement>(null);
-  const [orderForLabel, setOrderForLabel] = useState<Order | null>(null);
+type LabelOrder = ComponentProps<typeof OrderLabel>['order'];
+  const [orderForLabel, setOrderForLabel] = useState<LabelOrder | null>(null);
   const [detailOrder, setDetailOrder] = useState<Order | null>(null);
   const [detailTab, setDetailTab] = useState<'info' | 'activity' | 'notes' | 'payments' | 'photos'>('info');
 
@@ -120,7 +126,16 @@ const OrdersContent = memo(() => {
 
   const handlePrintLabelAction = useReactToPrint({ contentRef: labelRef });
   const triggerLabelPrint = useCallback((order: Order) => {
-    setOrderForLabel(order);
+// OrderLabel espera la forma camelCase (shared/types/order.types): mapear
+    // desde el store (snake_case) vía normalizador, nunca castear directo.
+    const labelData: LabelOrder = {
+      id: order.id,
+      customerName: order.customer_name || 'Sin nombre',
+      items: normalizeOrderItems(order.items).map((item) => ({
+        variations: item.variations.map((v) => ({ quantityOrdered: v.quantityOrdered })),
+      })),
+    };
+    setOrderForLabel(labelData);
     setTimeout(() => { handlePrintLabelAction(); }, 300);
   }, [handlePrintLabelAction]);
 
@@ -135,14 +150,13 @@ const OrdersContent = memo(() => {
     });
     if (!qty) return;
     try {
-      await registerPartialDelivery(orderId, { date: new Date().toISOString(), itemsDelivered: [{ itemId, variationId, quantity: Number(qty) }] });
-      await addActivityLog(orderId, 'DELIVERY', `Entrega parcial: ${qty} unidades de ${desc}`);
-      fetchOrders();
+await registerPartialDelivery(orderId, [{ itemId, variationId, quantity: Number(qty) }]);
+      await fetchOrders();
       Swal.fire({ title: 'Entrega Registrada', icon: 'success', timer: 1500, showConfirmButton: false });
     } catch {
       Swal.fire({ title: 'Error', text: 'No se pudo registrar la entrega', icon: 'error' });
     }
-  }, [registerPartialDelivery, addActivityLog, fetchOrders]);
+}, [registerPartialDelivery, fetchOrders]);
 
   const handleStatusChange = useCallback(async (orderId: string, newStatus: Order['status']) => {
     const confirm = await Swal.fire({
@@ -286,10 +300,10 @@ const OrdersContent = memo(() => {
           <p className="text-xs text-slate-400 font-medium mt-1 ml-13">Gestión de Producción y Entregas</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => exportToCSV(filteredOrders)} className="px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-brand rounded-xl text-[10px] font-black uppercase transition-all active:scale-95">
+<button onClick={() => exportToCSV(filteredOrders)} className="px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-brand rounded-xl text-[10px] font-black uppercase transition-colors transition-transform active:scale-95">
             Exportar
           </button>
-          <button onClick={() => { setEditingOrder(null); setShowForm(true); }} className="flex items-center gap-2 px-5 py-2.5 bg-brand hover:bg-brand-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-brand/20 transition-all active:scale-95">
+          <button onClick={() => { setEditingOrder(null); setShowForm(true); }} className="flex items-center gap-2 px-5 py-2.5 bg-brand hover:bg-brand-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-brand/20 transition-colors transition-transform active:scale-95">
             <Plus className="w-4 h-4" /> Nuevo Pedido
           </button>
         </div>
@@ -322,7 +336,7 @@ const OrdersContent = memo(() => {
             { mode: 'kanban' as ViewMode, icon: LayoutGrid, label: 'Kanban' },
             { mode: 'calendar' as ViewMode, icon: CalendarDays, label: 'Calendario' },
           ]).map(({ mode, icon: Icon, label }) => (
-            <button key={mode} onClick={() => setViewMode(mode)} className={cn('flex items-center gap-1.5 px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all', viewMode === mode ? 'bg-white dark:bg-slate-800 text-brand shadow-md' : 'text-slate-400 hover:text-slate-600')}>
+<button key={mode} onClick={() => setViewMode(mode)} className={cn('flex items-center gap-1.5 px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-colors', viewMode === mode ? 'bg-white dark:bg-slate-800 text-brand shadow-md' : 'text-slate-400 hover:text-slate-600')}>
               <Icon className="w-3 h-3" /> {label}
             </button>
           ))}
@@ -332,9 +346,9 @@ const OrdersContent = memo(() => {
         {selectedCount > 0 && (
           <div className="flex items-center gap-2 bg-brand/10 border border-brand/20 px-4 py-2 rounded-xl animate-in fade-in">
             <span className="text-[10px] font-black text-brand">{selectedCount} seleccionados</span>
-            <button onClick={() => bulkChangeStatus('DELIVERED')} className="px-3 py-1 bg-emerald-500 text-white rounded-lg text-[9px] font-black uppercase">Completar</button>
-            <button onClick={() => bulkChangeStatus('CANCELLED')} className="px-3 py-1 bg-rose-500 text-white rounded-lg text-[9px] font-black uppercase">Cancelar</button>
-            <button onClick={clearSelection} className="p-1 text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+            <button onClick={() => { void Swal.fire({ title: '¿Completar pedidos?', text: `${selectedCount} pedidos pasarán a ENTREGADO`, icon: 'question', showCancelButton: true, confirmButtonColor: '#10b981' }).then((r) => { if (r.isConfirmed) void bulkChangeStatus('DELIVERED'); }); }} className="px-3 py-1 bg-emerald-500 text-white rounded-lg text-[9px] font-black uppercase">Completar</button>
+            <button onClick={() => { void Swal.fire({ title: '¿Cancelar pedidos?', text: `${selectedCount} pedidos quedarán CANCELADOS. Esta acción no se puede deshacer`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' }).then((r) => { if (r.isConfirmed) void bulkChangeStatus('CANCELLED'); }); }} className="px-3 py-1 bg-rose-500 text-white rounded-lg text-[9px] font-black uppercase">Cancelar</button>
+<button onClick={clearSelection} className="p-1 text-slate-400 hover:text-slate-600" aria-label="Limpiar selección"><X className="w-4 h-4" /></button>
           </div>
         )}
       </div>
@@ -344,11 +358,11 @@ const OrdersContent = memo(() => {
         <div className="flex flex-col lg:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input type="text" placeholder="Buscar por cliente o unidad..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 transition-all" />
+<input type="text" aria-label="Buscar por cliente o unidad" placeholder="Buscar por cliente o unidad..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand focus-visible:ring-2 focus-visible:ring-brand/20 transition-colors" />
           </div>
           <div className="flex gap-1 overflow-x-auto pb-1 lg:pb-0">
             {BUSINESS_UNITS.map((bu) => (
-              <button key={bu} onClick={() => setBusinessFilter(bu)} className={cn('px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest whitespace-nowrap transition-all active:scale-95', businessFilter === bu ? 'bg-brand text-white shadow-md shadow-brand/20' : 'bg-slate-100 dark:bg-slate-900 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700')}>
+              <button key={bu} onClick={() => setBusinessFilter(bu)} className={cn('px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest whitespace-nowrap transition-colors transition-transform active:scale-95', businessFilter === bu ? 'bg-brand text-white shadow-md shadow-brand/20' : 'bg-slate-100 dark:bg-slate-900 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700')}>
                 {bu === 'TODOS' ? 'Todos' : bu.replace('_', ' ')}
               </button>
             ))}
@@ -361,7 +375,7 @@ const OrdersContent = memo(() => {
             const Icon = config?.icon || Package;
             const count = status === 'ALL' ? orders.length : orders.filter((o) => o.status === status).length;
             return (
-              <button key={status} onClick={() => setFilter(status)} className={cn('flex items-center gap-1.5 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest whitespace-nowrap transition-all active:scale-95', filter === status ? (status === 'ALL' ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-lg' : cn(config?.bg, config?.text, 'border', config?.border, 'shadow-md')) : 'bg-slate-100 dark:bg-slate-900 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700')}>
+<button key={status} onClick={() => setFilter(status)} className={cn('flex items-center gap-1.5 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest whitespace-nowrap transition-colors transition-transform active:scale-95', filter === status ? (status === 'ALL' ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-lg' : cn(config?.bg, config?.text, 'border', config?.border, 'shadow-md')) : 'bg-slate-100 dark:bg-slate-900 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700')}>
                 <Icon className="w-3 h-3" />
                 {status === 'ALL' ? 'Todos' : config?.label}
                 <span className={cn('px-1.5 py-0.5 rounded text-[8px] font-black', filter === status ? 'bg-white/20 dark:bg-black/20' : 'bg-slate-200 dark:bg-slate-700')}>{count}</span>
@@ -374,7 +388,7 @@ const OrdersContent = memo(() => {
           <ArrowUpDown className="w-3 h-3 text-slate-400" />
           <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Ordenar:</span>
           {([ { field: 'date' as SortField, label: 'Fecha' }, { field: 'amount' as SortField, label: 'Monto' }, { field: 'status' as SortField, label: 'Estado' }, { field: 'customer' as SortField, label: 'Cliente' }, { field: 'priority' as SortField, label: 'Prioridad' } ]).map(({ field, label }) => (
-            <button key={field} onClick={() => toggleSort(field)} className={cn('px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-all', sortField === field ? 'bg-brand/10 text-brand border border-brand/20' : 'bg-slate-100 dark:bg-slate-900 text-slate-400 hover:text-slate-600')}>
+<button key={field} onClick={() => toggleSort(field)} className={cn('px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase transition-colors', sortField === field ? 'bg-brand/10 text-brand border border-brand/20' : 'bg-slate-100 dark:bg-slate-900 text-slate-400 hover:text-slate-600')}>
               {label}{sortField === field && <span className="ml-1">{sortDir === 'asc' ? '↑' : '↓'}</span>}
             </button>
           ))}
@@ -401,7 +415,7 @@ const OrdersContent = memo(() => {
       {/* Modals */}
       {showForm && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4"><OrderForm orderToEdit={editingOrder as unknown as ComponentProps<typeof OrderForm>['orderToEdit']} onClose={() => setShowForm(false)} onSuccess={() => { fetchOrders(); setShowForm(false); }} /></div>}
       <RemitoModal isOpen={isRemitoOpen} onClose={() => setIsRemitoOpen(false)} order={activeOrder} />
-      <div style={{ height: 0, overflow: 'hidden', position: 'absolute', left: '-9999px' }}><div ref={labelRef}>{orderForLabel && <OrderLabel order={orderForLabel as unknown as ComponentProps<typeof OrderLabel>['order']} />}</div></div>
+<div style={{ height: 0, overflow: 'hidden', position: 'absolute', left: '-9999px' }}><div ref={labelRef}>{orderForLabel && <OrderLabel order={orderForLabel} />}</div></div>
 
       {/* Order Detail Drawer */}
       {detailOrder && <OrderDetailDrawer order={detailOrder} tab={detailTab} onTabChange={setDetailTab} onClose={() => setDetailOrder(null)} onAddNote={handleAddNote} onAddPayment={handleAddPayment} onStatusChange={handleStatusChange} onSetPriority={setPriority} onSetProductionStage={setProductionStage} />}
@@ -452,16 +466,16 @@ const OrderCard = memo(({ order, onDeliver, onEdit, onOpenRemito, onPrintLabel, 
   const isOverdue = dueDate && dueDate < new Date() && order.status !== 'DELIVERED' && order.status !== 'CANCELLED';
   const currentStage = PRODUCTION_STAGES.find((s) => s.key === order.production_stage);
 
-  const totalItems = useMemo(() => order.items?.reduce((sum, item) => sum + item.variations.reduce((vSum, v) => vSum + v.quantity, 0), 0) || 0, [order.items]);
-  const deliveredItems = useMemo(() => order.items?.reduce((sum, item) => sum + item.variations.reduce((vSum, v) => vSum + (v.quantityDelivered || 0), 0), 0) || 0, [order.items]);
+const normItems = useMemo(() => normalizeOrderItems(order.items), [order.items]);
+  const { orderedTotal: totalItems, deliveredTotal: deliveredItems } = useMemo(() => itemsTotals(normItems), [normItems]);
   const progress = totalItems > 0 ? Math.round((deliveredItems / totalItems) * 100) : 0;
 
   return (
-    <div className={cn('bg-white dark:bg-slate-800 rounded-2xl border transition-all duration-300 shadow-sm hover:shadow-md', isExpanded ? 'border-brand dark:border-brand shadow-lg ring-1 ring-brand/10' : 'border-slate-200 dark:border-slate-700')}>
-      <div className="p-4 cursor-pointer select-none" onClick={() => setIsExpanded(!isExpanded)}>
+    <div className={cn('bg-white dark:bg-slate-800 rounded-2xl border transition-colors transition-shadow duration-300 shadow-sm hover:shadow-md', isExpanded ? 'border-brand dark:border-brand shadow-lg ring-1 ring-brand/10' : 'border-slate-200 dark:border-slate-700')}>
+      <div className="p-4 cursor-pointer select-none" onClick={() => setIsExpanded(!isExpanded)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsExpanded(!isExpanded); } }} aria-expanded={isExpanded}>
         <div className="flex items-center gap-3">
           {/* Checkbox */}
-          <button onClick={(e) => { e.stopPropagation(); onSelect(order.id); }} className="flex-shrink-0">
+          <button onClick={(e) => { e.stopPropagation(); onSelect(order.id); }} className="flex-shrink-0" aria-label={`Seleccionar pedido de ${order.customer_name || 'cliente'}`}>
             {isSelected ? <CheckSquare className="w-4 h-4 text-brand" /> : <Square className="w-4 h-4 text-slate-300 dark:text-slate-600" />}
           </button>
 
@@ -516,7 +530,7 @@ const OrderCard = memo(({ order, onDeliver, onEdit, onOpenRemito, onPrintLabel, 
               </svg>
               <span className="absolute inset-0 flex items-center justify-center text-[8px] font-black text-slate-600 dark:text-slate-300">{progress}%</span>
             </div>
-            <button className="text-slate-400 p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors">
+<button className="text-slate-400 p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors" aria-label={isExpanded ? 'Contraer pedido' : 'Expandir pedido'} aria-expanded={isExpanded}>
               {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
           </div>
@@ -524,7 +538,7 @@ const OrderCard = memo(({ order, onDeliver, onEdit, onOpenRemito, onPrintLabel, 
 
         {totalItems > 0 && (
           <div className="mt-2 ml-7">
-            <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1"><div className={cn('h-1 rounded-full transition-all', progress >= 100 ? 'bg-emerald-500' : 'bg-brand')} style={{ width: `${progress}%` }} /></div>
+<div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1"><div className={cn('h-1 rounded-full transition-colors', progress >= 100 ? 'bg-emerald-500' : 'bg-brand')} style={{ width: `${progress}%` }} /></div>
           </div>
         )}
       </div>
@@ -553,7 +567,7 @@ const OrderCard = memo(({ order, onDeliver, onEdit, onOpenRemito, onPrintLabel, 
                 const cfg = PRIORITY_CONFIG[p];
                 const Icon = cfg.icon;
                 return (
-                  <button key={p} onClick={(e) => { e.stopPropagation(); onSetPriority(order.id, p); }} className={cn('flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all', (order.priority || 'NORMAL') === p ? cn(cfg.bg, cfg.text) : 'bg-slate-100 dark:bg-slate-900 text-slate-400')}>
+<button key={p} onClick={(e) => { e.stopPropagation(); onSetPriority(order.id, p); }} className={cn('flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-[8px] font-black uppercase transition-colors', (order.priority || 'NORMAL') === p ? cn(cfg.bg, cfg.text) : 'bg-slate-100 dark:bg-slate-900 text-slate-400')}>
                     <Icon className="w-3 h-3" /> {cfg.label}
                   </button>
                 );
@@ -568,7 +582,7 @@ const OrderCard = memo(({ order, onDeliver, onEdit, onOpenRemito, onPrintLabel, 
               {PRODUCTION_STAGES.map((stage) => {
                 const StageIcon = stage.icon;
                 return (
-                  <button key={stage.key} onClick={(e) => { e.stopPropagation(); onSetProductionStage(order.id, stage.key); }} className={cn('flex items-center gap-1 px-2 py-1.5 rounded-lg text-[8px] font-black uppercase whitespace-nowrap transition-all', order.production_stage === stage.key ? stage.color : 'bg-slate-100 dark:bg-slate-900 text-slate-400')}>
+<button key={stage.key} onClick={(e) => { e.stopPropagation(); onSetProductionStage(order.id, stage.key); }} className={cn('flex items-center gap-1 px-2 py-1.5 rounded-lg text-[8px] font-black uppercase whitespace-nowrap transition-colors', order.production_stage === stage.key ? stage.color : 'bg-slate-100 dark:bg-slate-900 text-slate-400')}>
                     <StageIcon className="w-3 h-3" /> {stage.label}
                   </button>
                 );
@@ -583,7 +597,7 @@ const OrderCard = memo(({ order, onDeliver, onEdit, onOpenRemito, onPrintLabel, 
                 const cfg = STATUS_CONFIG[s];
                 const Icon = cfg.icon;
                 return (
-                  <button key={s} onClick={(e) => { e.stopPropagation(); onStatusChange(order.id, s); }} className={cn('flex-1 flex items-center justify-center gap-1 py-2 rounded-xl text-[9px] font-black uppercase transition-all', order.status === s ? cn(cfg.bg, cfg.text, 'border', cfg.border) : 'bg-slate-100 dark:bg-slate-900 text-slate-400')}>
+<button key={s} onClick={(e) => { e.stopPropagation(); onStatusChange(order.id, s); }} className={cn('flex-1 flex items-center justify-center gap-1 py-2 rounded-xl text-[9px] font-black uppercase transition-colors', order.status === s ? cn(cfg.bg, cfg.text, 'border', cfg.border) : 'bg-slate-100 dark:bg-slate-900 text-slate-400')}>
                     <Icon className="w-3 h-3" /> {cfg.label}
                   </button>
                 );
@@ -593,23 +607,24 @@ const OrderCard = memo(({ order, onDeliver, onEdit, onOpenRemito, onPrintLabel, 
 
           {/* Items */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
-            {order.items?.map((item) => item.variations?.map((v) => {
-              const delivered = v.quantityDelivered || 0;
-              const pending = v.quantity - delivered;
-              const itemProgress = v.quantity > 0 ? Math.round((delivered / v.quantity) * 100) : 0;
+{normItems.map((item) => item.variations.map((v) => {
+              const delivered = v.quantityDelivered;
+              const pending = v.quantityOrdered - delivered;
+              const itemProgress = v.quantityOrdered > 0 ? Math.round((delivered / v.quantityOrdered) * 100) : 0;
+              const desc = `${item.productName}${v.size ? ` T${v.size}` : ''}`;
               return (
-                <div key={v.variationId || `${item.id}-${v.sizeId}-${v.colorId}`} className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                <div key={`${item.id}-${v.id}`} className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
                   <div className="flex items-center justify-between mb-1.5">
-                    <p className="text-[10px] font-black text-slate-900 dark:text-white truncate">{item.productId}</p>
-                    <span className="text-[9px] font-black">{delivered}/{v.quantity}</span>
+                    <p className="text-[10px] font-black text-slate-900 dark:text-white truncate">{item.productName}</p>
+                    <span className="text-[9px] font-black">{delivered}/{v.quantityOrdered}</span>
                   </div>
                   <div className="flex gap-1 mb-2">
-                    <span className="text-[7px] font-black bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded">T{v.sizeId}</span>
-                    {v.colorId && <span className="text-[7px] font-black bg-brand/10 text-brand px-1.5 py-0.5 rounded">{v.colorId}</span>}
+                    <span className="text-[7px] font-black bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded">{v.size ? `T${v.size}` : 'S/T'}</span>
+                    {v.color && <span className="text-[7px] font-black bg-brand/10 text-brand px-1.5 py-0.5 rounded">{v.color}</span>}
                   </div>
                   <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1 mb-2"><div className={cn('h-1 rounded-full', itemProgress >= 100 ? 'bg-emerald-500' : 'bg-brand')} style={{ width: `${itemProgress}%` }} /></div>
                   {pending > 0 ? (
-                    <button onClick={(e) => { e.stopPropagation(); onDeliver(order.id, item.id || '', v.variationId || '', pending, `${item.productId} T${v.sizeId}`); }} className="w-full py-1.5 bg-brand hover:bg-brand-700 text-white rounded-lg text-[8px] font-black uppercase transition-all active:scale-[0.97]">Entregar</button>
+                    <button onClick={(e) => { e.stopPropagation(); onDeliver(order.id, item.id, v.id, pending, desc); }} className="w-full py-1.5 bg-brand hover:bg-brand-700 text-white rounded-lg text-[8px] font-black uppercase transition-colors transition-transform active:scale-[0.97]">Entregar</button>
                   ) : (
                     <div className="w-full py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 text-center rounded-lg text-[8px] font-black uppercase">Completado ✓</div>
                   )}
@@ -625,7 +640,7 @@ const OrderCard = memo(({ order, onDeliver, onEdit, onOpenRemito, onPrintLabel, 
 OrderCard.displayName = 'OrderCard';
 
 const ActionBtn = ({ icon: Icon, label, onClick, color, primary }: { icon: any; label: string; onClick: (e: { stopPropagation(): void; preventDefault(): void }) => void; color?: string; primary?: boolean }) => (
-  <button onClick={onClick} className={cn('flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[8px] font-black uppercase transition-all active:scale-95', primary ? 'bg-brand text-white hover:bg-brand-700 shadow-md shadow-brand/20' : color === 'indigo' ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 hover:bg-indigo-200' : color === 'amber' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 hover:bg-amber-200' : color === 'emerald' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 hover:bg-emerald-200' : color === 'rose' ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 hover:bg-rose-200' : color === 'brand' ? 'bg-brand/10 text-brand hover:bg-brand/20' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-600')}>
+<button onClick={onClick} className={cn('flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[8px] font-black uppercase transition-colors transition-transform active:scale-95', primary ? 'bg-brand text-white hover:bg-brand-700 shadow-md shadow-brand/20' : color === 'indigo' ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 hover:bg-indigo-200' : color === 'amber' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 hover:bg-amber-200' : color === 'emerald' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 hover:bg-emerald-200' : color === 'rose' ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 hover:bg-rose-200' : color === 'brand' ? 'bg-brand/10 text-brand hover:bg-brand/20' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-600')}>
     <Icon className="w-3 h-3" /> {label}
   </button>
 );
@@ -660,7 +675,7 @@ const KanbanBoard = memo(({ orders, onStatusChange, onOpenDetail }: { orders: Or
             </div>
             <div className="space-y-2">
               {colOrders.map((order) => (
-                <div key={order.id} draggable onDragStart={() => handleDragStart(order.id)} onClick={() => onOpenDetail(order)} className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md transition-all">
+<div key={order.id} draggable onDragStart={() => handleDragStart(order.id)} onClick={() => onOpenDetail(order)} className="bg-white dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md transition-colors">
                   <div className="flex items-center gap-1.5 mb-1">
                     <span className="text-[7px] font-black bg-brand/10 text-brand px-1.5 py-0.5 rounded">{(order.business_unit || '').replace('_', ' ')}</span>
                     {order.priority === 'URGENT' && <Zap className="w-3 h-3 text-rose-500" />}
@@ -710,9 +725,9 @@ const CalendarView = memo(({ orders, onOpenDetail }: { orders: Order[]; onOpenDe
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm">
       <div className="flex items-center justify-between mb-4">
-        <button onClick={prevMonth} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors"><ChevronDown className="w-4 h-4 rotate-90" /></button>
+<button onClick={prevMonth} aria-label="Mes anterior" className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors"><ChevronDown className="w-4 h-4 rotate-90" /></button>
         <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase">{monthName}</h3>
-        <button onClick={nextMonth} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors"><ChevronUp className="w-4 h-4 -rotate-90" /></button>
+        <button onClick={nextMonth} aria-label="Mes siguiente" className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors"><ChevronUp className="w-4 h-4 -rotate-90" /></button>
       </div>
       <div className="grid grid-cols-7 gap-1">
         {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((d) => (
@@ -724,12 +739,12 @@ const CalendarView = memo(({ orders, onOpenDetail }: { orders: Order[]; onOpenDe
           const dayOrders = ordersByDate[dateStr] || [];
           const isToday = new Date().toISOString().substring(0, 10) === dateStr;
           return (
-            <div key={day} className={cn('min-h-[60px] p-1 rounded-xl border transition-all', isToday ? 'border-brand bg-brand/5' : 'border-slate-100 dark:border-slate-700', dayOrders.length > 0 && 'bg-slate-50 dark:bg-slate-900')}>
+<div key={day} className={cn('min-h-[60px] p-1 rounded-xl border transition-colors', isToday ? 'border-brand bg-brand/5' : 'border-slate-100 dark:border-slate-700', dayOrders.length > 0 && 'bg-slate-50 dark:bg-slate-900')}>
               <div className={cn('text-[10px] font-black mb-1', isToday ? 'text-brand' : 'text-slate-600 dark:text-slate-300')}>{day}</div>
               {dayOrders.slice(0, 3).map((o) => (
-                <div key={o.id} onClick={() => onOpenDetail(o)} className={cn('text-[7px] font-bold px-1 py-0.5 rounded mb-0.5 cursor-pointer truncate', STATUS_CONFIG[o.status]?.bg, STATUS_CONFIG[o.status]?.text)}>
+                <button key={o.id} onClick={() => onOpenDetail(o)} className={cn('text-[7px] font-bold px-1 py-0.5 rounded mb-0.5 w-full text-left truncate', STATUS_CONFIG[o.status]?.bg, STATUS_CONFIG[o.status]?.text)}>
                   {o.customer_name}
-                </div>
+                </button>
               ))}
               {dayOrders.length > 3 && <div className="text-[7px] text-slate-400 font-bold">+{dayOrders.length - 3}</div>}
             </div>
@@ -749,6 +764,7 @@ const OrderDetailDrawer = memo(({ order, tab, onTabChange, onClose, onAddNote, o
   const advancePayment = order.advance_payment || 0;
   const debt = totalAmount - advancePayment;
   const statusConfig = STATUS_CONFIG[order.status] || STATUS_CONFIG.PENDING;
+const normItems = useMemo(() => normalizeOrderItems(order.items), [order.items]);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -758,7 +774,7 @@ const OrderDetailDrawer = memo(({ order, tab, onTabChange, onClose, onAddNote, o
         <div className="sticky top-0 z-10 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-black text-slate-900 dark:text-white">{order.customer_name}</h2>
-            <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl"><X className="w-4 h-4" /></button>
+<button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" aria-label="Cerrar detalle"><X className="h-4 w-4" /></button>
           </div>
           <div className="flex items-center gap-2 mt-2">
             <span className={cn('px-2 py-0.5 text-[8px] font-black rounded-md border', statusConfig.bg, statusConfig.text, statusConfig.border)}>{statusConfig.label}</span>
@@ -767,9 +783,9 @@ const OrderDetailDrawer = memo(({ order, tab, onTabChange, onClose, onAddNote, o
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-slate-200 dark:border-slate-700 overflow-x-auto">
+<div className="flex border-b border-slate-200 dark:border-slate-700 overflow-x-auto" role="tablist">
           {(['info', 'activity', 'notes', 'payments', 'photos'] as const).map((t) => (
-            <button key={t} onClick={() => onTabChange(t)} className={cn('px-4 py-2.5 text-[9px] font-black uppercase whitespace-nowrap border-b-2 transition-all', tab === t ? 'border-brand text-brand' : 'border-transparent text-slate-400')}>
+            <button key={t} role="tab" aria-selected={tab === t} onClick={() => onTabChange(t)} className={cn('px-4 py-2.5 text-[9px] font-black uppercase whitespace-nowrap border-b-2 transition-colors', tab === t ? 'border-brand text-brand' : 'border-transparent text-slate-400')}>
               {t === 'info' ? 'Info' : t === 'activity' ? 'Actividad' : t === 'notes' ? `Notas (${order.notes?.length || 0})` : t === 'payments' ? `Pagos (${order.payments?.length || 0})` : `Fotos (${order.photos?.length || 0})`}
             </button>
           ))}
@@ -794,7 +810,7 @@ const OrderDetailDrawer = memo(({ order, tab, onTabChange, onClose, onAddNote, o
                     const cfg = PRIORITY_CONFIG[p];
                     const Icon = cfg.icon;
                     return (
-                      <button key={p} onClick={() => onSetPriority(order.id, p)} className={cn('flex-1 flex items-center justify-center gap-1 py-2 rounded-xl text-[9px] font-black uppercase transition-all', (order.priority || 'NORMAL') === p ? cn(cfg.bg, cfg.text) : 'bg-slate-100 dark:bg-slate-900 text-slate-400')}>
+<button key={p} onClick={() => onSetPriority(order.id, p)} className={cn('flex-1 flex items-center justify-center gap-1 py-2 rounded-xl text-[9px] font-black uppercase transition-colors', (order.priority || 'NORMAL') === p ? cn(cfg.bg, cfg.text) : 'bg-slate-100 dark:bg-slate-900 text-slate-400')}>
                         <Icon className="w-3 h-3" /> {cfg.label}
                       </button>
                     );
@@ -809,7 +825,7 @@ const OrderDetailDrawer = memo(({ order, tab, onTabChange, onClose, onAddNote, o
                   {PRODUCTION_STAGES.map((stage) => {
                     const StageIcon = stage.icon;
                     return (
-                      <button key={stage.key} onClick={() => onSetProductionStage(order.id, stage.key)} className={cn('flex items-center gap-1 px-2.5 py-2 rounded-xl text-[8px] font-black uppercase whitespace-nowrap transition-all', order.production_stage === stage.key ? stage.color : 'bg-slate-100 dark:bg-slate-900 text-slate-400')}>
+<button key={stage.key} onClick={() => onSetProductionStage(order.id, stage.key)} className={cn('flex items-center gap-1 px-2.5 py-2 rounded-xl text-[8px] font-black uppercase whitespace-nowrap transition-colors', order.production_stage === stage.key ? stage.color : 'bg-slate-100 dark:bg-slate-900 text-slate-400')}>
                         <StageIcon className="w-3 h-3" /> {stage.label}
                       </button>
                     );
@@ -826,7 +842,7 @@ const OrderDetailDrawer = memo(({ order, tab, onTabChange, onClose, onAddNote, o
                       const cfg = STATUS_CONFIG[s];
                       const Icon = cfg.icon;
                       return (
-                        <button key={s} onClick={() => onStatusChange(order.id, s)} className={cn('flex-1 flex items-center justify-center gap-1 py-2 rounded-xl text-[9px] font-black uppercase transition-all', order.status === s ? cn(cfg.bg, cfg.text, 'border', cfg.border) : 'bg-slate-100 dark:bg-slate-900 text-slate-400')}>
+<button key={s} onClick={() => onStatusChange(order.id, s)} className={cn('flex-1 flex items-center justify-center gap-1 py-2 rounded-xl text-[9px] font-black uppercase transition-colors', order.status === s ? cn(cfg.bg, cfg.text, 'border', cfg.border) : 'bg-slate-100 dark:bg-slate-900 text-slate-400')}>
                           <Icon className="w-3 h-3" /> {cfg.label}
                         </button>
                       );
@@ -839,18 +855,18 @@ const OrderDetailDrawer = memo(({ order, tab, onTabChange, onClose, onAddNote, o
               <div>
                 <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-2">Items</p>
                 <div className="space-y-2">
-                  {order.items?.map((item) => item.variations?.map((v) => {
-                    const delivered = v.quantityDelivered || 0;
-                    const progress = v.quantity > 0 ? Math.round((delivered / v.quantity) * 100) : 0;
+{normItems.map((item) => item.variations.map((v) => {
+                    const delivered = v.quantityDelivered;
+                    const progress = v.quantityOrdered > 0 ? Math.round((delivered / v.quantityOrdered) * 100) : 0;
                     return (
-                      <div key={v.variationId || `${item.id}-${v.sizeId}`} className="bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
+                      <div key={`${item.id}-${v.id}`} className="bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-700">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-[10px] font-black">{item.productId}</span>
-                          <span className="text-[9px] font-bold">{delivered}/{v.quantity}</span>
+                          <span className="text-[10px] font-black">{item.productName}</span>
+                          <span className="text-[9px] font-bold">{delivered}/{v.quantityOrdered}</span>
                         </div>
                         <div className="flex gap-1 mb-1.5">
-                          <span className="text-[7px] font-black bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded">T{v.sizeId}</span>
-                          {v.colorId && <span className="text-[7px] font-black bg-brand/10 text-brand px-1.5 py-0.5 rounded">{v.colorId}</span>}
+                          <span className="text-[7px] font-black bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded">{v.size ? `T${v.size}` : 'S/T'}</span>
+                          {v.color && <span className="text-[7px] font-black bg-brand/10 text-brand px-1.5 py-0.5 rounded">{v.color}</span>}
                         </div>
                         <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1"><div className={cn('h-1 rounded-full', progress >= 100 ? 'bg-emerald-500' : 'bg-brand')} style={{ width: `${progress}%` }} /></div>
                       </div>
@@ -882,7 +898,7 @@ const OrderDetailDrawer = memo(({ order, tab, onTabChange, onClose, onAddNote, o
 
           {tab === 'notes' && (
             <div className="space-y-2">
-              <button onClick={() => onAddNote(order.id)} className="w-full py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl text-[9px] font-black uppercase text-slate-400 hover:border-brand hover:text-brand transition-all">
+<button onClick={() => onAddNote(order.id)} className="w-full py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl text-[9px] font-black uppercase text-slate-400 hover:border-brand hover:text-brand transition-colors">
                 + Agregar nota
               </button>
               {(!order.notes || order.notes.length === 0) ? (
@@ -900,7 +916,7 @@ const OrderDetailDrawer = memo(({ order, tab, onTabChange, onClose, onAddNote, o
 
           {tab === 'payments' && (
             <div className="space-y-3">
-              <button onClick={() => onAddPayment(order.id)} className="w-full py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl text-[9px] font-black uppercase text-slate-400 hover:border-emerald-500 hover:text-emerald-500 transition-all">
+<button onClick={() => onAddPayment(order.id)} className="w-full py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl text-[9px] font-black uppercase text-slate-400 hover:border-emerald-500 hover:text-emerald-500 transition-colors">
                 + Registrar pago
               </button>
               <div className="grid grid-cols-2 gap-2">
@@ -927,7 +943,7 @@ const OrderDetailDrawer = memo(({ order, tab, onTabChange, onClose, onAddNote, o
 
           {tab === 'photos' && (
             <div className="space-y-3">
-              <button className="w-full py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl text-[9px] font-black uppercase text-slate-400 hover:border-indigo-500 hover:text-indigo-500 transition-all flex items-center justify-center gap-1">
+<button className="w-full py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl text-[9px] font-black uppercase text-slate-400 hover:border-indigo-500 hover:text-indigo-500 transition-colors flex items-center justify-center gap-1">
                 <Upload className="w-3 h-3" /> Subir foto
               </button>
               {(!order.photos || order.photos.length === 0) ? (

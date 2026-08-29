@@ -95,7 +95,7 @@ export const LoginPage = () => {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-slate-900/50 border border-slate-700 text-white px-5 py-4 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all font-bold text-sm"
+              className="w-full bg-slate-900/50 border border-slate-700 text-white px-5 py-4 rounded-2xl focus:border-blue-500 focus-visible:ring-4 focus-visible:ring-blue-500/10 transition-colors transition-shadow font-bold text-sm"
               placeholder="nombre@raices.com"
             />
           </div>
@@ -112,7 +112,7 @@ export const LoginPage = () => {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-slate-900/50 border border-slate-700 text-white px-5 py-4 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all font-bold text-sm"
+              className="w-full bg-slate-900/50 border border-slate-700 text-white px-5 py-4 rounded-2xl focus:border-blue-500 focus-visible:ring-4 focus-visible:ring-blue-500/10 transition-colors transition-shadow font-bold text-sm"
               placeholder="••••••••"
             />
           </div>
@@ -121,12 +121,12 @@ export const LoginPage = () => {
             type="submit" 
             disabled={loading}
             aria-busy={loading}
-            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-[0.25em] text-xs py-5 rounded-2xl transition-all shadow-2xl shadow-blue-600/30 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center mt-8 active:scale-95"
+            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-[0.25em] text-xs py-5 rounded-2xl transition-colors transition-shadow shadow-2xl shadow-blue-600/30 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center mt-8 transition-colors transition-transform active:scale-95"
           >
             {loading ? (
-              <span className="flex items-center gap-2">
+              <span className="flex items-center gap-2" aria-live="polite">
                 <Spinner size="sm" className="text-white" />
-                Validando...
+                Validando…
               </span>
             ) : 'Iniciar Sesión'}
           </button>

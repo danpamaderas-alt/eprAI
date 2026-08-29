@@ -15,6 +15,24 @@ export const formatNumber = (n: number) => n.toLocaleString('es-AR');
 export const formatPercent = (n: number) => `${n.toFixed(1)}%`;
 
 // ─────────────────────────────────────────────
+// NÚMEROS DE REMITO (colisión-proof)
+// ─────────────────────────────────────────────
+
+/**
+ * Genera un número de remito único en la práctica: `0001-{HHMMSS}{2 random}`.
+ * El viejo `Math.random() * 10000` colisionaba (~50% tras ~100 remitos según
+ * paradoja del cumpleaños) y chocaba contra la unicidad de la columna number.
+ */
+export function generateRemitoNumber(): string {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+  const rnd = String(Math.floor(Math.random() * 100)).padStart(2, '0');
+  return `0001-${hh}${mm}${ss}${rnd}`;
+}
+
+// ─────────────────────────────────────────────
 // FECHA Y HORA
 // ─────────────────────────────────────────────
 

@@ -89,7 +89,7 @@ export const NotificationBell = memo(() => {
       >
         <Bell className="w-4 h-4" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-danger-600 text-white text-[8px] font-black flex items-center justify-center">
+          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-danger-600 text-white text-[8px] font-black flex items-center justify-center" aria-label={`${unreadCount} notificaciones sin leer`} role="status">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -109,18 +109,18 @@ export const NotificationBell = memo(() => {
                 <button
                   onClick={markAllAsRead}
                   className="p-1.5 rounded-lg text-slate-400 hover:text-brand-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                  title="Marcar todas como leídas"
+                  aria-label="Marcar todas como leídas"
                 >
-                  <CheckCheck className="w-3.5 h-3.5" />
+                  <CheckCheck className="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
               )}
               {notifications.length > 0 && (
                 <button
                   onClick={clearAll}
                   className="p-1.5 rounded-lg text-slate-400 hover:text-danger-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                  title="Limpiar todo"
+                  aria-label="Limpiar todo"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                 </button>
               )}
             </div>

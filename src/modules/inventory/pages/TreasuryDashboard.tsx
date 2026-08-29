@@ -255,13 +255,13 @@ export const TreasuryDashboard = memo(() => {
           <p className="text-xs text-slate-400 font-medium mt-1 ml-13">Control de flujo de fondos y disponibilidades</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <button onClick={handleExport} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95">
+          <button onClick={handleExport} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors transition-transform active:scale-95">
             <Download className="w-3 h-3" /> CSV
           </button>
-          <button onClick={() => setShowTransfer(true)} className="flex items-center gap-1.5 px-3 py-2 bg-amber-500/10 text-amber-600 rounded-xl text-[10px] font-black uppercase hover:bg-amber-500/20 transition-all active:scale-95">
+          <button onClick={() => setShowTransfer(true)} className="flex items-center gap-1.5 px-3 py-2 bg-amber-500/10 text-amber-600 rounded-xl text-[10px] font-black uppercase hover:bg-amber-500/20 transition-colors transition-transform active:scale-95">
             <ArrowRightLeft className="w-3 h-3" /> Transferir
           </button>
-          <button onClick={() => { resetForm(); setIsFormOpen(true); }} className="flex items-center gap-1.5 px-4 py-2 bg-brand text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-brand/20 hover:shadow-brand/40 transition-all active:scale-95">
+          <button onClick={() => { resetForm(); setIsFormOpen(true); }} className="flex items-center gap-1.5 px-4 py-2 bg-brand text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-brand/20 hover:shadow-brand/40 transition-colors transition-transform active:scale-95">
             <Plus className="w-3 h-3" /> Nuevo Movimiento
           </button>
         </div>
@@ -309,7 +309,7 @@ export const TreasuryDashboard = memo(() => {
           { key: 'overview' as Tab, label: 'Resumen' },
           { key: 'transactions' as Tab, label: 'Movimientos' },
         ].map(tab => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors transition-transform active:scale-95 ${
             activeTab === tab.key ? 'bg-brand text-white shadow-lg shadow-brand/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700'
           }`}>{tab.label}</button>
         ))}
@@ -343,8 +343,8 @@ export const TreasuryDashboard = memo(() => {
               {monthlyTrend.map((m, i) => (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1">
                   <div className="w-full flex gap-0.5 items-end" style={{ height: '120px' }}>
-                    <div className="flex-1 bg-emerald-500 rounded-t-md transition-all" style={{ height: `${(m.income / maxMonthly) * 100}%`, minHeight: m.income > 0 ? '4px' : '0' }} />
-                    <div className="flex-1 bg-red-400 rounded-t-md transition-all" style={{ height: `${(m.expense / maxMonthly) * 100}%`, minHeight: m.expense > 0 ? '4px' : '0' }} />
+                    <div className="flex-1 bg-emerald-500 rounded-t-md transition-colors" style={{ height: `${(m.income / maxMonthly) * 100}%`, minHeight: m.income > 0 ? '4px' : '0' }} />
+                    <div className="flex-1 bg-red-400 rounded-t-md transition-colors" style={{ height: `${(m.expense / maxMonthly) * 100}%`, minHeight: m.expense > 0 ? '4px' : '0' }} />
                   </div>
                   <span className="text-[8px] font-bold text-slate-400 uppercase">{m.label}</span>
                 </div>
@@ -392,11 +392,11 @@ export const TreasuryDashboard = memo(() => {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input type="text" placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all" />
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors" />
               </div>
               <div className="flex gap-1 flex-wrap">
                 {(['today', 'week', 'month', 'year', 'all'] as DateRange[]).map(dr => (
-                  <button key={dr} onClick={() => setDateRange(dr)} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all active:scale-95 ${
+                  <button key={dr} onClick={() => setDateRange(dr)} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-colors transition-transform active:scale-95 ${
                     dateRange === dr ? 'bg-brand text-white' : 'bg-slate-100 dark:bg-slate-900 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
                   }`}>
                     {dr === 'today' ? 'Hoy' : dr === 'week' ? 'Semana' : dr === 'month' ? 'Mes' : dr === 'year' ? 'Año' : 'Todo'}
@@ -404,18 +404,18 @@ export const TreasuryDashboard = memo(() => {
                 ))}
               </div>
               <select value={filterType} onChange={e => setFilterType(e.target.value)}
-                className="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[9px] font-black uppercase text-slate-600 dark:text-slate-300 outline-none">
+                className="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[9px] font-black uppercase text-slate-600 dark:text-slate-300 focus-visible:ring-2 focus-visible:ring-brand-500">
                 <option value="ALL">Todos los tipos</option>
                 <option value="INCOME">Ingresos</option>
                 <option value="EXPENSE">Egresos</option>
               </select>
               <select value={filterAccount} onChange={e => setFilterAccount(e.target.value)}
-                className="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[9px] font-black uppercase text-slate-600 dark:text-slate-300 outline-none">
+                className="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[9px] font-black uppercase text-slate-600 dark:text-slate-300 focus-visible:ring-2 focus-visible:ring-brand-500">
                 <option value="ALL">Todas las cuentas</option>
                 {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m.replace('_', ' ')}</option>)}
               </select>
               <select value={filterBusinessUnit} onChange={e => setFilterBusinessUnit(e.target.value)}
-                className="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[9px] font-black uppercase text-slate-600 dark:text-slate-300 outline-none">
+                className="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-[9px] font-black uppercase text-slate-600 dark:text-slate-300 focus-visible:ring-2 focus-visible:ring-brand-500">
                 <option value="ALL">Todas las unidades</option>
                 {BUSINESS_UNITS.map(b => <option key={b} value={b}>{b.replace('_', ' ')}</option>)}
               </select>
@@ -495,7 +495,7 @@ export const TreasuryDashboard = memo(() => {
                 <div>
                   <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Tipo *</label>
                   <select value={formType} onChange={e => setFormType(e.target.value as 'INCOME' | 'EXPENSE')}
-                    className={`w-full px-3 py-2.5 rounded-xl text-xs font-black uppercase outline-none border transition-all ${
+                    className={`w-full px-3 py-2.5 rounded-xl text-xs font-black uppercase border transition-colors ${
                       formType === 'INCOME' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 border-emerald-200 dark:border-emerald-800' : 'bg-red-50 dark:bg-red-900/20 text-red-600 border-red-200 dark:border-red-800'
                     }`}>
                     <option value="INCOME">INGRESO (+)</option>
@@ -505,33 +505,33 @@ export const TreasuryDashboard = memo(() => {
                 <div>
                   <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Monto *</label>
                   <input type="number" step="0.01" min="0" value={formAmount} onChange={e => setFormAmount(e.target.value)} placeholder="0.00"
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black text-slate-700 dark:text-white outline-none focus:border-brand transition-all" />
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black text-slate-700 dark:text-white focus:border-brand transition-colors" />
                 </div>
               </div>
               <div>
                 <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Descripción *</label>
                 <input type="text" value={formDescription} onChange={e => setFormDescription(e.target.value)} placeholder="Ej: Pago proveedor, Venta online..."
-                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all uppercase" />
+                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors uppercase" />
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Cuenta</label>
                   <select value={formPaymentMethod} onChange={e => setFormPaymentMethod(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase text-slate-700 dark:text-white outline-none focus:border-brand transition-all">
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase text-slate-700 dark:text-white focus:border-brand transition-colors">
                     {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m.replace('_', ' ')}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Unidad</label>
                   <select value={formBusinessUnit} onChange={e => setFormBusinessUnit(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase text-slate-700 dark:text-white outline-none focus:border-brand transition-all">
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase text-slate-700 dark:text-white focus:border-brand transition-colors">
                     {BUSINESS_UNITS.map(b => <option key={b} value={b}>{b.replace('_', ' ')}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Categoría</label>
                   <select value={formCategory} onChange={e => setFormCategory(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase text-slate-700 dark:text-white outline-none focus:border-brand transition-all">
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase text-slate-700 dark:text-white focus:border-brand transition-colors">
                     {(formType === 'INCOME' ? CATEGORIES.INGRESO : CATEGORIES.EGRESO).map(c => <option key={c} value={c}>{c.replace(/_/g, ' ')}</option>)}
                   </select>
                 </div>
@@ -539,13 +539,13 @@ export const TreasuryDashboard = memo(() => {
               <div>
                 <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Notas</label>
                 <textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} placeholder="Observaciones..." rows={2}
-                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all resize-none" />
+                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors resize-none" />
               </div>
             </div>
             <div className="flex gap-2 mt-5">
-              <button onClick={resetForm} className="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 rounded-xl text-xs font-black uppercase text-slate-600 dark:text-slate-300 transition-all hover:bg-slate-200 dark:hover:bg-slate-700">Cancelar</button>
+              <button onClick={resetForm} className="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 rounded-xl text-xs font-black uppercase text-slate-600 dark:text-slate-300 transition-colors hover:bg-slate-200 dark:hover:bg-slate-700">Cancelar</button>
               <button onClick={handleSave} disabled={!formAmount || !formDescription}
-                className="flex-1 bg-brand text-white py-2.5 rounded-xl text-xs font-black uppercase disabled:opacity-40 transition-all active:scale-95 shadow-lg shadow-brand/20">
+                className="flex-1 bg-brand text-white py-2.5 rounded-xl text-xs font-black uppercase disabled:opacity-40 transition-colors transition-transform active:scale-95 shadow-lg shadow-brand/20">
                 <CheckCircle className="w-3 h-3 inline mr-1" /> {editingTx ? 'Actualizar' : 'Registrar'}
               </button>
             </div>
@@ -570,7 +570,7 @@ export const TreasuryDashboard = memo(() => {
                 <div>
                   <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Desde</label>
                   <select value={transferFrom} onChange={e => setTransferFrom(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black uppercase text-slate-700 dark:text-white outline-none">
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black uppercase text-slate-700 dark:text-white focus-visible:ring-2 focus-visible:ring-brand-500">
                     {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m.replace('_', ' ')}</option>)}
                   </select>
                 </div>
@@ -578,7 +578,7 @@ export const TreasuryDashboard = memo(() => {
                 <div>
                   <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Hacia</label>
                   <select value={transferTo} onChange={e => setTransferTo(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black uppercase text-slate-700 dark:text-white outline-none">
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black uppercase text-slate-700 dark:text-white focus-visible:ring-2 focus-visible:ring-brand-500">
                     {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m.replace('_', ' ')}</option>)}
                   </select>
                 </div>
@@ -586,18 +586,18 @@ export const TreasuryDashboard = memo(() => {
               <div>
                 <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Monto *</label>
                 <input type="number" min="0" step="0.01" value={transferAmount} onChange={e => setTransferAmount(e.target.value)} placeholder="0.00"
-                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black text-slate-700 dark:text-white outline-none focus:border-brand transition-all" />
+                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black text-slate-700 dark:text-white focus:border-brand transition-colors" />
               </div>
               <div>
                 <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Descripción</label>
                 <input type="text" value={transferDesc} onChange={e => setTransferDesc(e.target.value)} placeholder="Motivo de la transferencia"
-                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all uppercase" />
+                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors uppercase" />
               </div>
             </div>
             <div className="flex gap-2 mt-5">
               <button onClick={() => setShowTransfer(false)} className="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 rounded-xl text-xs font-black uppercase">Cancelar</button>
               <button onClick={handleTransfer} disabled={!transferAmount || Number(transferAmount) <= 0 || transferFrom === transferTo}
-                className="flex-1 bg-amber-500 text-white py-2.5 rounded-xl text-xs font-black uppercase disabled:opacity-40 transition-all active:scale-95 shadow-lg shadow-amber-500/20">
+                className="flex-1 bg-amber-500 text-white py-2.5 rounded-xl text-xs font-black uppercase disabled:opacity-40 transition-colors transition-transform active:scale-95 shadow-lg shadow-amber-500/20">
                 <ArrowRightLeft className="w-3 h-3 inline mr-1" /> Transferir
               </button>
             </div>

@@ -122,7 +122,7 @@ type SidebarItemProps = NavRoute;
 
 const SidebarItem = memo(({ path, label, icon: Icon, highlight = 'brand', end }: SidebarItemProps) => {
   const getClasses = (isActive: boolean) => {
-    const base = "flex items-center gap-3 px-4 py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2";
+    const base = "flex items-center gap-3 px-4 py-3 rounded-2xl text-[11px] font-bold uppercase tracking-wider transition-colors transition-shadow focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2";
     if (!isActive) return `${base} text-slate-400 hover:bg-slate-800 hover:text-slate-200`;
 
     switch (highlight) {
@@ -268,13 +268,13 @@ export const Sidebar = memo(() => {
                 className="flex items-center gap-1 text-[9px] font-bold text-slate-400 hover:text-white uppercase tracking-widest transition-colors focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
                 title="Editar empresa actual"
               >
-                <Pencil className="w-3 h-3" />
+                <Pencil className="w-3 h-3" aria-hidden="true" />
               </button>
               <button
                 onClick={() => { setEditingCompany(null); setIsCompanyModalOpen(true); }}
                 className="flex items-center gap-1 text-[9px] font-bold text-blue-400 hover:text-blue-300 uppercase tracking-widest transition-colors focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
               >
-                <Plus className="w-3 h-3" />
+                <Plus className="w-3 h-3" aria-hidden="true" />
                 Nueva
               </button>
             </div>
@@ -286,7 +286,7 @@ export const Sidebar = memo(() => {
               setActiveCompany(e.target.value);
               navigate('/');
             }}
-            className="w-full p-2 bg-slate-950 border border-slate-700 text-white font-bold text-xs rounded-xl outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 cursor-pointer transition-colors"
+            className="w-full p-2 bg-slate-950 border border-slate-700 text-white font-bold text-xs rounded-xl focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 cursor-pointer transition-colors"
           >
             {companies.map((c) => (
               <option key={c.id} value={c.id}>
@@ -328,7 +328,7 @@ export const Sidebar = memo(() => {
             onClick={handleSignOut} 
             className="w-full flex justify-center items-center gap-2 py-2.5 bg-slate-950 hover:bg-rose-900/50 text-rose-200 hover:text-rose-400 border border-slate-800 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-colors focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
           >
-            <LogOut className="w-3.5 h-3.5" />
+            <LogOut className="w-3.5 h-3.5" aria-hidden="true" />
             Cerrar Sesión
           </button>
         </div>

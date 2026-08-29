@@ -277,7 +277,7 @@ export const CostCalculator = () => {
               key={key}
               id={`cat-btn-${key}`}
               onClick={() => handleCategoryChange(key)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-colors ${
                 isActive
                   ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
                   : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
@@ -312,7 +312,7 @@ export const CostCalculator = () => {
               value={calcName}
               onChange={e => setCalcName(e.target.value)}
               placeholder={`Ej: ${currentCategory.label} - producto #1`}
-              className="w-full bg-slate-950 border border-slate-700 text-white text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-indigo-500 transition-colors placeholder:text-slate-600"
+              className="w-full bg-slate-950 border border-slate-700 text-white text-sm font-bold rounded-xl px-4 py-3 focus:border-indigo-500 transition-colors placeholder:text-slate-600"
             />
           </div>
 
@@ -328,7 +328,7 @@ export const CostCalculator = () => {
                 id="blank-selector"
                 value={selectedBlankId}
                 onChange={e => handleBlankSelect(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 text-white text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-indigo-500 transition-colors"
+                className="w-full bg-slate-950 border border-slate-700 text-white text-sm font-bold rounded-xl px-4 py-3 focus:border-indigo-500 transition-colors"
               >
                 <option value="">-- Carga manual --</option>
                 {blanks.map(b => (
@@ -366,7 +366,7 @@ export const CostCalculator = () => {
                     value={inputs[v.key] === 0 ? '' : inputs[v.key]}
                     onChange={e => handleInput(v.key, e.target.value)}
                     placeholder="0.00"
-                    className="w-36 bg-slate-950 border border-slate-700 text-white text-sm font-black rounded-xl py-3 pr-4 pl-8 outline-none focus:border-indigo-500 transition-colors text-right"
+                    className="w-36 bg-slate-950 border border-slate-700 text-white text-sm font-black rounded-xl py-3 pr-4 pl-8 focus:border-indigo-500 transition-colors text-right"
                   />
                 </div>
               </div>
@@ -396,7 +396,7 @@ export const CostCalculator = () => {
                     value={inputs[v.key] === 0 && v.key === 'discount' ? '' : inputs[v.key]}
                     onChange={e => handleInput(v.key, e.target.value)}
                     placeholder={v.placeholder}
-                    className="w-36 bg-slate-950 border border-slate-700 text-white text-sm font-black rounded-xl py-3 pr-8 pl-4 outline-none focus:border-indigo-500 transition-colors text-right"
+                    className="w-36 bg-slate-950 border border-slate-700 text-white text-sm font-black rounded-xl py-3 pr-8 pl-4 focus:border-indigo-500 transition-colors text-right"
                   />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm select-none">%</span>
                 </div>

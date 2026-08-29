@@ -509,7 +509,7 @@ export const POSDashboard = () => {
               placeholder="Buscar por nombre, SKU, talle o color... (F2)"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-700 dark:text-white outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 transition-all"
+              className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-700 dark:text-white focus:border-brand focus:ring-2 focus:ring-brand/20 transition-colors"
             />
           </div>
 
@@ -520,7 +520,7 @@ export const POSDashboard = () => {
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
                 className={cn(
-                  'px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all active:scale-95',
+                  'px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-colors transition-transform active:scale-95',
                   selectedCategory === cat
                     ? 'bg-brand text-white shadow-lg shadow-brand/20'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700'
@@ -597,7 +597,7 @@ export const POSDashboard = () => {
                 return (
                   <div
                     key={v.variantId}
-                    className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden hover:border-brand dark:hover:border-brand hover:shadow-lg transition-all group active:scale-[0.98]"
+                    className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden hover:border-brand dark:hover:border-brand hover:shadow-lg transition-colors group transition-transform active:scale-[0.98]"
                   >
                     {/* Color gradient header */}
                     <div className={cn('h-20 bg-gradient-to-br flex items-center justify-center relative', getCategoryGradient(v.category))}>
@@ -629,7 +629,7 @@ export const POSDashboard = () => {
                             {inCart && (
                               <button
                                 onClick={() => updateCartQty(v.variantId, -1)}
-                                className="w-6 h-6 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-danger/20 hover:text-danger transition-colors active:scale-90"
+                                className="w-6 h-6 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-danger/20 hover:text-danger transition-colors transition-transform active:scale-90"
                               >
                                 <Minus className="w-3 h-3" />
                               </button>
@@ -641,7 +641,7 @@ export const POSDashboard = () => {
                               onClick={() => !atMax && addToCart(v)}
                               disabled={!!atMax}
                               className={cn(
-                                'w-6 h-6 rounded-lg flex items-center justify-center transition-all active:scale-90',
+                                'w-6 h-6 rounded-lg flex items-center justify-center transition-colors transition-transform active:scale-90',
                                 atMax
                                   ? 'bg-slate-100 dark:bg-slate-800 text-slate-300 cursor-not-allowed'
                                   : 'bg-brand text-white hover:bg-brand-700 shadow-md shadow-brand/20'
@@ -701,7 +701,7 @@ export const POSDashboard = () => {
                   setShowCustomerDropdown(true);
                 }}
                 onFocus={() => setShowCustomerDropdown(true)}
-                className="w-full pl-9 pr-8 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all"
+                className="w-full pl-9 pr-8 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors"
               />
               {selectedCustomer && (
                 <button
@@ -787,7 +787,7 @@ export const POSDashboard = () => {
                     return 'none';
                   })}
                   className={cn(
-                    'text-[8px] font-black px-2 py-0.5 rounded transition-all uppercase',
+                    'text-[8px] font-black px-2 py-0.5 rounded transition-colors uppercase',
                     discountType === 'none'
                       ? 'bg-slate-200 dark:bg-slate-700 text-slate-500'
                       : 'bg-brand/10 text-brand'
@@ -809,7 +809,7 @@ export const POSDashboard = () => {
                     max={discountType === 'percent' ? 100 : cartTotal}
                     value={discountValue}
                     onChange={e => setDiscountValue(Number(e.target.value))}
-                    className="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-700 dark:text-white outline-none focus:border-brand transition-all"
+                    className="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-700 dark:text-white focus:border-brand transition-colors"
                     placeholder={discountType === 'percent' ? '0-100' : 'Monto'}
                   />
                 </div>
@@ -823,7 +823,7 @@ export const POSDashboard = () => {
             {grandTotal > 0 && activePaymentMethod && remainingBalance > 0.01 && (
               <button
                 onClick={addPayment}
-                className="w-full py-2 rounded-xl border-2 border-dashed border-brand/30 text-brand text-[10px] font-black uppercase tracking-wider hover:bg-brand/5 hover:border-brand/50 transition-all active:scale-[0.97] flex items-center justify-center gap-1.5"
+                className="w-full py-2 rounded-xl border-2 border-dashed border-brand/30 text-brand text-[10px] font-black uppercase tracking-wider hover:bg-brand/5 hover:border-brand/50 transition-colors transition-transform active:scale-[0.97] flex items-center justify-center gap-1.5"
               >
                 <Plus className="w-3 h-3" /> Agregar pago
               </button>
@@ -845,7 +845,7 @@ export const POSDashboard = () => {
                         max={remainingBalance + p.amount}
                         value={p.amount}
                         onChange={e => updatePaymentAmount(i, Number(e.target.value))}
-                        className="w-24 text-right text-[11px] font-bold text-slate-900 dark:text-white bg-transparent outline-none tabular-nums"
+                        className="w-24 text-right text-[11px] font-bold text-slate-900 dark:text-white bg-transparent tabular-nums"
                       />
                       <button
                         onClick={() => removePayment(i)}
@@ -906,7 +906,7 @@ export const POSDashboard = () => {
                 onClick={handleCheckout}
                 disabled={cart.length === 0 || isProcessing}
                 className={cn(
-                  'flex-1 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-all active:scale-[0.97]',
+                  'flex-1 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-colors transition-transform active:scale-[0.97]',
                   cart.length > 0 && !isProcessing
                     ? 'bg-success hover:bg-success-500 text-white shadow-lg shadow-success/20'
                     : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'

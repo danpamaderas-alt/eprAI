@@ -92,9 +92,14 @@ Archivos numerados en `sql/`. Aplicar con Management API (requiere SUPABASE_TOKE
 $env:SUPABASE_TOKEN="sbp_..."; node "$env:TEMP\opencode\apply-migration.cjs" sql\NNN_nombre.sql
 ```
 
-Proyecto Supabase: `gjzvdepevoviygrcdwqj`. Aplicada más reciente: `020_print_jobs_3d.sql`
-(token rotado tras usar: pedir al usuario revocarlo si no lo hizo). Última aplicada con bucket:
-`016_design_storage.sql` (bucket privado `design-images` + políticas para authenticated).
+Proyecto Supabase: `gjzvdepevoviygrcdwqj`. Migraciones aplicadas con token vigente (ago 2026):
+`031_register_delivery_v2.sql`, `032_tenant_isolation_hardening.sql` y
+`033_atomic_stock_ops.sql`. Última aplicada con bucket: `016_design_storage.sql` (bucket
+privado `design-images` + políticas para authenticated). El fix C3 de las views financieras
+(`v_treasury_summary`/`v_customer_balances`) ya estaba aplicado en prod con
+`security_invoker=true` (011), verificada para grupos por company — no reaplicar.
+⚠️ El token `sbp_eeb072bcc77b8c28186f1e6b21274125a151e828` fue usado en el chat: REVOCARLO
+tras esta sesión (regla: tokens pegados en chat quedan comprometidos).
 
 ## Estado del proyecto (agosto 2026)
 
@@ -134,9 +139,94 @@ Mantener las últimas ~10 entradas y podar las viejas.
 - **Deploy = push a main** (CI). Verificar con poll HTTP 200 tras ~75 s. Evitar
   `wrangler dev` local (crashea por libuv en este Windows).
 - **Tokens pegados en chat quedan comprometidos**: recordar al usuario revocar/rotar.
+- **PAT de Supabase = por cuenta**: un sbp_ válido puede listar proyectos (/v1/projects) y aun así dar 403 al ejecutar SQL en el ref del ERP si pertenece a OTRA cuenta. Verificar SIEMPRE que el ref aparezca en /v1/projects y sondear con `select current_database()` + information_schema ANTES de aplicar una migración (un proyecto ajeno puede tener tablas homónimas genéricas como orders/products).
 
 ### Historial reciente
 
+- **2026-08 plan de auditoría post-reconciliación: gate tsc + applyRounding único + UX** —
+  Continuación del plan priorizado tras el merge. (1) **Gate de tipos en build**: `npm run
+  build` ahora corre `tsc --noEmit -p tsconfig.app.json && vite build` (CRÍTICO: el build
+  solo no tipaba y dos regresiones previas pasaron sin ser detectadas). (2) **`applyRounding`
+  único**: `calcShared.tsx` es ahora la fuente única (`case 'hundred'` usa `Math.ceil` y
+  `case '999'` guard `0.999` — semántica "nunca redondear por debajo del total", consistente
+  con las estrategias "Terminar en"). Print3DCalculator importa de ahí y borró sus copias
+  locales (había quedado DUPLICADO al agregar el import — el edit reinsertó el export).
+  (3) **CSV con escaping**: `exportToCSV` en OrdersDashboard ahora escapa `", \n \r` con
+  `""` y antepone BOM `\uFEFF` (nombres de cliente con comas/acentos ya no rompen el .csv en
+  Excel). (4) **UX confirmaciones**: bulk Completar/Cancelar de OrdersDashboard (antes
+  disparaba sobre N seleccionados sin preguntar — un clic accidental cancelaba todo),
+  borrar presupuesto en QuoteDashboard (borraba directo, ahora Swal warning) y borrar tarea
+  en WorkerDashboard (botón "X" sin confirmar; usa shim lazy de Swal). Verificación: tsc
+  limpio, 51 tests OK, build con gate OK; los 16 lint errors (11 `any` OrdersDashboard + 5
+  react-refresh calcShared) son PREEXISTENTES en HEAD (no tocar, regla #7). Lecciones:
+  cuando un archivo ya importa un helper, "borrar copia local" requiere releer el rango
+  exacto — un solo edit de bloque pegó el export duplicado; y ESLint corre bien SOLO con
+  archivos del repo (un .tsx fuera de la raíz pierde la config y da falsos "0 errors").
+- **2026-08 reconciliación checkout anidado → Padre (merge 3 vías en 4 archivos)** — Dos
+  checkouts del mismo HEAD `45671f9` (main) divergieron; se consolidó todo el trabajo del
+  checkout anidado en el Padre. `useOrderStore.ts`: merge de 6 zonas (retiene
+  `registerPartialDelivery` con `DeliveryTarget[]` + RPC `register_delivery_v2` del Padre y
+  `bulkChangeStatus` async del anidado). `OrdersDashboard.tsx`: 33 zonas resueltas — lógica
+  PADRE (`normalizeOrderItems`/`itemsTotals`/LabelOrder, tablas/estados/kanban/calendario)
+  + UX/a11y ANIDADO (aria-labels, role/tabIndex/onKeyDown, tablist, `transition-colors`
+  en vez de `transition-all`); se rescató el botón de cierre del drawer reemplazando un
+  `prevMonth` pegado por error en el header. `RemitosDashboard.tsx`: 23 zonas resueltas —
+  PADRE = `normalizeOrderItems` + mapas SISA/COLOR en `handleLinkToOrder` + deps
+  `[orders, sizes, colors]`; ANIDADO = eliminar `generateRemitoNumber` local (usar el
+  compartido de `shared/utils/format`), `transition-colors/transition-transform`,
+  `focus-visible:ring-2` para selects y drop de `outline-none` en inputs.
+  `database.types.ts`: 3 zonas en unión aditiva (Padre `register_delivery_v2` + anidado
+  `adjust_blank_stock`, `consume_filament_grams`). Verificación: 0 marcadores en src/,
+  `tsc --noEmit` limpio, 51 tests, build OK; los 11 `any` de OrdersDashboard son
+  PREEXISTENTES (verificados idénticos en HEAD, regla #7 no tocar). Lección: para merges
+  grandes leer el archivo en chunks (el read completo se trunca a ~2000 líneas) y aplicar
+  edits por zona con contexto suficiente y `&=`/`|` exacto del contenido real leído.
+- **2026-08 migraciones 031/032/033 APLICADAS a prod** — Con SUPABASE_TOKEN vigente
+  (`sbp_eeb072...151e828`) se aplicaron las 3 migraciones que estaban pendientes:
+  (1) **032 hardening tenants**: policies de storage design-images/print-files ahora exigen
+  `storage.foldername(name)[1] = user_company_id()` (antes cualquier authenticated podía
+  leer/escribir archivos de otra empresa), companies SELECT restringido a propia+admin
+  (`auth_can_read_own_company`), CHECK de remitos ampliado con PARTIAL/PENDING;
+  (2) **031 register_delivery_v2**: entregas parciales que PERSISTEN cantidades dentro del
+  JSONB orders.items (la RPC vieja no guardaba quantityDelivered); (3) **033 RPCs atómicas**
+  `consume_filament_grams` + `adjust_blank_stock` con lock de fila en SQL (elimina TOCTOU del
+  cliente). Verificación: las 3 RPCs existen con grants a anon/authenticated,
+  `user_company_id()` mantiene EXECUTE (no se rompió RLS, lección 025), policies de storage
+  correctas, CHECK de remitos nuevo. NOTA: el fix C3 de las views `v_treasury_summary`/
+  `v_customer_balances` ya estaba en prod con `security_invoker=true` (011) — no se tocó.
+  ⚠️ TOKEN COMPROMETIDO (pegado en chat): revocar/rotar.
+- **2026-08 auditoría con agentes: hardening multi-tenant + fixes críticos** — Auditoría
+  de 3 agentes (stores+types, SQL/RLS, módulos nuevos) destapó: **C1** 10 stores SIN
+  tenant-reset (useCatalogStore, useCrmStore, useInventoryStore, useFinanceStore,
+  usePrintModelStore, useProductionStore, useResellerStore, useWorkerStore,
+  useRawMaterialStore, useSupplierStore) — se agregó `useTenantStore.subscribe` con reset
+  de datos al cambiar empresa; **C2** buckets storage sin aislamiento por tenant —
+  migración `032_tenant_isolation_hardening.sql` (PENDIENTE de aplicar: sin
+  SUPABASE_TOKEN) añade `storage.foldername(name)[1] = user_company_id()` a las 8
+  políticas de design-images/print-files + restringe companies SELECT a propia+admin
+  (C4) + amplía CHECK de remitos.status con PARTIAL/PENDING (C3, defensivo para la RPC
+  nueva). **Código**: `completed_at` ahora se setea al completar trabajos 3D/subli (antes
+  quedaba NULL para siempre), deleteJob/deleteTransaction/updateTransaction/resolvePayment
+  llevan guard de company_id (defense-in-depth), useProductionStore filtraba por
+  'COMPLETED' inexistente (ahora DELIVERED — los entregados entraban como "en
+  producción"), bulkChangeStatus es async secuencial (antes updates paralelos sin await
+  con rollback inconsistente), y `generateRemitoNumber` compartido en format.ts
+  (`0001-HHMMSSrr`) reemplaza el `Math.random()*10000` que colisionaba (~50% a los 100
+  remitos) en RemitosDashboard + 2 stores de producción. **Además (misma auditoría):**
+  `consumeGrams` (filamentos) y `adjustStock` (blanks) pasaron de read-modify-write
+  client-side (TOCTOU: dos completados simultáneos perdían un descuento) a RPC atómica
+  SQL `consume_filament_grams`/`adjust_blank_stock` con lock de fila y fallback a la
+  lógica vieja si la RPC no existe (migración `033_atomic_stock_ops.sql` PENDIENTE);
+  `process_pos_sale_atomic` ahora escribe `total` Y `total_amount` (antes solo
+  `total_amount`; las filas POS quedaban con `total` NULL para los reportes);
+  `database.types.ts` tipó las 2 RPC nuevas a mano. Lección: el agente SQL audit
+  citó `sql/031_register_delivery_v2.sql` que NO existe en el repo (solo en AGENTS.md como
+  PENDIENTE) — verificar archivos reales antes de confiar en informes de agentes.
+  Verificación: build + 37 tests + tsc--noEmit limpios.
+
+### Historial reciente previo
+
+- **2026-08 pedidos: entregas parciales que no persistían (fix ítems 1+2 de auditoría)** — El JSONB `orders.items` tenía DOS formas en producción (canónica de OrderForm con `id/productName/quantityOrdered` y legacy con `productId/quantity`) y casi todos los lectores leían claves que no existían: el dashboard mostraba NaN/false "Completado ✓", la etiqueta imprimía `undefined`, y la RPC vieja `register_partial_delivery` solo seteaba `status='PARCIAL'` SIN guardar `quantityDelivered` (las entregas se perdían al recargar). Fix: (1) nuevo `orders/utils/orderItems.ts` — normalizador único (+14 tests en `src/orderItems.test.ts`, suite en 51) con `normalizeOrderItems/serializeOrderItems/itemsTotals/deriveStatus/applyDeliveriesToItems`; ids sintéticos estables para filas legacy (`item.id || productId || item-N`, variación usa `variationId` si existe); (2) store reescrito: `registerPartialDelivery(orderId, deliveries[])` llama RPC nueva `register_delivery_v2` (sql/031 PENDIENTE: no había SUPABASE_TOKEN) y hace FALLBACK a lectura fresca + UN solo UPDATE calculado client-side si la función no existe (`PGRST202/404/42883`); el log de actividad lo escribe ahora la misma transacción (antes se duplicaba con addActivityLog aparte); (3) OrdersDashboard (tarjeta+drawer+etiqueta) y RemitosDashboard (`handleLinkToOrder` resuelve nombres size/color contra catálogo) consumen el normalizador. Lecciones: los valores de un `Map(id → name)` son strings — `.get(x)?.name` da undefined silenciosamente; escribir el test ANTES del consumidor cazó dos decisiones de diseño del normalizador (fallback de id por productId, variación legacy ya tiene id estable).
 - **2026-08 clientes: campo "Es proveedor"** — Nuevo bool separado `customers.is_supplier`
   (migración `030_customer_is_supplier.sql` APLICADA; `database.types.ts` actualizado).
   Se marca en el alta (`ClientFormModal`), en la edición (`CustomerCRM` edit modal) y se
@@ -184,6 +274,10 @@ Mantener las últimas ~10 entradas y podar las viejas.
   Botón "A Producción" en `SublimationDesignDetailModal` crea el trabajo y navega a
   `/produccion-sublimacion` (ruta + entrada de sidebar con icono Factory, título en
   DashboardLayout). Tabla tipada a mano en database.types.ts.
+- **2026-08 filamentos: costo del rollo visible** — Revisión a fondo del sector filamentos.
+  `FilamentCard` pasó de 2 a 3 celdas de datos: ahora muestra **"Costo rollo"** (peso del rollo ×
+  costo/g) además de $/kg y $/g (spoolCost en FilamentCard.tsx); el CSV de FilamentsPage agrega
+  la columna "Costo rollo". tsc limpio. (Sugerencia #4 del informe de filamentos.)
 - **2026-08 seed de colores PLA en stock 0** — Migración `027_seed_pla_colors.sql` (APLICADA,
   idempotente: no re-inserta si ya hay >=12 PLA en MI EMPRESA): 12 colores PLA Generica
   Negro/Blanco/Rojo/Azul/Verde/Amarillo/Naranja/Violeta/Rosa/Celeste/Gris/Marron a

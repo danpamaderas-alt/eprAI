@@ -30,7 +30,7 @@ export const SublimationDesignCard = memo(function SublimationDesignCard({
   const imgSrc = useImageSrc(design.imagen);
 
   return (
-    <article className="group bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-fuchsia-500/10 hover:border-fuchsia-400/40 dark:hover:border-fuchsia-500/40 transition-all duration-300 overflow-hidden flex flex-col">
+    <article className="group bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-fuchsia-500/10 hover:border-fuchsia-400/40 dark:hover:border-fuchsia-500/40 transition-colors duration-300 overflow-hidden flex flex-col">
       {/* Imagen / placeholder */}
       <button
         type="button"

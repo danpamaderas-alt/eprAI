@@ -6,6 +6,11 @@
   --font-sans: 'Outfit', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 }
 
+/* Tipografía base más grande: Tailwind usa rem, así que todo escala desde acá */
+html {
+  font-size: 17px;
+}
+
 /* =========================================
    REGLAS MAESTRAS DE IMPRESIÓN PARA ERP
    ========================================= */

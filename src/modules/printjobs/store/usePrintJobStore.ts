@@ -3,7 +3,7 @@ import { supabase } from '../../../lib/supabase';
 import { useTenantStore } from '../../../store/useTenantStore';
 import { useFilamentStore } from '../../filaments/store/useFilamentStore';
 import type { Json } from '../../../shared/types/database.types';
-import { hoursToTime } from '../../../shared/utils/format';
+import { hoursToTime, generateRemitoNumber } from '../../../shared/utils/format';
 import type { PrintJob3D, PrintJob3DInput, PrintJob3DStatus, PrintJob3DUpdate } from '../types';
 
 interface CompleteJobData {
@@ -127,6 +127,7 @@ export const usePrintJobStore = create<PrintJobState>((set) => ({
 
     await usePrintJobStore.getState().updateJob(id, {
       status: 'completado',
+      completed_at: new Date().toISOString(),
       actual_weight_g: data.actual_weight_g,
       actual_time_h: data.actual_time_h,
       actual_notes: data.actual_notes ?? null,
@@ -190,7 +191,7 @@ export const usePrintJobStore = create<PrintJobState>((set) => ({
     if (saleError) throw saleError;
 
     // 2. Generar el remito con el detalle de impresión
-    const remitoNumber = `0001-${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`;
+    const remitoNumber = generateRemitoNumber();
     const { data: remitoRow, error: remitoError } = await supabase
       .from('remitos')
       .insert({
@@ -230,7 +231,9 @@ export const usePrintJobStore = create<PrintJobState>((set) => ({
   },
 
   deleteJob: async (id) => {
-    const { error } = await supabase.from('print_jobs_3d').delete().eq('id', id);
+    const companyId = useTenantStore.getState().activeCompanyId;
+    if (!companyId) throw new Error('No hay compañía activa.');
+    const { error } = await supabase.from('print_jobs_3d').delete().eq('id', id).eq('company_id', companyId);
     if (error) throw error;
 
     set((state) => ({

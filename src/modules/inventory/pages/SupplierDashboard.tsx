@@ -240,10 +240,10 @@ export const SupplierDashboard = memo(() => {
           <p className="text-xs text-slate-400 font-medium mt-1 ml-13">Directorio B2B y cuentas por pagar</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => { setDebtForm(EMPTY_DEBT_FORM); setShowNewDebt(true); }} className="flex items-center gap-1.5 px-3 py-2 bg-amber-500/10 text-amber-600 rounded-xl text-[10px] font-black uppercase hover:bg-amber-500/20 transition-all active:scale-95">
+          <button onClick={() => { setDebtForm(EMPTY_DEBT_FORM); setShowNewDebt(true); }} className="flex items-center gap-1.5 px-3 py-2 bg-amber-500/10 text-amber-600 rounded-xl text-[10px] font-black uppercase hover:bg-amber-500/20 transition-colors transition-transform active:scale-95">
             <DollarSign className="w-3 h-3" /> Nueva Deuda
           </button>
-          <button onClick={() => { setSupplierForm(EMPTY_SUPPLIER_FORM); setShowNewSupplier(true); }} className="flex items-center gap-1.5 px-4 py-2 bg-brand text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-brand/20 hover:shadow-brand/40 transition-all active:scale-95">
+          <button onClick={() => { setSupplierForm(EMPTY_SUPPLIER_FORM); setShowNewSupplier(true); }} className="flex items-center gap-1.5 px-4 py-2 bg-brand text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-brand/20 hover:shadow-brand/40 transition-colors transition-transform active:scale-95">
             <Plus className="w-3 h-3" /> Nuevo Proveedor
           </button>
         </div>
@@ -273,7 +273,7 @@ export const SupplierDashboard = memo(() => {
           { key: 'all' as Tab, label: 'Directorio' },
           { key: 'debts' as Tab, label: `Deudas (${stats.pendingDebts})`, warn: stats.overdueDebts > 0 },
         ].map(tab => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors transition-transform active:scale-95 ${
             activeTab === tab.key
               ? tab.warn ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'bg-brand text-white shadow-lg shadow-brand/20'
               : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700'
@@ -290,7 +290,7 @@ export const SupplierDashboard = memo(() => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input type="text" placeholder="Buscar por nombre, contacto, teléfono, email o categoría..." value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all" />
+            className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors" />
         </div>
       )}
 
@@ -313,7 +313,7 @@ export const SupplierDashboard = memo(() => {
               const supplierDebts = debtsBySupplier.get(supplier.id) || [];
               const pendingAmount = supplierDebts.filter(d => d.status !== 'PAGADA').reduce((sum, d) => sum + ((d.amount || 0) - (d.paid_amount || 0)), 0);
               return (
-                <div key={supplier.id} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all overflow-hidden">
+                <div key={supplier.id} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-colors overflow-hidden">
                   <div className="p-5">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
@@ -474,19 +474,19 @@ export const SupplierDashboard = memo(() => {
                 <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Razón Social *</label>
                 <input type="text" value={supplierForm.name} onChange={e => setSupplierForm({ ...supplierForm, name: e.target.value })}
                   placeholder="Ej: Textil San Juan S.A."
-                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all uppercase" />
+                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors uppercase" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Contacto</label>
                   <input type="text" value={supplierForm.contact_person} onChange={e => setSupplierForm({ ...supplierForm, contact_person: e.target.value })}
                     placeholder="Ej: Carlos López"
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all" />
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors" />
                 </div>
                 <div>
                   <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Categoría</label>
                   <select value={supplierForm.category} onChange={e => setSupplierForm({ ...supplierForm, category: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all">
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors">
                     <option value="">Sin categoría</option>
                     {SUPPLIER_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
@@ -497,32 +497,32 @@ export const SupplierDashboard = memo(() => {
                   <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Teléfono</label>
                   <input type="text" value={supplierForm.phone} onChange={e => setSupplierForm({ ...supplierForm, phone: e.target.value })}
                     placeholder="+54 9 11 1234-5678"
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all" />
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors" />
                 </div>
                 <div>
                   <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Email</label>
                   <input type="email" value={supplierForm.email} onChange={e => setSupplierForm({ ...supplierForm, email: e.target.value })}
                     placeholder="contacto@proveedor.com"
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all" />
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors" />
                 </div>
               </div>
               <div>
                 <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Dirección</label>
                 <input type="text" value={supplierForm.address} onChange={e => setSupplierForm({ ...supplierForm, address: e.target.value })}
                   placeholder="Opcional"
-                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all" />
+                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors" />
               </div>
               <div>
                 <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Notas</label>
                 <textarea value={supplierForm.notes} onChange={e => setSupplierForm({ ...supplierForm, notes: e.target.value })}
                   placeholder="Observaciones..." rows={2}
-                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all resize-none" />
+                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors resize-none" />
               </div>
             </div>
             <div className="flex gap-2 mt-5">
-              <button onClick={() => { setShowNewSupplier(false); setEditSupplier(null); }} className="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 rounded-xl text-xs font-black uppercase text-slate-600 dark:text-slate-300 transition-all hover:bg-slate-200 dark:hover:bg-slate-700">Cancelar</button>
+              <button onClick={() => { setShowNewSupplier(false); setEditSupplier(null); }} className="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 rounded-xl text-xs font-black uppercase text-slate-600 dark:text-slate-300 transition-colors hover:bg-slate-200 dark:hover:bg-slate-700">Cancelar</button>
               <button onClick={editSupplier ? handleEditSupplier : handleCreateSupplier} disabled={!supplierForm.name.trim()}
-                className="flex-1 bg-brand text-white py-2.5 rounded-xl text-xs font-black uppercase disabled:opacity-40 transition-all active:scale-95 shadow-lg shadow-brand/20">
+                className="flex-1 bg-brand text-white py-2.5 rounded-xl text-xs font-black uppercase disabled:opacity-40 transition-colors transition-transform active:scale-95 shadow-lg shadow-brand/20">
                 <Save className="w-3 h-3 inline mr-1" /> {editSupplier ? 'Guardar' : 'Registrar'}
               </button>
             </div>
@@ -544,7 +544,7 @@ export const SupplierDashboard = memo(() => {
               <div>
                 <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Proveedor</label>
                 <select value={debtForm.supplier_id} onChange={e => setDebtForm({ ...debtForm, supplier_id: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all">
+                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors">
                   <option value="">Sin proveedor</option>
                   {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
@@ -553,30 +553,30 @@ export const SupplierDashboard = memo(() => {
                 <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Descripción *</label>
                 <input type="text" value={debtForm.description} onChange={e => setDebtForm({ ...debtForm, description: e.target.value })}
                   placeholder="Ej: Compra de telgado lote #45"
-                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all" />
+                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Monto Total *</label>
                   <input type="number" min="0" value={debtForm.amount} onChange={e => setDebtForm({ ...debtForm, amount: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all" />
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors" />
                 </div>
                 <div>
                   <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Ya Pagado</label>
                   <input type="number" min="0" value={debtForm.paid_amount} onChange={e => setDebtForm({ ...debtForm, paid_amount: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all" />
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Vencimiento *</label>
                   <input type="date" value={debtForm.due_date} onChange={e => setDebtForm({ ...debtForm, due_date: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all" />
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors" />
                 </div>
                 <div>
                   <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Estado</label>
                   <select value={debtForm.status} onChange={e => setDebtForm({ ...debtForm, status: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all">
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors">
                     {DEBT_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
@@ -585,7 +585,7 @@ export const SupplierDashboard = memo(() => {
             <div className="flex gap-2 mt-5">
               <button onClick={() => setShowNewDebt(false)} className="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 rounded-xl text-xs font-black uppercase">Cancelar</button>
               <button onClick={handleCreateDebt} disabled={!debtForm.description.trim() || !debtForm.amount || !debtForm.due_date}
-                className="flex-1 bg-brand text-white py-2.5 rounded-xl text-xs font-black uppercase disabled:opacity-40 transition-all active:scale-95 shadow-lg shadow-brand/20">
+                className="flex-1 bg-brand text-white py-2.5 rounded-xl text-xs font-black uppercase disabled:opacity-40 transition-colors transition-transform active:scale-95 shadow-lg shadow-brand/20">
                 <DollarSign className="w-3 h-3 inline mr-1" /> Registrar
               </button>
             </div>

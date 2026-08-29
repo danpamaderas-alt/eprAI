@@ -102,7 +102,7 @@ export const ClientFormModal = memo(
                 <input
                   id="modal-name"
                   ref={nameInputRef}
-                  className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500"
                   placeholder="EJ: JUAN PEREZ"
                   value={formData.name}
                   onChange={(e) =>
@@ -120,7 +120,7 @@ export const ClientFormModal = memo(
                 </label>
                 <select
                   id="modal-type"
-                  className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white outline-none"
+                  className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white focus-visible:ring-2 focus-visible:ring-brand-500"
                   value={formData.type}
                   onChange={(e) =>
                     setFormData({ ...formData, type: e.target.value })
@@ -139,7 +139,7 @@ export const ClientFormModal = memo(
                     Telefono
                   </label>
                   <input
-                    className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white outline-none"
+                    className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white focus-visible:ring-2 focus-visible:ring-brand-500"
                     placeholder="TELEFONO"
                     value={formData.phone}
                     onChange={(e) =>
@@ -152,7 +152,7 @@ export const ClientFormModal = memo(
                     CUIT/DNI
                   </label>
                   <input
-                    className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white outline-none"
+                    className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white focus-visible:ring-2 focus-visible:ring-brand-500"
                     placeholder="CUIT / DNI"
                     value={formData.cuit}
                     onChange={(e) =>
@@ -167,7 +167,7 @@ export const ClientFormModal = memo(
                 </label>
                 <input
                   type="email"
-                  className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white outline-none"
+                  className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white focus-visible:ring-2 focus-visible:ring-brand-500"
                   placeholder="EMAIL"
                   value={formData.email}
                   onChange={(e) =>
@@ -180,7 +180,7 @@ export const ClientFormModal = memo(
                   Direccion
                 </label>
                 <input
-                  className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white outline-none"
+                  className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white focus-visible:ring-2 focus-visible:ring-brand-500"
                   placeholder="DIRECCION"
                   value={formData.address}
                   onChange={(e) =>
@@ -204,7 +204,7 @@ export const ClientFormModal = memo(
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full bg-blue-600 text-white p-5 rounded-2xl font-black uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 active:scale-95 transition-all disabled:opacity-50"
+                className="w-full bg-blue-600 text-white p-5 rounded-2xl font-black uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 active:scale-95 transition-colors transition-transform disabled:opacity-50"
               >
                 {isSubmitting ? "Guardando..." : "Guardar Cliente"}
               </button>

@@ -4,10 +4,11 @@ import { useCatalogStore } from '../../../store/useCatalogStore';
 import { useTenantStore } from '../../../store/useTenantStore';
 import { useCrmStore } from '../../crm/store/useCrmStore';
 import { useOrderStore } from '../store/useOrderStore';
+import { normalizeOrderItems } from '../utils/orderItems';
+import { ARS, generateRemitoNumber } from '../../../shared/utils/format';
 import type { Database } from '../../../shared/types/database.types';
 
 type RemitoJson = Database['public']['Tables']['remitos']['Insert']['items'];
-import { ARS } from '../../../shared/utils/format';
 import { cn } from '../../../shared/utils/cn';
 import { ErrorBoundary } from '../../../shared/components/ui/ErrorBoundary';
 import {
@@ -96,10 +97,6 @@ function fromDb(row: RemitoRow): Remito {
   };
 }
 
-function generateRemitoNumber(): string {
-  const seq = String(Math.floor(Math.random() * 9999)).padStart(4, '0');
-  return `0001-${seq}`;
-}
 
 // ========== MAIN COMPONENT ==========
 const RemitosContent = memo(() => {
@@ -302,21 +299,30 @@ const RemitosContent = memo(() => {
     if (!order) return;
     setCliente(order.customer_name);
     setLinkedOrderId(orderId);
+// Resolución de nombres: las filas nuevas traen size/color como texto;
+    // filas viejas pueden traer solo IDs → resolver contra el catálogo.
+    const sizeNames = new Map(sizes.map(s => [s.id, s.name]));
+    const colorNames = new Map(colors.map(c => [c.id, c.name]));
     const orderItems: PedidoItem[] = [];
-    order.items?.forEach(item => {
+    normalizeOrderItems(order.items).forEach(item => {
       item.variations.forEach(v => {
+        const sizeLabel = sizeNames.get(v.size) ?? v.size;
+        const colorLabel = colorNames.get(v.color) ?? v.color;
+        const detailParts: string[] = [];
+        if (sizeLabel) detailParts.push(`SISA: ${sizeLabel}`);
+        if (colorLabel) detailParts.push(`COLOR: ${colorLabel}`);
         orderItems.push({
           id: crypto.randomUUID(),
-          qtyOrdered: v.quantity,
-          qtyDelivered: v.quantityDelivered || 0,
-          description: item.productId || '',
-          details: `T${v.sizeId}${v.colorId ? ` / ${v.colorId}` : ''}`,
+          qtyOrdered: v.quantityOrdered,
+          qtyDelivered: v.quantityDelivered,
+          description: item.productName,
+          details: detailParts.join(' | '),
           unitPrice: 0,
         });
       });
     });
     if (orderItems.length > 0) setItems(orderItems);
-  }, [orders]);
+  }, [orders, sizes, colors]);
 
   // ===== Share/Print =====
   const handlePrint = useCallback(() => window.print(), []);
@@ -389,7 +395,7 @@ const RemitosContent = memo(() => {
           <p className="text-xs text-slate-400 font-medium mt-1 ml-13">Generador y gestor de remitos</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setActiveView(activeView === 'editor' ? 'history' : 'editor')} className={cn('flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all active:scale-95', activeView === 'history' ? 'bg-brand text-white shadow-lg shadow-brand/20' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300')}>
+<button onClick={() => setActiveView(activeView === 'editor' ? 'history' : 'editor')} className={cn('flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-[10px] uppercase transition-colors transition-transform active:scale-95', activeView === 'history' ? 'bg-brand text-white shadow-lg shadow-brand/20' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300')}>
             {activeView === 'editor' ? <><Archive className="w-4 h-4" /> Historial</> : <><Edit3 className="w-4 h-4" /> Editor</>}
           </button>
         </div>
@@ -409,24 +415,24 @@ const RemitosContent = memo(() => {
                 <span className="text-[8px] font-bold text-slate-400">{new Date().toLocaleDateString('es-AR')}</span>
               </div>
               <div className="flex gap-1.5">
-                <button onClick={handleSaveRemito} disabled={items.length === 0} className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-brand text-white rounded-xl text-[9px] font-black uppercase transition-all active:scale-95 disabled:opacity-40">
+<button onClick={handleSaveRemito} disabled={items.length === 0} className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-brand text-white rounded-xl text-[9px] font-black uppercase transition-colors transition-transform active:scale-95 disabled:opacity-40">
                   <Save className="w-3 h-3" /> Guardar
                 </button>
-                <button onClick={handlePrint} disabled={items.length === 0} className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-[9px] font-black uppercase transition-all active:scale-95 disabled:opacity-40">
+                <button onClick={handlePrint} disabled={items.length === 0} className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-[9px] font-black uppercase transition-colors transition-transform active:scale-95 disabled:opacity-40">
                   <Printer className="w-3 h-3" /> Imprimir
                 </button>
-                <button onClick={handleWhatsAppShare} disabled={items.length === 0} className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-emerald-600 text-white rounded-xl text-[9px] font-black uppercase transition-all active:scale-95 disabled:opacity-40">
+                <button onClick={handleWhatsAppShare} disabled={items.length === 0} className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-emerald-600 text-white rounded-xl text-[9px] font-black uppercase transition-colors transition-transform active:scale-95 disabled:opacity-40">
                   <MessageCircle className="w-3 h-3" /> WPP
                 </button>
               </div>
               <div className="flex gap-1.5 mt-2">
-                <button onClick={handleEmailShare} disabled={!cliente} className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-xl text-[9px] font-black uppercase transition-all active:scale-95 disabled:opacity-40">
+<button onClick={handleEmailShare} disabled={!cliente} className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-xl text-[9px] font-black uppercase transition-colors transition-transform active:scale-95 disabled:opacity-40">
                   <Mail className="w-3 h-3" /> Email
                 </button>
-                <button onClick={handleExportPDF} disabled={items.length === 0} className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-amber-100 dark:bg-amber-900/30 text-amber-600 rounded-xl text-[9px] font-black uppercase transition-all active:scale-95 disabled:opacity-40">
+                <button onClick={handleExportPDF} disabled={items.length === 0} className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-amber-100 dark:bg-amber-900/30 text-amber-600 rounded-xl text-[9px] font-black uppercase transition-colors transition-transform active:scale-95 disabled:opacity-40">
                   <Download className="w-3 h-3" /> PDF
                 </button>
-                <button onClick={handleClearEditor} className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-xl text-[9px] font-black uppercase transition-all active:scale-95">
+                <button onClick={handleClearEditor} className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-rose-100 dark:bg-rose-900/30 text-rose-600 rounded-xl text-[9px] font-black uppercase transition-colors transition-transform active:scale-95">
                   <Trash2 className="w-3 h-3" /> Limpiar
                 </button>
               </div>
@@ -442,7 +448,7 @@ const RemitosContent = memo(() => {
                 <select
                   value={linkedOrderId}
                   onChange={(e) => handleLinkToOrder(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all"
+className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors"
                 >
                   <option value="">Sin vincular</option>
                   {orders.filter(o => o.status !== 'DELIVERED' && o.status !== 'CANCELLED').map(o => (
@@ -457,7 +463,7 @@ const RemitosContent = memo(() => {
                   <User className="w-3 h-3" /> Cliente
                 </label>
                 <input type="text" value={cliente} onChange={(e) => setCliente(e.target.value)} placeholder="Seleccionar de CRM..." list="clientes-list"
-                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all uppercase" />
+className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors uppercase" />
                 <datalist id="clientes-list">
                   {balances.map(c => <option key={c.id} value={c.name} />)}
                 </datalist>
@@ -470,12 +476,12 @@ const RemitosContent = memo(() => {
                     <MapPin className="w-3 h-3" /> Destino
                   </label>
                   <input type="text" value={domicilio} onChange={(e) => setDomicilio(e.target.value)} placeholder="Ej. Taller..."
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all uppercase" />
+className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors uppercase" />
                 </div>
                 <div>
                   <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1.5 block">Teléfono</label>
                   <input type="text" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="Para WhatsApp..."
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all" />
+className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors" />
                 </div>
               </div>
 
@@ -484,7 +490,7 @@ const RemitosContent = memo(() => {
                 <div>
                   <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1.5 block">Estado</label>
                   <select value={estadoOperacion} onChange={(e) => setEstadoOperacion(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all uppercase">
+className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors uppercase">
                     {OPERACION_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                   </select>
                 </div>
@@ -496,8 +502,8 @@ const RemitosContent = memo(() => {
                       { value: 'PENDING' as const, label: 'Saldos', color: 'rose' },
                       { value: 'VALUED' as const, label: 'Valorado', color: 'emerald' },
                     ]).map(({ value, label, color }) => (
-                      <button key={value} onClick={() => setViewType(value)} className={cn(
-                        'flex-1 py-2 rounded-xl text-[9px] font-black uppercase transition-all',
+<button key={value} onClick={() => setViewType(value)} className={cn(
+                        'flex-1 py-2 rounded-xl text-[9px] font-black uppercase transition-colors',
                         viewType === value
                           ? color === 'blue' ? 'bg-blue-600 text-white' : color === 'rose' ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'
                           : 'bg-slate-100 dark:bg-slate-900 text-slate-400',
@@ -514,18 +520,18 @@ const RemitosContent = memo(() => {
                 <h3 className="text-[9px] font-black uppercase text-brand tracking-widest mb-2">Agregar Prenda</h3>
                 <div className="space-y-2">
                   <select value={quickProductId} onChange={(e) => handleQuickProductSelect(e.target.value)}
-                    className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-brand/20 rounded-lg text-xs font-medium dark:text-white outline-none focus:border-brand">
+className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-brand/20 rounded-lg text-xs font-medium dark:text-white focus:border-brand">
                     <option value="">-- Catálogo --</option>
                     {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
                   <div className="grid grid-cols-2 gap-2">
                     <select value={quickSize} onChange={(e) => handleQuickSizeSelect(e.target.value)}
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-brand/20 rounded-lg text-xs font-medium dark:text-white outline-none focus:border-brand">
+className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-brand/20 rounded-lg text-xs font-medium dark:text-white focus:border-brand">
                       <option value="">-- Sisa --</option>
                       {sizes.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
                     </select>
                     <select value={quickColor} onChange={(e) => handleQuickColorSelect(e.target.value)}
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-brand/20 rounded-lg text-xs font-medium dark:text-white outline-none focus:border-brand">
+className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-brand/20 rounded-lg text-xs font-medium dark:text-white focus:border-brand">
                       <option value="">-- Color --</option>
                       {colors.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                     </select>
@@ -549,17 +555,17 @@ const RemitosContent = memo(() => {
                         onChange={(e) => setNewItem({ ...newItem, unitPrice: parseFloat(e.target.value) || 0 })}
                         className="w-full px-2 py-1.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold dark:text-white text-right" />
                     </div>
-                    <button type="submit" disabled={!newItem.description} className="self-end px-3 py-1.5 bg-brand text-white rounded-lg text-xs font-black disabled:opacity-40 transition-all active:scale-95">
+<button type="submit" disabled={!newItem.description} className="self-end px-3 py-1.5 bg-brand text-white rounded-lg text-xs font-black disabled:opacity-40 transition-colors transition-transform active:scale-95">
                       <Plus className="w-4 h-4" />
                     </button>
                   </form>
                   <div className="flex gap-2">
                     <input type="text" placeholder="Artículo..." value={newItem.description}
                       onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-                      className="flex-1 px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold dark:text-white uppercase outline-none focus:border-brand" />
+className="flex-1 px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold dark:text-white uppercase focus:border-brand" />
                     <input type="text" placeholder="Detalles..." value={newItem.details}
                       onChange={(e) => setNewItem({ ...newItem, details: e.target.value })}
-                      className="flex-1 px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium dark:text-white uppercase outline-none focus:border-brand" />
+                      className="flex-1 px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-medium dark:text-white uppercase focus:border-brand" />
                   </div>
                 </div>
               </div>
@@ -568,7 +574,7 @@ const RemitosContent = memo(() => {
               <div>
                 <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1.5 block">Notas</label>
                 <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Observaciones..." rows={2}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all resize-none" />
+className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors resize-none" />
               </div>
 
               {/* Items List */}
@@ -790,15 +796,15 @@ const RemitosContent = memo(() => {
             <div className="flex flex-col lg:flex-row gap-3">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input type="text" placeholder="Buscar por cliente o número..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all" />
+<input type="text" placeholder="Buscar por cliente o número..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors" />
               </div>
               <div className="flex gap-1">
                 {(['ALL', 'DRAFT', 'SENT', 'DELIVERED', 'CANCELLED'] as const).map((status) => {
                   const cfg = status === 'ALL' ? null : REMITO_STATUSES[status];
                   return (
-                    <button key={status} onClick={() => setStatusFilter(status)} className={cn(
-                      'px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all',
+<button key={status} onClick={() => setStatusFilter(status)} className={cn(
+                      'px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-colors',
                       statusFilter === status ? (status === 'ALL' ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900' : cn(cfg?.bg, cfg?.text)) : 'bg-slate-100 dark:bg-slate-900 text-slate-400',
                     )}>
                       {status === 'ALL' ? 'Todos' : cfg?.label}
@@ -821,7 +827,7 @@ const RemitosContent = memo(() => {
                 const cfg = REMITO_STATUSES[remito.status];
                 const Icon = cfg.icon;
                 return (
-                  <div key={remito.id} className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm hover:shadow-md transition-all">
+<div key={remito.id} className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm hover:shadow-md transition-colors">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0', cfg.bg)}>
@@ -845,8 +851,8 @@ const RemitosContent = memo(() => {
                           <button onClick={() => handleDuplicateRemito(remito)} className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Duplicar">
                             <Copy className="w-4 h-4" />
                           </button>
-                          <select value={remito.status} onChange={(e) => handleUpdateRemitoStatus(remito.id, e.target.value as Remito['status'])}
-                            className="text-[8px] font-black uppercase bg-slate-100 dark:bg-slate-700 rounded-lg px-2 py-1 border-0 outline-none cursor-pointer">
+<select value={remito.status} onChange={(e) => handleUpdateRemitoStatus(remito.id, e.target.value as Remito['status'])}
+                            className="text-[8px] font-black uppercase bg-slate-100 dark:bg-slate-700 rounded-lg px-2 py-1 border-0 focus-visible:ring-2 focus-visible:ring-brand-500 cursor-pointer">
                             {Object.entries(REMITO_STATUSES).map(([key, val]) => <option key={key} value={key}>{val.label}</option>)}
                           </select>
                           <button onClick={() => handleDeleteRemito(remito.id)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors" title="Eliminar">

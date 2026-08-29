@@ -78,3 +78,9 @@ export const useWorkerStore = create<WorkerStore>((set, get) => ({
     await get().fetchWorkersData();
   }
 }));
+
+useTenantStore.subscribe((state, prev) => {
+  if (state.activeCompanyId !== prev.activeCompanyId) {
+    useWorkerStore.setState({ workers: [], tasks: [], isLoading: false });
+  }
+});

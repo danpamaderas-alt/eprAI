@@ -291,3 +291,20 @@ export const useCatalogStore = create<CatalogState>((set, get) => ({
     return mappedData;
   }
 }));
+
+useTenantStore.subscribe((state, prev) => {
+  if (state.activeCompanyId !== prev.activeCompanyId) {
+    useCatalogStore.setState({
+      sizes: [],
+      colors: [],
+      paymentMethods: [],
+      businessUnits: [],
+      products: [],
+      customers: [],
+      personalizationTypes: [],
+      inventory: [],
+      services: [],
+      isLoading: false,
+    });
+  }
+});

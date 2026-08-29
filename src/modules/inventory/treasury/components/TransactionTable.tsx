@@ -185,11 +185,11 @@ export const TransactionTable = ({ data, onDelete, onUpdateStatus }: Transaction
               Total pendiente: <strong className="text-lg font-black tabular-nums">{ARS.format(resolveModal.amount)}</strong>
             </div>
             <FormField label="Monto de la operacion ($)">
-              <input type="number" step="0.01" max={resolveModal.amount} {...resolveForm.register("amount", { valueAsNumber: true })} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-black text-lg outline-none focus:ring-2 focus:ring-blue-500 dark:text-white" />
+              <input type="number" step="0.01" max={resolveModal.amount} {...resolveForm.register("amount", { valueAsNumber: true })} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-black text-lg focus:ring-2 focus:ring-blue-500 dark:text-white" />
               {resolveForm.formState.errors.amount && <p className="text-rose-500 text-[10px] font-bold mt-1">{resolveForm.formState.errors.amount.message}</p>}
             </FormField>
             <FormField label="Destino / Origen">
-              <select {...resolveForm.register("method")} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold outline-none focus:ring-2 focus:ring-blue-500 dark:text-white">
+              <select {...resolveForm.register("method")} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold focus:ring-2 focus:ring-blue-500 dark:text-white">
                 <option value="EFECTIVO">EFECTIVO</option>
                 <option value="MERCADO_PAGO">MERCADO PAGO</option>
                 <option value="BANCO">BANCO / TRANSF.</option>

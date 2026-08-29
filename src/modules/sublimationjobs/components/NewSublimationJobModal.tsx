@@ -86,7 +86,7 @@ export const NewSublimationJobModal = ({ onClose }: Props) => {
             <select
               value={designId}
               onChange={(e) => setDesignId(e.target.value)}
-              className="mt-1 w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white focus:border-fuchsia-500 focus:outline-none"
+              className="mt-1 w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white focus:border-fuchsia-500 "
             >
               <option value="">Seleccioná un diseño…</option>
               {designs.map((d) => (
@@ -108,7 +108,7 @@ export const NewSublimationJobModal = ({ onClose }: Props) => {
           <label className="block">
             <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Producto base (blank)</span>
             <select value={blankId} onChange={(e) => setBlankId(e.target.value)}
-              className="mt-1 w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white focus:border-fuchsia-500 focus:outline-none">
+              className="mt-1 w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white focus:border-fuchsia-500 ">
               <option value="">Sin asignar</option>
               {blanks.map((b) => (
                 <option key={b.id} value={b.id}>
@@ -124,13 +124,13 @@ export const NewSublimationJobModal = ({ onClose }: Props) => {
               <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Cantidad</span>
               <input type="number" min={1} value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
-                className="mt-1 w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white tabular-nums focus:border-fuchsia-500 focus:outline-none" />
+                className="mt-1 w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white tabular-nums focus:border-fuchsia-500 " />
             </label>
             <label className="block">
               <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Precio venta est. ($)</span>
               <input type="number" min={0} step="100" placeholder="Opcional" value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                className="mt-1 w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white placeholder:text-slate-600 tabular-nums focus:border-violet-500 focus:outline-none" />
+                className="mt-1 w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white placeholder:text-slate-600 tabular-nums focus:border-violet-500 " />
             </label>
           </div>
         </div>

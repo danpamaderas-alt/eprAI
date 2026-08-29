@@ -259,7 +259,7 @@ export const PrintJobsPage = () => {
           <button
             key={s}
             onClick={() => setStatusFilter(s)}
-            className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase whitespace-nowrap transition-all ${
+            className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase whitespace-nowrap transition-colors ${
               statusFilter === s
                 ? 'bg-orange-600 text-white shadow-lg shadow-orange-600/25'
                 : 'bg-slate-800 text-slate-500 hover:bg-slate-700 hover:text-white'

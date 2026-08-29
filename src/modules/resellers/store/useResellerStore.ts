@@ -106,3 +106,9 @@ export const useResellerStore = create<ResellerState>((set) => ({
     set((state) => ({ transactions: [saved, ...state.transactions] }));
   }
 }));
+
+useTenantStore.subscribe((state, prev) => {
+  if (state.activeCompanyId !== prev.activeCompanyId) {
+    useResellerStore.setState({ resellers: [], transactions: [], isLoading: false });
+  }
+});

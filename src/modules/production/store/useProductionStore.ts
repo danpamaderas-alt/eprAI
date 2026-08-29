@@ -15,12 +15,12 @@ export const useProductionStore = create<ProductionStore>((set) => ({
     set({ isLoading: true });
     const tenantId = useTenantStore.getState().activeCompanyId;
     
-    // Solo traemos pedidos que NO estén completados ni cancelados
+    // Solo traemos pedidos que NO estén entregados ni cancelados
     const { data, error } = await supabase
       .from('orders')
       .select('id, status, customer_name, items')
       .eq('company_id', tenantId)
-      .neq('status', 'COMPLETED')
+      .neq('status', 'DELIVERED')
       .neq('status', 'CANCELLED');
 
     if (!error && data) {
@@ -31,3 +31,9 @@ export const useProductionStore = create<ProductionStore>((set) => ({
     }
   }
 }));
+
+useTenantStore.subscribe((state, prev) => {
+  if (state.activeCompanyId !== prev.activeCompanyId) {
+    useProductionStore.setState({ activeOrders: [], isLoading: false });
+  }
+});

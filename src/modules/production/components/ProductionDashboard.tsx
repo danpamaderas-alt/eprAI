@@ -209,19 +209,19 @@ export const ProductionDashboard = () => {
         <div className="flex flex-wrap gap-2 w-full md:w-auto">
           <button 
             onClick={handleToggleAll} 
-            className="flex-1 md:flex-none bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 px-4 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-sm transition-all flex justify-center items-center gap-2"
+            className="flex-1 md:flex-none bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 px-4 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-sm transition-colors flex justify-center items-center gap-2"
           >
             {isAllSelected ? '☐ Desmarcar Todo' : '☑ Seleccionar Todo'}
           </button>
           <button 
             onClick={handleSendWhatsApp} 
-            className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-emerald-500/20 transition-all flex justify-center items-center gap-2"
+            className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-emerald-500/20 transition-colors flex justify-center items-center gap-2"
           >
             📱 Enviar ({selectedIds.length})
           </button>
           <button 
             onClick={handlePrintPDF} 
-            className="flex-1 md:flex-none bg-slate-800 hover:bg-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 text-white px-4 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg transition-all flex justify-center items-center gap-2"
+            className="flex-1 md:flex-none bg-slate-800 hover:bg-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 text-white px-4 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg transition-colors flex justify-center items-center gap-2"
           >
             📄 PDF ({selectedIds.length})
           </button>
@@ -248,7 +248,7 @@ export const ProductionDashboard = () => {
               return (
               <div 
                 key={item.id} 
-                className={`bg-white dark:bg-slate-900 border-2 p-6 rounded-[2.5rem] relative flex flex-col h-full transition-all 
+                className={`bg-white dark:bg-slate-900 border-2 p-6 rounded-[2.5rem] relative flex flex-col h-full transition-colors 
                   ${isSelected ? 'shadow-2xl shadow-blue-500/10 scale-[1.02] border-blue-400 dark:border-blue-500' : `${state.border} opacity-80 hover:opacity-100 hover:scale-[1.01]`}`}
               >
                 
@@ -326,7 +326,7 @@ export const ProductionDashboard = () => {
                   ) : (
                     <button 
                       onClick={(e) => { e.stopPropagation(); openDerivationModal(item); }}
-                      className="w-full py-3 bg-slate-100 dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-600 font-black rounded-xl uppercase tracking-widest text-[10px] transition-all flex items-center justify-center gap-2"
+                      className="w-full py-3 bg-slate-100 dark:bg-slate-800 hover:bg-blue-600 hover:text-white text-blue-600 font-black rounded-xl uppercase tracking-widest text-[10px] transition-colors flex items-center justify-center gap-2"
                     >
                       🚚 Derivar / Anotar Pedido
                     </button>
@@ -357,11 +357,11 @@ export const ProductionDashboard = () => {
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-[10px] font-black uppercase text-slate-400 mb-2">Destino / Proveedor *</label>
-                <input type="text" placeholder="Ej: Taller Central, Proveedor Piqué, etc." value={derivationForm.supplier} onChange={(e) => setDerivationForm({...derivationForm, supplier: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl p-3 focus:border-blue-500 outline-none transition-all text-sm font-bold" autoFocus />
+                <input type="text" placeholder="Ej: Taller Central, Proveedor Piqué, etc." value={derivationForm.supplier} onChange={(e) => setDerivationForm({...derivationForm, supplier: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl p-3 focus:border-blue-500 transition-colors text-sm font-bold" autoFocus />
               </div>
               <div>
                 <label className="block text-[10px] font-black uppercase text-slate-400 mb-2">Notas / Detalles Adicionales</label>
-                <textarea placeholder="Ej: Falta llevar hilo al tono, comprar etiquetas..." value={derivationForm.notes} onChange={(e) => setDerivationForm({...derivationForm, notes: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl p-3 focus:border-blue-500 outline-none transition-all text-sm h-24 resize-none" />
+                <textarea placeholder="Ej: Falta llevar hilo al tono, comprar etiquetas..." value={derivationForm.notes} onChange={(e) => setDerivationForm({...derivationForm, notes: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl p-3 focus:border-blue-500 transition-colors text-sm h-24 resize-none" />
               </div>
 
               <div className="pt-4 flex gap-3">
@@ -370,7 +370,7 @@ export const ProductionDashboard = () => {
                        🗑️ Borrar
                      </button>
                 )}
-                <button onClick={handleSaveDerivation} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-500/30 transition-all active:scale-95">
+                <button onClick={handleSaveDerivation} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-blue-500/30 transition-colors transition-transform active:scale-95">
                   💾 Guardar Estado
                 </button>
               </div>

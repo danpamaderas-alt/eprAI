@@ -50,7 +50,7 @@ export function ToastContainer() {
               type="button"
               onClick={() => dismiss(t.id)}
               aria-label="Descartar notificación"
-              className="shrink-0 p-1 rounded-xl hover:bg-white/20 transition-all focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2"
+              className="shrink-0 p-1 rounded-xl hover:bg-white/20 transition-colors focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2"
             >
               <X className="w-3 h-3" aria-hidden="true" />
             </button>

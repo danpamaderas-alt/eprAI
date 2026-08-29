@@ -128,26 +128,26 @@ export const StockHistory = () => {
             placeholder="Buscar por artículo o SKU..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-12 pr-4 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-black tracking-widest uppercase outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-900 dark:text-white shadow-sm"
+            className="w-full pl-12 pr-4 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-black tracking-widest uppercase focus:ring-2 focus:ring-blue-500 transition-colors text-slate-900 dark:text-white shadow-sm"
           />
         </div>
 
         <div className="flex bg-white dark:bg-slate-900 p-1 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-x-auto">
           <button
             onClick={() => setFilterType("ALL")}
-            className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${filterType === "ALL" ? "bg-slate-900 text-white dark:bg-blue-600" : "text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"}`}
+            className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-colors whitespace-nowrap ${filterType === "ALL" ? "bg-slate-900 text-white dark:bg-blue-600" : "text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"}`}
           >
             Todos
           </button>
           <button
             onClick={() => setFilterType("IN")}
-            className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-1 whitespace-nowrap ${filterType === "IN" ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20" : "text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"}`}
+            className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-1 whitespace-nowrap ${filterType === "IN" ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20" : "text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"}`}
           >
             <ArrowDownRight size={14} /> Ingresos
           </button>
           <button
             onClick={() => setFilterType("OUT")}
-            className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-1 whitespace-nowrap ${filterType === "OUT" ? "bg-rose-500 text-white shadow-md shadow-rose-500/20" : "text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"}`}
+            className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-1 whitespace-nowrap ${filterType === "OUT" ? "bg-rose-500 text-white shadow-md shadow-rose-500/20" : "text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"}`}
           >
             <ArrowUpRight size={14} /> Egresos
           </button>

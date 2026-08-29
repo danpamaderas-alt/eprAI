@@ -271,7 +271,7 @@ export const SublimationDesignDetailModal = memo(function SublimationDesignDetai
             <button
               type="button"
               onClick={() => onOpenMockup(design)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-widest transition-colors"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600/10 hover:bg-emerald-600/20 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-widest transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
             >
               <Share2 className="w-3.5 h-3.5" aria-hidden="true" />
               Mockup
@@ -281,7 +281,7 @@ export const SublimationDesignDetailModal = memo(function SublimationDesignDetai
             <button
               type="button"
               onClick={() => onOpenStudio(design)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-fuchsia-600/10 hover:bg-fuchsia-600/20 border border-fuchsia-500/30 text-fuchsia-600 dark:text-fuchsia-400 text-[10px] font-black uppercase tracking-widest transition-colors"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-fuchsia-600/10 hover:bg-fuchsia-600/20 border border-fuchsia-500/30 text-fuchsia-600 dark:text-fuchsia-400 text-[10px] font-black uppercase tracking-widest transition-colors focus-visible:ring-2 focus-visible:ring-fuchsia-500 focus-visible:ring-offset-2"
             >
               <Wand2 className="w-3.5 h-3.5" aria-hidden="true" />
               Estudio
@@ -290,7 +290,7 @@ export const SublimationDesignDetailModal = memo(function SublimationDesignDetai
           <button
             type="button"
             onClick={() => void handleToProduction()}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 border border-fuchsia-500 text-white text-[10px] font-black uppercase tracking-widest transition-colors"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 border border-fuchsia-500 text-white text-[10px] font-black uppercase tracking-widest transition-colors focus-visible:ring-2 focus-visible:ring-fuchsia-500 focus-visible:ring-offset-2"
           >
             <Shirt className="w-3.5 h-3.5" aria-hidden="true" />
             A Producción
@@ -298,7 +298,7 @@ export const SublimationDesignDetailModal = memo(function SublimationDesignDetai
           <button
             type="button"
             onClick={() => onEdit(design)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest transition-colors"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest transition-colors focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2"
           >
             <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
             Editar

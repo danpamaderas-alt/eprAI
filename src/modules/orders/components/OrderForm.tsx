@@ -260,7 +260,7 @@ export const OrderForm = memo(
 
     return (
       <>
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-40 flex justify-end">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-40 flex justify-end" style={{ overscrollBehavior: 'contain' }}>
           <div className="w-full max-w-2xl bg-white dark:bg-slate-900 h-full overflow-y-auto animate-in slide-in-from-right duration-300 shadow-2xl flex flex-col">
             <header className="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center sticky top-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md z-20">
               <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter italic">
@@ -269,7 +269,8 @@ export const OrderForm = memo(
               <button
                 type="button"
                 onClick={onClose}
-                className="p-2 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 rounded-full transition-all font-black"
+                aria-label="Cerrar formulario"
+                className="p-2 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 rounded-full transition-colors font-black"
               >
                 ✕
               </button>
@@ -281,22 +282,24 @@ export const OrderForm = memo(
             >
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">
+                  <label htmlFor="order-due-date" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">
                     Entrega Prometida
                   </label>
                   <input
+                    id="order-due-date"
                     type="date"
                     {...register("dueDate")}
-                    className="w-full p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white font-bold outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">
+                  <label htmlFor="order-business-unit" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">
                     Unidad
                   </label>
                   <select
+                    id="order-business-unit"
                     {...register("businessUnit")}
-                    className="w-full p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white font-bold outline-none"
+                    className="w-full p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white font-bold focus-visible:ring-2 focus-visible:ring-blue-500"
                   >
                     <option value="ROJO_SHOWROOM">ROJO SHOWROOM</option>
                     <option value="RAICES">RAÍCES</option>
@@ -307,13 +310,14 @@ export const OrderForm = memo(
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">
+                <label htmlFor="order-customer" className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">
                   Cliente / Organización
                 </label>
                 <select
+                  id="order-customer"
                   value={selectedClientId}
                   onChange={(e) => setSelectedClientId(e.target.value)}
-                  className="w-full p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white font-bold outline-none"
+                  className="w-full p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white font-bold focus-visible:ring-2 focus-visible:ring-blue-500"
                 >
                   <option value="CONSUMIDOR_FINAL">👤 CONSUMIDOR FINAL</option>
                   {(balances || []).map((c: CustomerBalance) => (
@@ -328,23 +332,25 @@ export const OrderForm = memo(
 
               <div className="grid grid-cols-2 gap-4 bg-emerald-50 dark:bg-emerald-900/10 p-6 rounded-3xl border border-emerald-100 dark:border-emerald-900/30">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-emerald-600 tracking-widest">
+                  <label htmlFor="order-total" className="text-[10px] font-black uppercase text-emerald-600 tracking-widest">
                     Total $
                   </label>
                   <input
+                    id="order-total"
                     type="number"
                     {...register("totalAmount")}
-                    className="w-full p-4 rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900 text-emerald-900 dark:text-white font-black text-xl outline-none"
+                    className="w-full p-4 rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900 text-emerald-900 dark:text-white font-black text-xl focus-visible:ring-2 focus-visible:ring-emerald-500"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-emerald-600 tracking-widest">
+                  <label htmlFor="order-advance" className="text-[10px] font-black uppercase text-emerald-600 tracking-widest">
                     Seña $
                   </label>
                   <input
+                    id="order-advance"
                     type="number"
                     {...register("advancePayment")}
-                    className="w-full p-4 rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900 text-emerald-900 dark:text-white font-black text-xl outline-none"
+                    className="w-full p-4 rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900 text-emerald-900 dark:text-white font-black text-xl focus-visible:ring-2 focus-visible:ring-emerald-500"
                   />
                 </div>
               </div>
@@ -372,6 +378,7 @@ export const OrderForm = memo(
                       <button
                         type="button"
                         onClick={() => remove(i)}
+                        aria-label={`Eliminar ${watchItems[i]?.productName || 'prenda'}`}
                         className="absolute top-4 right-4 text-slate-300 hover:text-rose-500 transition-colors"
                       >
                         ✕
@@ -382,7 +389,7 @@ export const OrderForm = memo(
                       <button
                         type="button"
                         onClick={() => setActiveMatrixIndex(i)}
-                        className="w-full mt-4 py-3 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl text-[10px] font-black text-slate-400 hover:border-blue-500 hover:text-blue-500 transition-all uppercase tracking-widest"
+                        className="w-full mt-4 py-3 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl text-[10px] font-black text-slate-400 hover:border-blue-500 hover:text-blue-500 transition-colors uppercase tracking-widest"
                       >
                         {watchItems[i]?.variations?.length > 0
                           ? "📦 EDITAR CANTIDADES"
@@ -399,7 +406,7 @@ export const OrderForm = memo(
                 type="submit"
                 onClick={handleSubmit(onSubmit)}
                 disabled={isSubmitting}
-                className="w-full py-5 bg-blue-600 hover:bg-blue-500 text-white rounded-3xl font-black text-sm uppercase tracking-[0.2em] shadow-xl shadow-blue-500/20 active:scale-95 transition-all"
+                className="w-full py-5 bg-blue-600 hover:bg-blue-500 text-white rounded-3xl font-black text-sm uppercase tracking-[0.2em] shadow-xl shadow-blue-500/20 active:scale-95 transition-colors transition-transform transition-shadow"
               >
                 {isSubmitting ? "GUARDANDO..." : "CONFIRMAR HOJA DE RUTA"}
               </button>

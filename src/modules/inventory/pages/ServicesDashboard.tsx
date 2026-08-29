@@ -116,7 +116,7 @@ const ServicesContent = memo(() => {
         <button
           type="button"
           onClick={openCreate}
-          className="px-8 py-4 bg-slate-900 dark:bg-blue-600 hover:bg-black dark:hover:bg-blue-500 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl transition-all active:scale-95"
+          className="px-8 py-4 bg-slate-900 dark:bg-blue-600 hover:bg-black dark:hover:bg-blue-500 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl transition-colors transition-transform active:scale-95"
         >
           + NUEVO SERVICIO
         </button>
@@ -131,7 +131,7 @@ const ServicesContent = memo(() => {
           placeholder="BUSCAR SERVICIO..."
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
-          className="w-full pl-14 pr-4 py-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-2xl shadow-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all font-black text-xs uppercase tracking-widest"
+          className="w-full pl-14 pr-4 py-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-2xl shadow-sm focus:ring-2 focus:ring-blue-500 transition-colors font-black text-xs uppercase tracking-widest"
         />
       </div>
 
@@ -143,12 +143,12 @@ const ServicesContent = memo(() => {
           </div>
         ) : (
           filteredServices.map(service => (
-            <div key={service.id} className="bg-white dark:bg-slate-800 p-8 rounded-[3rem] border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-xl hover:border-blue-500/30 transition-all group flex flex-col h-full relative overflow-hidden">
+            <div key={service.id} className="bg-white dark:bg-slate-800 p-8 rounded-[3rem] border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-xl hover:border-blue-500/30 transition-colors group flex flex-col h-full relative overflow-hidden">
               <div className="flex justify-between items-start mb-6">
                 <span className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[9px] font-black px-3 py-1 rounded-lg uppercase tracking-widest border border-blue-100 dark:border-blue-800">Servicio B2B</span>
                 <div className="flex gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button type="button" onClick={() => openEdit(service)} className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-blue-500 transition-all" aria-label="Editar">✏️</button>
-                  <button type="button" onClick={() => handleDelete(service.id)} className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 transition-all" aria-label="Eliminar">🗑️</button>
+                  <button type="button" onClick={() => openEdit(service)} className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-blue-500 transition-colors" aria-label="Editar">✏️</button>
+                  <button type="button" onClick={() => handleDelete(service.id)} className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-700 text-slate-400 hover:text-rose-500 transition-colors" aria-label="Eliminar">🗑️</button>
                 </div>
               </div>
 
@@ -187,7 +187,7 @@ const ServicesContent = memo(() => {
           <input
             value={formName}
             onChange={e => setFormName(e.target.value)}
-            className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
+            className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold focus:ring-2 focus:ring-blue-500 dark:text-white"
             placeholder="Ej: LOGÍSTICA CABA"
             required
           />
@@ -197,7 +197,7 @@ const ServicesContent = memo(() => {
             type="number"
             value={formPrice}
             onChange={e => setFormPrice(e.target.value)}
-            className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-emerald-500 font-black outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
+            className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-emerald-500 font-black focus:ring-2 focus:ring-blue-500 dark:text-white"
             placeholder="0"
             required
           />
@@ -206,7 +206,7 @@ const ServicesContent = memo(() => {
           <textarea
             value={formDesc}
             onChange={e => setFormDesc(e.target.value)}
-            className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
+            className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm focus:ring-2 focus:ring-blue-500 dark:text-white"
             rows={3}
             placeholder="Detalles del alcance..."
           />
@@ -224,7 +224,7 @@ const ServicesContent = memo(() => {
           <input
             value={formName}
             onChange={e => setFormName(e.target.value)}
-            className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
+            className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold focus:ring-2 focus:ring-blue-500 dark:text-white"
             required
           />
         </FormField>
@@ -233,7 +233,7 @@ const ServicesContent = memo(() => {
             type="number"
             value={formPrice}
             onChange={e => setFormPrice(e.target.value)}
-            className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-blue-600 font-black outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
+            className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-blue-600 font-black focus:ring-2 focus:ring-blue-500 dark:text-white"
             required
           />
         </FormField>
@@ -241,7 +241,7 @@ const ServicesContent = memo(() => {
           <textarea
             value={formDesc}
             onChange={e => setFormDesc(e.target.value)}
-            className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
+            className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sm focus:ring-2 focus:ring-blue-500 dark:text-white"
             rows={3}
           />
         </FormField>

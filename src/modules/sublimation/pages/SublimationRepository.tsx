@@ -180,7 +180,7 @@ const [mockupDesign, setMockupDesign] = useState<SublimationDesign | null>(null)
               toast('CSV generado', { type: 'success' });
             }}
             disabled={filtered.length === 0}
-            className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 text-[10px] font-black uppercase tracking-widest transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <FileDown className="w-3.5 h-3.5" aria-hidden="true" />
             CSV
@@ -201,7 +201,7 @@ const [mockupDesign, setMockupDesign] = useState<SublimationDesign | null>(null)
               }
             }}
             disabled={filtered.length === 0 || isExportingPDF}
-            className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-300 hover:text-fuchsia-600 dark:hover:text-fuchsia-400 text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-300 hover:text-fuchsia-600 dark:hover:text-fuchsia-400 text-[10px] font-black uppercase tracking-widest transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {isExportingPDF ? (
               <Spinner className="w-3.5 h-3.5 text-fuchsia-500" />
@@ -216,7 +216,7 @@ const [mockupDesign, setMockupDesign] = useState<SublimationDesign | null>(null)
               setStudioDesign(null);
               setIsStudioOpen(true);
             }}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-slate-900 hover:bg-slate-700 dark:bg-fuchsia-600 dark:hover:bg-fuchsia-500 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-slate-900/20 dark:shadow-fuchsia-600/30 transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-fuchsia-500"
+            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-slate-900 hover:bg-slate-700 dark:bg-fuchsia-600 dark:hover:bg-fuchsia-500 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-slate-900/20 dark:shadow-fuchsia-600/30 transition-colors transition-transform active:scale-95 focus-visible:ring-2 focus-visible:ring-fuchsia-500"
           >
             <Wand2 className="w-4 h-4" aria-hidden="true" />
             Estudio IA
@@ -224,7 +224,7 @@ const [mockupDesign, setMockupDesign] = useState<SublimationDesign | null>(null)
           <button
             type="button"
             onClick={handleOpenForm}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-fuchsia-600/30 transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-fuchsia-500 focus-visible:ring-offset-2"
+            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-fuchsia-600/30 transition-colors transition-transform active:scale-95 focus-visible:ring-2 focus-visible:ring-fuchsia-500 focus-visible:ring-offset-2"
           >
             <Plus className="w-4 h-4" aria-hidden="true" />
             Nuevo Diseño
@@ -263,19 +263,20 @@ const [mockupDesign, setMockupDesign] = useState<SublimationDesign | null>(null)
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar por nombre, plataforma, etiqueta o diseñador..."
-            className="w-full pl-11 pr-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 transition-all"
+            className="w-full pl-11 pr-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus-visible:ring-2 focus-visible:ring-brand-500 transition-colors"
           />
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400">
+          <label htmlFor="subli-filter-status" className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400">
             <Filter className="w-3.5 h-3.5" aria-hidden="true" />
             Estado
-          </span>
+          </label>
           <select
+            id="subli-filter-status"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 cursor-pointer"
+            className="px-3 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 focus-visible:ring-2 focus-visible:ring-brand-500 cursor-pointer"
           >
             {STATUS_FILTERS.map((s) => (
               <option key={s} value={s}>
@@ -284,10 +285,12 @@ const [mockupDesign, setMockupDesign] = useState<SublimationDesign | null>(null)
             ))}
           </select>
 
+          <label htmlFor="subli-filter-category" className="sr-only">Categoría</label>
           <select
+            id="subli-filter-category"
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 cursor-pointer"
+            className="px-3 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 focus-visible:ring-2 focus-visible:ring-brand-500 cursor-pointer"
           >
             {categories.map((c) => (
               <option key={c} value={c}>
@@ -296,10 +299,12 @@ const [mockupDesign, setMockupDesign] = useState<SublimationDesign | null>(null)
             ))}
           </select>
 
+          <label htmlFor="subli-filter-platform" className="sr-only">Plataforma</label>
           <select
+            id="subli-filter-platform"
             value={platformFilter}
             onChange={(e) => setPlatformFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 cursor-pointer"
+            className="px-3 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 focus-visible:ring-2 focus-visible:ring-brand-500 cursor-pointer"
           >
             {platforms.map((p) => (
               <option key={p} value={p}>
@@ -308,10 +313,12 @@ const [mockupDesign, setMockupDesign] = useState<SublimationDesign | null>(null)
             ))}
           </select>
 
+          <label htmlFor="subli-filter-pod" className="sr-only">PoD</label>
           <select
+            id="subli-filter-pod"
             value={podFilter}
             onChange={(e) => setPodFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 cursor-pointer"
+            className="px-3 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 focus-visible:ring-2 focus-visible:ring-brand-500 cursor-pointer"
           >
             <option value="Todos">Todos</option>
             <option value="POD">POD permitido</option>
@@ -349,7 +356,7 @@ const [mockupDesign, setMockupDesign] = useState<SublimationDesign | null>(null)
             <button
               type="button"
               onClick={handleOpenForm}
-              className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-black text-xs uppercase tracking-widest transition-all active:scale-95"
+              className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-black text-xs uppercase tracking-widest transition-colors transition-transform active:scale-95"
             >
               <Plus className="w-4 h-4" aria-hidden="true" />
               Agregar Diseño

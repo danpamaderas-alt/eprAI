@@ -23,7 +23,7 @@ export const ProductCard = memo(({ product, onAdd }: ProductCardProps) => (
   <button
     type="button"
     onClick={() => onAdd(product)}
-    className="group bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 hover:border-brand dark:hover:border-brand hover:shadow-2xl transition-all flex flex-col items-stretch text-left relative overflow-hidden active:scale-[0.97]"
+    className="group bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 hover:border-brand dark:hover:border-brand hover:shadow-2xl transition-colors flex flex-col items-stretch text-left relative overflow-hidden transition-transform active:scale-[0.97]"
   >
     <div className={cn('h-24 bg-gradient-to-br flex items-center justify-center', getCategoryGradient(product.category ?? null))}>
       <Package className="w-8 h-8 text-white/60 group-hover:scale-110 transition-transform" />

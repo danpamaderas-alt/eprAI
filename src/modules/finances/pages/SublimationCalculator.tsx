@@ -414,7 +414,7 @@ export const SublimationCalculator = () => {
             value={jobName}
             onChange={(e) => setJobName(e.target.value)}
             placeholder="Nombre del presupuesto"
-            className="flex-1 min-w-[200px] bg-slate-950 border border-slate-700 text-white text-sm font-black rounded-xl py-3 px-4 outline-none focus:border-orange-500"
+            className="flex-1 min-w-[200px] bg-slate-950 border border-slate-700 text-white text-sm font-black rounded-xl py-3 px-4 focus:border-orange-500"
           />
           <button onClick={handleSaveHistory} className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-black uppercase tracking-widest">
             <Save size={12} /> Guardar

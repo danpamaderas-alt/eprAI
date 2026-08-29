@@ -332,7 +332,7 @@ export const DesignStudioModal = ({
         <select
           value={selectedId}
           onChange={(e) => handlePickRepo(e.target.value)}
-          className="w-full px-3 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500 cursor-pointer"
+          className="w-full px-3 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 focus-visible:ring-2 focus-visible:ring-fuchsia-500 cursor-pointer"
         >
           <option value="">Elegí un diseño del repositorio…</option>
           {designs.map((d) => (
@@ -352,7 +352,7 @@ export const DesignStudioModal = ({
             onChange={(e) => setUrlInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleLoadUrl()}
             placeholder="https://…/diseno.png"
-            className="flex-1 min-w-0 px-4 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500"
+            className="flex-1 min-w-0 px-4 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus-visible:ring-2 focus-visible:ring-fuchsia-500"
           />
           <button
             type="button"
@@ -490,7 +490,7 @@ export const DesignStudioModal = ({
           type="button"
           onClick={() => runAiAction('remove_bg')}
           disabled={!src || busy !== null}
-          className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-fuchsia-600 hover:bg-fuchsia-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-fuchsia-600/20 transition-all active:scale-95"
+          className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-fuchsia-600 hover:bg-fuchsia-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-fuchsia-600/20 transition-colors transition-transform active:scale-95"
         >
           {busy === 'remove_bg' ? <Spinner className="w-3.5 h-3.5" /> : <Scissors className="w-3.5 h-3.5" aria-hidden="true" />}
           Quitar fondo (IA)
@@ -500,7 +500,7 @@ export const DesignStudioModal = ({
           <select
             value={mockupProductId}
             onChange={(e) => setMockupProductId(e.target.value)}
-            className="flex-1 min-w-0 px-2 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10px] font-bold text-slate-700 dark:text-slate-200 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-500"
+            className="flex-1 min-w-0 px-2 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[10px] font-bold text-slate-700 dark:text-slate-200 cursor-pointer focus-visible:ring-2 focus-visible:ring-fuchsia-500"
           >
             {PRODUCT_PRESETS.map((p) => (
               <option key={p.id} value={p.id}>
@@ -513,7 +513,7 @@ export const DesignStudioModal = ({
             onClick={() => runAiAction('mockup')}
             disabled={!src || busy !== null}
             title="Generar mockup con IA"
-            className="flex items-center justify-center gap-1.5 px-3 py-3 rounded-2xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-600/20 transition-all active:scale-95"
+            className="flex items-center justify-center gap-1.5 px-3 py-3 rounded-2xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-600/20 transition-colors transition-transform active:scale-95"
           >
             {busy === 'mockup' ? <Spinner className="w-3.5 h-3.5" /> : <Shirt className="w-3.5 h-3.5" aria-hidden="true" />}
             Mockup
@@ -532,7 +532,7 @@ export const DesignStudioModal = ({
                 setVectorColors(Math.max(2, Math.min(32, parseInt(e.target.value || '16', 10))))
               }
               title="Cantidad de colores del vector"
-              className="w-12 bg-transparent text-[11px] font-black text-slate-700 dark:text-slate-200 focus:outline-none text-center"
+              className="w-12 bg-transparent text-[11px] font-black text-slate-700 dark:text-slate-200 focus-visible:ring-2 focus-visible:ring-fuchsia-500 text-center"
             />
             <span className="text-[8px] font-black uppercase text-slate-400">col.</span>
           </div>
@@ -540,7 +540,7 @@ export const DesignStudioModal = ({
             type="button"
             onClick={handleVectorize}
             disabled={!src || busy !== null}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 dark:bg-slate-200 dark:hover:bg-slate-100 text-white dark:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 dark:bg-slate-200 dark:hover:bg-slate-100 text-white dark:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed text-[10px] font-black uppercase tracking-widest transition-colors transition-transform active:scale-95"
           >
             {busy === 'vectorize' ? <Spinner className="w-3.5 h-3.5" /> : <PenTool className="w-3.5 h-3.5" aria-hidden="true" />}
             Vectorizar

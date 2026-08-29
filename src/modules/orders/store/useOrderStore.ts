@@ -3,6 +3,14 @@ import { supabase } from '../../../lib/supabase';
 import { useCatalogStore } from '../../../store/useCatalogStore';
 import { useTenantStore } from '../../../store/useTenantStore';
 import type { Database } from '../../../shared/types/database.types';
+import {
+  applyDeliveriesToItems,
+  describeDeliveries,
+  deriveStatus,
+  normalizeOrderItems,
+  serializeOrderItems,
+  type DeliveryTarget,
+} from '../utils/orderItems';
 
 type OrderDbUpdate = Database['public']['Tables']['orders']['Update'];
 
@@ -98,8 +106,8 @@ interface OrderState {
   isLoading: boolean;
   viewMode: 'list' | 'kanban' | 'calendar';
   selectedOrders: Set<string>;
-  fetchOrders: () => Promise<void>;
-  registerPartialDelivery: (orderId: string, deliveryData: Record<string, unknown>) => Promise<void>;
+fetchOrders: () => Promise<void>;
+  registerPartialDelivery: (orderId: string, deliveries: DeliveryTarget[]) => Promise<void>;
   createOrder: (orderData: Omit<Order, 'id'>) => Promise<void>;
   updateOrder: (orderId: string, updates: Partial<Order>) => Promise<void>;
   addNote: (orderId: string, text: string) => Promise<void>;
@@ -110,8 +118,8 @@ interface OrderState {
   setViewMode: (mode: 'list' | 'kanban' | 'calendar') => void;
   toggleOrderSelection: (orderId: string) => void;
   selectAllOrders: (orderIds: string[]) => void;
-  clearSelection: () => void;
-  bulkChangeStatus: (status: Order['status']) => void;
+clearSelection: () => void;
+  bulkChangeStatus: (status: Order['status']) => Promise<void>;
   duplicateOrder: (orderId: string) => void;
   saveTemplate: (name: string, order: Order) => void;
   deleteTemplate: (id: string) => void;
@@ -148,6 +156,10 @@ async function persistMeta(orderId: string, patch: Record<string, unknown>) {
   }
 }
 
+/** PostgREST: la función RPC todavía no existe (falta aplicar sql/031). */
+function isMissingFunctionError(err: { code?: string; message?: string }): boolean {
+  return err.code === 'PGRST202' || err.code === '404' || err.code === '42883' || /could not find the function/i.test(err.message || '');
+}
 export const useOrderStore = create<OrderState>((set, get) => ({  orders: [],
   templates: loadTemplates(),
   isLoading: false,
@@ -223,18 +235,58 @@ export const useOrderStore = create<OrderState>((set, get) => ({  orders: [],
     }));
   },
 
-  registerPartialDelivery: async (orderId, deliveryData) => {
-    try {
-      const { error } = await supabase.rpc('register_partial_delivery', {
-        p_order_id: orderId,
-        p_delivery_data: deliveryData,
-      });
+registerPartialDelivery: async (orderId, deliveries) => {
+    const current = get().orders.find((o) => o.id === orderId);
+    if (!current) throw new Error('Pedido no encontrado');
+    if (current.status === 'CANCELLED') throw new Error('El pedido está cancelado');
 
-      if (error) throw error;
+    const normalized = normalizeOrderItems(current.items);
+    const logEntry: ActivityLogEntry = {
+      id: crypto.randomUUID(),
+      timestamp: new Date().toISOString(),
+      action: 'DELIVERY',
+      detail: describeDeliveries(normalized, deliveries),
+      user: 'Usuario',
+    };
+
+    // Camino atómico preferido: RPC que persiste quantityDelivered + status + log
+    // en una sola transacción (sql/031_register_delivery_v2.sql).
+    const { error: rpcError } = await supabase.rpc('register_delivery_v2', {
+      p_order_id: orderId,
+      p_deliveries: deliveries,
+      p_log_entry: logEntry,
+    });
+    if (!rpcError) {
       await get().fetchOrders();
-    } catch (error) {
-      throw error;
+      return;
     }
+    if (!isMissingFunctionError(rpcError)) {
+      throw new Error(`Error registrando entrega: ${rpcError.message}`);
+    }
+
+    // Fallback mientras no se aplique la migración: lectura fresca + UN solo
+    // UPDATE con items/status/activity_log calculados client-side.
+    const { data, error: fetchError } = await supabase
+      .from('orders')
+      .select('items, status, activity_log')
+      .eq('id', orderId)
+      .single();
+    if (fetchError) throw fetchError;
+    const row = (data ?? {}) as { items?: unknown; status?: string | null; activity_log?: unknown };
+    if ((row.status || '').toUpperCase() === 'CANCELLED') throw new Error('El pedido está cancelado');
+
+    const applied = applyDeliveriesToItems(normalizeOrderItems(row.items), deliveries);
+    const prevLog = Array.isArray(row.activity_log) ? row.activity_log : [];
+    const { error: updateError } = await supabase
+      .from('orders')
+      .update({
+        items: serializeOrderItems(applied.items) as OrderDbUpdate['items'],
+        status: deriveStatus(applied.orderedTotal, applied.deliveredTotal),
+        activity_log: [...prevLog, logEntry] as OrderDbUpdate['activity_log'],
+      })
+      .eq('id', orderId);
+    if (updateError) throw updateError;
+    await get().fetchOrders();
   },
 
   addNote: async (orderId, text) => {
@@ -357,12 +409,12 @@ export const useOrderStore = create<OrderState>((set, get) => ({  orders: [],
 
   clearSelection: () => set({ selectedOrders: new Set() }),
 
-  bulkChangeStatus: (status) => {
+bulkChangeStatus: async (status) => {
     const { selectedOrders } = get();
-    selectedOrders.forEach((id) => {
-      get().updateOrder(id, { status });
-    });
     set({ selectedOrders: new Set() });
+    for (const id of selectedOrders) {
+      await get().updateOrder(id, { status });
+    }
   },
 
   duplicateOrder: (orderId) => {

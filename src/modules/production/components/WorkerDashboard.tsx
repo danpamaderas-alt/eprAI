@@ -5,6 +5,13 @@ import { z } from 'zod/v4';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Modal, FormField } from '../../../shared/components/ui/Modal';
 
+const Swal = {
+  fire: async (...args: [import('sweetalert2').SweetAlertOptions]) => {
+    const m = (await import('sweetalert2')).default as unknown as { fire: (...a: [import('sweetalert2').SweetAlertOptions]) => Promise<unknown> };
+    return m.fire(...args);
+  },
+};
+
 const workerSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio"),
   role: z.enum(["COSTURA", "CORTE", "ESTAMPADO", "BORDADO", "OTROS"]),
@@ -78,7 +85,7 @@ export const WorkerDashboard = () => {
           <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">Taller y <span className="text-emerald-500">Destajo</span></h1>
           <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-2">Control de personal, asignacion de corte/costura y liquidaciones.</p>
         </div>
-        <button onClick={() => { workerForm.reset({ role: "COSTURA" }); setIsWorkerModalOpen(true); }} className="bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-emerald-500/20 active:scale-95 transition-all">
+        <button onClick={() => { workerForm.reset({ role: "COSTURA" }); setIsWorkerModalOpen(true); }} className="bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-emerald-500/20 active:scale-95 transition-colors transition-transform">
           + Nuevo Tallerista
         </button>
       </header>
@@ -139,7 +146,7 @@ export const WorkerDashboard = () => {
                       {task.status === 'COMPLETADO' && (
                         <button onClick={() => updateTaskStatus(task.id, 'PAGADO')} title="Marcar como Pagado" className="px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg transition-colors">Liquidar</button>
                       )}
-                      <button onClick={() => deleteTask(task.id)} title="Borrar Tarea" className="p-3 bg-slate-800 hover:bg-rose-600 text-rose-100 hover:text-white rounded-xl transition-colors">X</button>
+                      <button onClick={() => { void Swal.fire({ title: '¿Borrar tarea?', text: 'La tarea se eliminará junto con su monto asociado.', icon: 'warning', showCancelButton: true, confirmButtonText: 'Borrar', confirmButtonColor: '#e11d48' }).then((r) => { if ((r as { isConfirmed?: boolean }).isConfirmed) void deleteTask(task.id); }); }} title="Borrar Tarea" className="p-3 bg-slate-800 hover:bg-rose-600 text-rose-100 hover:text-white rounded-xl transition-colors">X</button>
                     </div>
                   </div>
                 </div>
@@ -158,11 +165,11 @@ export const WorkerDashboard = () => {
         submitColor="bg-indigo-600 hover:bg-indigo-500"
       >
         <FormField label="Nombre completo">
-          <input {...workerForm.register("name")} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" placeholder="Nombre completo" />
+          <input {...workerForm.register("name")} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold focus:ring-2 focus:ring-indigo-500 dark:text-white" placeholder="Nombre completo" />
           {workerForm.formState.errors.name && <p className="text-rose-500 text-[10px] font-bold mt-1">{workerForm.formState.errors.name.message}</p>}
         </FormField>
         <FormField label="Especialidad">
-          <select {...workerForm.register("role")} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white">
+          <select {...workerForm.register("role")} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold focus:ring-2 focus:ring-indigo-500 dark:text-white">
             <option value="COSTURA">Costura / Confeccion</option>
             <option value="CORTE">Corte de Tela</option>
             <option value="ESTAMPADO">Estampado / DTF</option>
@@ -171,7 +178,7 @@ export const WorkerDashboard = () => {
           </select>
         </FormField>
         <FormField label="Telefono / WhatsApp">
-          <input {...workerForm.register("phone")} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" placeholder="Telefono" />
+          <input {...workerForm.register("phone")} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold focus:ring-2 focus:ring-indigo-500 dark:text-white" placeholder="Telefono" />
         </FormField>
       </Modal>
 
@@ -187,16 +194,16 @@ export const WorkerDashboard = () => {
           <>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center mb-2">Para: <span className="text-indigo-400">{taskModal.workerName}</span></p>
             <FormField label="Descripcion del trabajo">
-              <input {...taskForm.register("description")} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" placeholder="Ej: Cerrar Chombas Talle L" />
+              <input {...taskForm.register("description")} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold focus:ring-2 focus:ring-emerald-500 dark:text-white" placeholder="Ej: Cerrar Chombas Talle L" />
               {taskForm.formState.errors.description && <p className="text-rose-500 text-[10px] font-bold mt-1">{taskForm.formState.errors.description.message}</p>}
             </FormField>
             <div className="grid grid-cols-2 gap-4">
               <FormField label="Cantidad (Un.)">
-                <input type="number" {...taskForm.register("quantity", { valueAsNumber: true })} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-black text-xl text-center outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" />
+                <input type="number" {...taskForm.register("quantity", { valueAsNumber: true })} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-black text-xl text-center focus:ring-2 focus:ring-emerald-500 dark:text-white" />
                 {taskForm.formState.errors.quantity && <p className="text-rose-500 text-[10px] font-bold mt-1">{taskForm.formState.errors.quantity.message}</p>}
               </FormField>
               <FormField label="Precio x Unidad ($)">
-                <input type="number" step="0.01" {...taskForm.register("price_per_unit", { valueAsNumber: true })} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-black text-xl text-center text-emerald-500 outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" />
+                <input type="number" step="0.01" {...taskForm.register("price_per_unit", { valueAsNumber: true })} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-black text-xl text-center text-emerald-500 focus:ring-2 focus:ring-emerald-500 dark:text-white" />
                 {taskForm.formState.errors.price_per_unit && <p className="text-rose-500 text-[10px] font-bold mt-1">{taskForm.formState.errors.price_per_unit.message}</p>}
               </FormField>
             </div>

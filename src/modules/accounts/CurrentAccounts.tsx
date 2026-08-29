@@ -137,7 +137,7 @@ export const CurrentAccounts = memo(() => {
           <p className="text-xs text-slate-400 font-medium mt-1 ml-13">Saldos, movimientos y antigüedad de deudas</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <button onClick={handleExport} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95">
+          <button onClick={handleExport} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors transition-transform active:scale-95">
             <Download className="w-3 h-3" /> Exportar
           </button>
         </div>
@@ -192,7 +192,7 @@ export const CurrentAccounts = memo(() => {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input type="text" placeholder="Buscar por nombre, teléfono, CUIT, email..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold dark:text-white outline-none focus:border-emerald-500 transition-all" />
+            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold dark:text-white focus:border-emerald-500 transition-colors" />
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
           {[
@@ -201,7 +201,7 @@ export const CurrentAccounts = memo(() => {
             { key: 'creditors' as FilterType, label: 'A Favor' },
             { key: 'settled' as FilterType, label: 'Al Día' },
           ].map(f => (
-            <button key={f.key} onClick={() => setFilterType(f.key)} className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest whitespace-nowrap transition-all active:scale-95 ${
+            <button key={f.key} onClick={() => setFilterType(f.key)} className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest whitespace-nowrap transition-colors transition-transform active:scale-95 ${
               filterType === f.key ? 'bg-emerald-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700'
             }`}>{f.label}</button>
           ))}
@@ -219,7 +219,7 @@ export const CurrentAccounts = memo(() => {
             const balance = b.balance || 0;
             const isExpanded = expandedCard === b.id;
             return (
-              <div key={b.id} className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden transition-all hover:shadow-md">
+              <div key={b.id} className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden transition-colors hover:shadow-md">
                 <button onClick={() => handleOpenModal(b)} className="w-full p-4 text-left">
                   <div className="flex justify-between items-start mb-2">
                     <div className="min-w-0 flex-1">
@@ -275,17 +275,17 @@ export const CurrentAccounts = memo(() => {
             <div className="space-y-3">
               <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
                 {(["PAGO", "CARGO"] as const).map(t => (
-                  <button key={t} onClick={() => setFormParams(p => ({ ...p, movement_type: t }))} className={`flex-1 py-2.5 rounded-lg text-[10px] font-black tracking-widest uppercase transition-all ${
+                  <button key={t} onClick={() => setFormParams(p => ({ ...p, movement_type: t }))} className={`flex-1 py-2.5 rounded-lg text-[10px] font-black tracking-widest uppercase transition-colors ${
                     formParams.movement_type === t ? (t === 'PAGO' ? 'bg-emerald-500 text-white shadow-md' : 'bg-red-500 text-white shadow-md') : 'text-slate-500 hover:text-slate-700'
                   }`}>{t === 'PAGO' ? 'Recibí Dinero (+)' : 'Sumar Deuda (-)'}</button>
                 ))}
               </div>
               <input type="number" step="0.01" min="0" placeholder="Monto $" value={formParams.amount} onChange={e => setFormParams(p => ({ ...p, amount: e.target.value }))}
-                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-lg font-black text-slate-900 dark:text-white outline-none focus:border-emerald-500 transition-all" />
+                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-lg font-black text-slate-900 dark:text-white focus:border-emerald-500 transition-colors" />
               <input type="text" placeholder="Concepto del movimiento..." value={formParams.description} onChange={e => setFormParams(p => ({ ...p, description: e.target.value }))}
-                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold dark:text-white outline-none focus:border-emerald-500 transition-all uppercase" />
+                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold dark:text-white focus:border-emerald-500 transition-colors uppercase" />
               <button disabled={isSubmitting} onClick={handleSaveMovement}
-                className={`w-full bg-emerald-600 text-white py-3 rounded-xl text-xs font-black uppercase transition-all ${isSubmitting ? 'opacity-50' : 'hover:bg-emerald-700 active:scale-95 shadow-lg shadow-emerald-500/20'}`}>
+                className={`w-full bg-emerald-600 text-white py-3 rounded-xl text-xs font-black uppercase transition-colors ${isSubmitting ? 'opacity-50' : 'hover:bg-emerald-700 transition-transform active:scale-95 shadow-lg shadow-emerald-500/20'}`}>
                 {isSubmitting ? <Spinner size="sm" className="text-white mx-auto" /> : 'Confirmar Operación'}
               </button>
             </div>

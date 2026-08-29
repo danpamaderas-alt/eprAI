@@ -94,7 +94,7 @@ export const StockEntry = () => {
               <select
                 value={productId}
                 onChange={(e) => setProductId(e.target.value)}
-                className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 transition-colors"
               >
                 <option value="">Selecciona un producto...</option>
                 {products.map((p) => (
@@ -112,7 +112,7 @@ export const StockEntry = () => {
               <select
                 value={sizeId}
                 onChange={(e) => setSizeId(e.target.value)}
-                className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 transition-colors"
               >
                 <option value="">Selecciona un talle...</option>
                 {sizes.map((s) => (
@@ -130,7 +130,7 @@ export const StockEntry = () => {
               <select
                 value={colorId}
                 onChange={(e) => setColorId(e.target.value)}
-                className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 transition-colors"
               >
                 <option value="">Selecciona un color...</option>
                 {colors.map((c) => (
@@ -155,7 +155,7 @@ export const StockEntry = () => {
                   )
                 }
                 placeholder="Ej: 50"
-                className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-blue-500 transition-colors"
               />
             </div>
           </div>
@@ -163,7 +163,7 @@ export const StockEntry = () => {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition-colors shadow-lg shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? "Registrando..." : "Confirmar Ingreso de Stock"}
           </button>

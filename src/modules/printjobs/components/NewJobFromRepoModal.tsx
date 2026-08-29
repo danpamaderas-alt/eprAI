@@ -104,7 +104,7 @@ export const NewJobFromRepoModal = ({ onClose }: Props) => {
             <select
               value={modelId}
               onChange={(e) => { setModelId(e.target.value); setWeightOverride(''); setTimeOverride(''); }}
-              className="mt-1 w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white focus:border-orange-500 focus:outline-none"
+              className="mt-1 w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white focus:border-orange-500 "
             >
               <option value="">Seleccioná un modelo…</option>
               {models.map((m) => (
@@ -128,20 +128,20 @@ export const NewJobFromRepoModal = ({ onClose }: Props) => {
               <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Cantidad</span>
               <input type="number" min={1} value={quantity}
                 onChange={(e) => { setQuantity(e.target.value); setWeightOverride(''); setTimeOverride(''); }}
-                className="mt-1 w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white tabular-nums focus:border-orange-500 focus:outline-none" />
+                className="mt-1 w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white tabular-nums focus:border-orange-500 " />
             </label>
             <label className="block">
               <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Impresora</span>
               <input type="text" placeholder="Ej: Ender 3 V2" value={printerName}
                 onChange={(e) => setPrinterName(e.target.value)}
-                className="mt-1 w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white placeholder:text-slate-600 focus:border-orange-500 focus:outline-none" />
+                className="mt-1 w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white placeholder:text-slate-600 focus:border-orange-500 " />
             </label>
           </div>
 
           <label className="block">
             <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Filamento del inventario</span>
             <select value={filamentId} onChange={(e) => setFilamentId(e.target.value)}
-              className="mt-1 w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white focus:border-orange-500 focus:outline-none">
+              className="mt-1 w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white focus:border-orange-500 ">
               <option value="">Sin asignar</option>
               {filaments.map((f) => (
                 <option key={f.id} value={f.id}>
@@ -158,7 +158,7 @@ export const NewJobFromRepoModal = ({ onClose }: Props) => {
                 placeholder={isFinite(effectiveWeight) ? String(Math.round(effectiveWeight * 10) / 10) : 'auto'}
                 value={weightOverride}
                 onChange={(e) => setWeightOverride(e.target.value)}
-                className="mt-1 w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white placeholder:text-slate-600 tabular-nums focus:border-orange-500 focus:outline-none" />
+                className="mt-1 w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white placeholder:text-slate-600 tabular-nums focus:border-orange-500 " />
             </label>
             <label className="block">
               <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Tiempo total (HH:MM)</span>
@@ -166,7 +166,7 @@ export const NewJobFromRepoModal = ({ onClose }: Props) => {
                 placeholder={isFinite(effectiveHours) ? hoursToTime(effectiveHours) : 'auto'}
                 value={timeOverride}
                 onChange={(e) => setTimeOverride(e.target.value)}
-                className="mt-1 w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white placeholder:text-slate-600 tabular-nums focus:border-orange-500 focus:outline-none" />
+                className="mt-1 w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white placeholder:text-slate-600 tabular-nums focus:border-orange-500 " />
             </label>
           </div>
 
@@ -174,7 +174,7 @@ export const NewJobFromRepoModal = ({ onClose }: Props) => {
             <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Precio de venta estimado ($)</span>
             <input type="number" min={0} step="100" placeholder="Opcional" value={price}
               onChange={(e) => setPrice(e.target.value)}
-              className="mt-1 w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white placeholder:text-slate-600 tabular-nums focus:border-violet-500 focus:outline-none" />
+              className="mt-1 w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white placeholder:text-slate-600 tabular-nums focus:border-violet-500 " />
           </label>
         </div>
 

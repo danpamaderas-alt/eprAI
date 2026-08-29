@@ -19,7 +19,7 @@ export const BlankCard = memo(function BlankCard({
   const outOfStock = blank.stock_qty <= 0;
 
   return (
-    <article className="group bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-fuchsia-500/10 transition-all duration-300 overflow-hidden flex flex-col">
+    <article className="group bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-fuchsia-500/10 transition-colors duration-300 overflow-hidden flex flex-col">
       {/* Imagen / placeholder */}
       <div className="relative w-full aspect-[5/3] overflow-hidden bg-gradient-to-br from-fuchsia-600/15 via-slate-800 to-slate-900">
         {blank.imagen ? (

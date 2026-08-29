@@ -27,9 +27,11 @@ export const FilamentCard = memo(function FilamentCard({
     filament.cost_per_kg != null && filament.cost_per_kg > 0
       ? filament.cost_per_kg / 1000
       : null;
+  const spoolCost =
+    costPerGram != null && spool > 0 ? Math.round(costPerGram * spool) : null;
 
   return (
-    <article className="group bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-brand-500/10 transition-all duration-300 overflow-hidden flex flex-col">
+    <article className="group bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-brand-500/10 transition-colors duration-300 overflow-hidden flex flex-col">
       {/* Cabecera con color */}
       <div className="flex items-center gap-3 p-4 pb-3">
         <div
@@ -75,12 +77,12 @@ export const FilamentCard = memo(function FilamentCard({
           aria-valuemax={100}
           aria-label={`Stock restante de ${filament.brand} ${filament.color_name ?? ''}`}
         >
-          <div className={`h-full rounded-full ${barColor} transition-all`} style={{ width: `${pct}%` }} />
+          <div className={`h-full rounded-full ${barColor} transition-colors`} style={{ width: `${pct}%` }} />
         </div>
       </div>
 
       {/* Datos */}
-      <div className="grid grid-cols-2 gap-2 px-4 pb-3">
+      <div className="grid grid-cols-3 gap-2 px-4 pb-3">
         <div className="px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-center">
           <p className="text-xs font-black text-slate-700 dark:text-slate-200">
             {filament.cost_per_kg != null ? `$${filament.cost_per_kg.toLocaleString('es-AR')}/kg` : '—'}
@@ -92,6 +94,12 @@ export const FilamentCard = memo(function FilamentCard({
             {costPerGram != null ? `$${costPerGram.toFixed(3)}/g` : '—'}
           </p>
           <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Costo gramo</p>
+        </div>
+        <div className="px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-center">
+          <p className="text-xs font-black text-slate-700 dark:text-slate-200">
+            {spoolCost != null ? `$${spoolCost.toLocaleString('es-AR')}` : '—'}
+          </p>
+          <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Costo rollo</p>
         </div>
       </div>
 

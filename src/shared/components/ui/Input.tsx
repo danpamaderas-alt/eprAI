@@ -31,8 +31,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={inputId}
             className={cn(
-              'w-full rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-3 text-xs text-slate-900 dark:text-white placeholder-slate-400 transition-all',
-              'focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus:border-brand-600',
+              'w-full rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-3 text-xs text-slate-900 dark:text-white placeholder-slate-400 transition-colors',
+              'focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus:border-brand-600',
               'disabled:opacity-50 disabled:cursor-not-allowed',
               icon && 'pl-11',
               error && 'border-danger-600 focus:ring-danger-600/40 focus:border-danger-600',

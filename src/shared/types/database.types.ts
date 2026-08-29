@@ -2801,7 +2801,11 @@ export type Database = {
         Relationships: []
       }
     }
-    Functions: {
+Functions: {
+      adjust_blank_stock: {
+        Args: { p_blank_id: string; p_delta: number }
+        Returns: number
+      }
       award_loyalty_points: {
         Args: { p_customer_id: string; p_points: number; p_reason: string; p_order_id?: string | null }
         Returns: undefined
@@ -2812,7 +2816,11 @@ export type Database = {
           p_order?: unknown
           p_items?: unknown[]
         }
-        Returns: unknown
+Returns: unknown
+      }
+      consume_filament_grams: {
+        Args: { p_filament_id: string; p_grams: number }
+        Returns: number
       }
       delete_product_variation: {
         Args: {
@@ -2852,6 +2860,10 @@ export type Database = {
           p_items_delivered?: unknown
           p_notes?: string | null
         }
+Returns: undefined
+      }
+      register_delivery_v2: {
+        Args: { p_order_id: string; p_deliveries: unknown; p_log_entry?: unknown }
         Returns: undefined
       }
       transform_to_finished: {

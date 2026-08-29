@@ -95,7 +95,7 @@ export const ProductForm = ({ initialData, onSubmitSuccess, onCancel }: ProductF
           </label>
           <select 
             {...register('niche_id')} 
-            className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-slate-700 dark:text-white font-bold outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+            className="w-full px-4 py-3 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-slate-700 dark:text-white font-bold focus:ring-2 focus:ring-indigo-500 cursor-pointer"
           >
             <option value="">-- Seleccionar a qué web pertenece --</option>
             {niches.map(n => (
@@ -109,13 +109,13 @@ export const ProductForm = ({ initialData, onSubmitSuccess, onCancel }: ProductF
           <div className="flex flex-wrap gap-2 mb-3">
             {availableCats.map(c => <button type="button" key={c} onClick={()=>setValue('category', c)} className={`px-3 py-1 text-xs font-bold rounded-lg transition-colors ${currentCat === c ? 'bg-blue-600 text-white' : 'bg-white dark:bg-slate-800 border dark:text-slate-300'}`}>{c}</button>)}
           </div>
-          <div className="flex gap-2"><input value={newCat} onChange={e=>setNewCat(e.target.value)} className="px-3 py-1 rounded-lg border dark:bg-slate-900 dark:text-white text-xs outline-none focus:border-blue-500" placeholder="Nueva categoría"/><button type="button" onClick={handleAddCat} className="px-3 py-1 bg-slate-200 dark:bg-slate-700 rounded-lg text-xs font-bold dark:text-white hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">+</button></div>
+          <div className="flex gap-2"><input value={newCat} onChange={e=>setNewCat(e.target.value)} className="px-3 py-1 rounded-lg border dark:bg-slate-900 dark:text-white text-xs focus:border-blue-500" placeholder="Nueva categoría"/><button type="button" onClick={handleAddCat} className="px-3 py-1 bg-slate-200 dark:bg-slate-700 rounded-lg text-xs font-bold dark:text-white hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">+</button></div>
         </div>
 
-        <div><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Costo ($)</label><input type="number" {...register('cost',{valueAsNumber:true})} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 text-rose-500 font-bold outline-none" /></div>
-        <div><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Precio ($)</label><input type="number" {...register('price',{valueAsNumber:true})} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 text-emerald-500 font-bold outline-none" /></div>
-        <div><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">📍 Ubicación / Estante</label><input {...register('location')} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 dark:text-blue-400 font-bold outline-none" /></div>
-        <div><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Notas</label><input {...register('notes')} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 dark:text-white outline-none" /></div>
+        <div><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Costo ($)</label><input type="number" {...register('cost',{valueAsNumber:true})} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 text-rose-500 font-bold focus-visible:ring-2 focus-visible:ring-brand-500" /></div>
+        <div><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Precio ($)</label><input type="number" {...register('price',{valueAsNumber:true})} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 text-emerald-500 font-bold focus-visible:ring-2 focus-visible:ring-brand-500" /></div>
+        <div><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">📍 Ubicación / Estante</label><input {...register('location')} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 dark:text-blue-400 font-bold focus-visible:ring-2 focus-visible:ring-brand-500" /></div>
+        <div><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Notas</label><input {...register('notes')} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 dark:text-white focus-visible:ring-2 focus-visible:ring-brand-500" /></div>
       </div>
 
       <div className="border-t dark:border-slate-700 pt-6">
@@ -123,8 +123,8 @@ export const ProductForm = ({ initialData, onSubmitSuccess, onCancel }: ProductF
         
         {!hasVariations ? (
           <div className="flex gap-4">
-            <div className="flex-1"><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Stock Inicial</label><input type="number" {...register('stock',{valueAsNumber:true})} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 dark:text-white outline-none" /></div>
-            <div className="flex-1"><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Mínimo (Alerta)</label><input type="number" {...register('minStock',{valueAsNumber:true})} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 dark:text-white outline-none" /></div>
+            <div className="flex-1"><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Stock Inicial</label><input type="number" {...register('stock',{valueAsNumber:true})} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 dark:text-white focus-visible:ring-2 focus-visible:ring-brand-500" /></div>
+            <div className="flex-1"><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Mínimo (Alerta)</label><input type="number" {...register('minStock',{valueAsNumber:true})} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 dark:text-white focus-visible:ring-2 focus-visible:ring-brand-500" /></div>
           </div>
         ) : (
           <div className="space-y-4">
@@ -132,12 +132,12 @@ export const ProductForm = ({ initialData, onSubmitSuccess, onCancel }: ProductF
               <div>
                 <label className="text-[10px] font-black uppercase text-slate-500 block mb-2">1. Talles</label>
                 <div className="flex flex-wrap gap-2 mb-2">{availableSizes.map(s=><button type="button" key={s} onClick={()=>setSelectedSizes(p=>p.includes(s)?p.filter(x=>x!==s):[...p,s])} className={`px-2 py-1 text-xs font-bold rounded transition-colors ${selectedSizes.includes(s)?'bg-blue-600 text-white':'bg-slate-100 dark:bg-slate-800 dark:text-white'}`}>{s}</button>)}</div>
-                <div className="flex gap-2"><input value={newSize} onChange={e=>setNewSize(e.target.value)} className="w-20 px-2 border rounded text-xs dark:bg-slate-900 dark:text-white outline-none"/><button type="button" onClick={handleAddSize} className="px-2 bg-slate-200 dark:bg-slate-700 rounded font-bold dark:text-white hover:bg-slate-300 transition-colors">+</button></div>
+                <div className="flex gap-2"><input value={newSize} onChange={e=>setNewSize(e.target.value)} className="w-20 px-2 border rounded text-xs dark:bg-slate-900 dark:text-white focus-visible:ring-2 focus-visible:ring-brand-500"/><button type="button" onClick={handleAddSize} className="px-2 bg-slate-200 dark:bg-slate-700 rounded font-bold dark:text-white hover:bg-slate-300 transition-colors">+</button></div>
               </div>
               <div>
                 <label className="text-[10px] font-black uppercase text-slate-500 block mb-2">2. Colores</label>
                 <div className="flex flex-wrap gap-2 mb-2">{availableColors.map(c=><button type="button" key={c} onClick={()=>setSelectedColors(p=>p.includes(c)?p.filter(x=>x!==c):[...p,c])} className={`px-2 py-1 text-xs font-bold rounded transition-colors ${selectedColors.includes(c)?'bg-slate-800 text-white':'bg-slate-100 dark:bg-slate-800 dark:text-white'}`}>{c}</button>)}</div>
-                <div className="flex gap-2"><input value={newColor} onChange={e=>setNewColor(e.target.value)} className="w-24 px-2 border rounded text-xs dark:bg-slate-900 dark:text-white outline-none"/><button type="button" onClick={handleAddColor} className="px-2 bg-slate-200 dark:bg-slate-700 rounded font-bold dark:text-white hover:bg-slate-300 transition-colors">+</button></div>
+                <div className="flex gap-2"><input value={newColor} onChange={e=>setNewColor(e.target.value)} className="w-24 px-2 border rounded text-xs dark:bg-slate-900 dark:text-white focus-visible:ring-2 focus-visible:ring-brand-500"/><button type="button" onClick={handleAddColor} className="px-2 bg-slate-200 dark:bg-slate-700 rounded font-bold dark:text-white hover:bg-slate-300 transition-colors">+</button></div>
               </div>
             </div>
             
@@ -146,19 +146,19 @@ export const ProductForm = ({ initialData, onSubmitSuccess, onCancel }: ProductF
                 <table className="w-full text-left text-sm"><thead className="bg-slate-50 dark:bg-slate-900/50 text-[10px] uppercase font-black text-slate-500"><tr><th className="p-2">Talle | Color</th><th className="p-2 w-24">Cantidad</th></tr></thead>
                 <tbody className="divide-y dark:divide-slate-700 font-bold dark:text-white">
                   {fields.map((f, i) => (
-                    <tr key={f.id}><td className="p-2">{f.size} | {f.color}</td><td className="p-2 bg-blue-50 dark:bg-blue-900/20"><input type="number" {...register(`variations.${i}.stock` as const, {valueAsNumber:true})} className="w-full bg-transparent text-center font-black text-blue-600 dark:text-blue-400 outline-none"/></td></tr>
+                    <tr key={f.id}><td className="p-2">{f.size} | {f.color}</td><td className="p-2 bg-blue-50 dark:bg-blue-900/20"><input type="number" {...register(`variations.${i}.stock` as const, {valueAsNumber:true})} className="w-full bg-transparent text-center font-black text-blue-600 dark:text-blue-400 focus-visible:ring-2 focus-visible:ring-brand-500"/></td></tr>
                   ))}
                 </tbody></table>
               </div>
             )}
-            <div className="w-1/3 pt-2"><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Mínimo Global (Alerta)</label><input type="number" {...register('minStock',{valueAsNumber:true})} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 dark:text-white font-bold outline-none" /></div>
+            <div className="w-1/3 pt-2"><label className="text-[10px] font-black uppercase text-slate-500 block mb-1">Mínimo Global (Alerta)</label><input type="number" {...register('minStock',{valueAsNumber:true})} className="w-full px-4 py-2 rounded-xl border dark:bg-slate-900 dark:text-white font-bold focus-visible:ring-2 focus-visible:ring-brand-500" /></div>
           </div>
         )}
       </div>
 
       <div className="flex justify-end gap-2 pt-4 border-t dark:border-slate-700">
         <button type="button" onClick={onCancel} className="px-6 py-2 text-xs font-black text-slate-500 uppercase hover:text-slate-800 dark:hover:text-white transition-colors">Cancelar</button>
-        <button type="submit" disabled={isSubmitting} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-xs uppercase shadow-lg shadow-blue-500/30 active:scale-95 transition-all">{isSubmitting ? 'Guardando...' : (initialData ? 'Guardar Cambios' : 'Guardar Artículo')}</button>
+        <button type="submit" disabled={isSubmitting} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black text-xs uppercase shadow-lg shadow-blue-500/30 active:scale-95 transition-colors transition-transform">{isSubmitting ? 'Guardando...' : (initialData ? 'Guardar Cambios' : 'Guardar Artículo')}</button>
       </div>
     </form>
   );

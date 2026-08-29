@@ -29,3 +29,6 @@ dist-ssr
 !.dev.vars.example
 .env*
 !.env.example
+
+# checkout duplicado anidado (copía redundante del proyecto, con .env/.dev.vars propios)
+eprAI/

@@ -196,19 +196,19 @@ export const FinancialDashboard = memo(() => {
           <p className="text-xs text-slate-400 font-medium mt-1 ml-13">Visión 360: Tesorería + P&L + Cuentas + Activos + Proyecciones</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <button onClick={() => setShowFilters(!showFilters)} className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-black uppercase transition-all active:scale-95 ${showFilters ? 'bg-brand text-white' : 'bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'}`}>
+          <button onClick={() => setShowFilters(!showFilters)} className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-black uppercase transition-colors transition-transform active:scale-95 ${showFilters ? 'bg-brand text-white' : 'bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'}`}>
             <Calendar className="w-3 h-3" /> {dateLabel}
           </button>
-          <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95">
+          <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors transition-transform active:scale-95">
             <Printer className="w-3 h-3" /> Imprimir
           </button>
-          <button onClick={handleExport} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95">
+          <button onClick={handleExport} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors transition-transform active:scale-95">
             <Download className="w-3 h-3" /> CSV
           </button>
-          <button onClick={() => { setTxType('INCOME'); setShowTxModal(true); }} className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all active:scale-95">
+          <button onClick={() => { setTxType('INCOME'); setShowTxModal(true); }} className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-colors transition-transform active:scale-95">
             <TrendingUp className="w-3 h-3" /> Ingreso
           </button>
-          <button onClick={() => { setTxType('EXPENSE'); setShowTxModal(true); }} className="flex items-center gap-1.5 px-4 py-2 bg-red-500 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-red-500/20 hover:shadow-red-500/40 transition-all active:scale-95">
+          <button onClick={() => { setTxType('EXPENSE'); setShowTxModal(true); }} className="flex items-center gap-1.5 px-4 py-2 bg-red-500 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-red-500/20 hover:shadow-red-500/40 transition-colors transition-transform active:scale-95">
             <Banknote className="w-3 h-3" /> Gasto
           </button>
         </div>
@@ -218,7 +218,7 @@ export const FinancialDashboard = memo(() => {
       {showFilters && (
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none print:hidden">
           {([['all', 'Todo'], ['thisMonth', 'Este Mes'], ['lastMonth', 'Mes Anterior'], ['quarter', 'Trimestre'], ['year', 'Este Año']] as const).map(([key, label]) => (
-            <button key={key} onClick={() => setDateRange(key)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all active:scale-95 ${
+            <button key={key} onClick={() => setDateRange(key)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-colors transition-transform active:scale-95 ${
               dateRange === key ? 'bg-brand text-white shadow-lg shadow-brand/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700'
             }`}>{label}</button>
           ))}
@@ -318,7 +318,7 @@ export const FinancialDashboard = memo(() => {
           { key: 'projections' as Tab, label: 'Proyecciones' },
           { key: 'details' as Tab, label: 'Detalle' },
         ].map(tab => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all active:scale-95 ${
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-colors transition-transform active:scale-95 ${
             activeTab === tab.key ? 'bg-brand text-white shadow-lg shadow-brand/20' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700'
           }`}>{tab.label}</button>
         ))}
@@ -343,8 +343,8 @@ export const FinancialDashboard = memo(() => {
                       <div className={net >= 0 ? 'text-blue-300' : 'text-red-300'}>= {ARS.format(net)}</div>
                     </div>
                     <div className="w-full flex gap-px items-end" style={{ height: '160px' }}>
-                      <div className="flex-1 bg-emerald-500 rounded-t-sm transition-all group-hover:bg-emerald-400" style={{ height: `${(m.income / maxMonthly) * 100}%`, minHeight: m.income > 0 ? '2px' : '0' }} />
-                      <div className="flex-1 bg-red-400 rounded-t-sm transition-all group-hover:bg-red-300" style={{ height: `${(m.expenses / maxMonthly) * 100}%`, minHeight: m.expenses > 0 ? '2px' : '0' }} />
+                      <div className="flex-1 bg-emerald-500 rounded-t-sm transition-colors group-hover:bg-emerald-400" style={{ height: `${(m.income / maxMonthly) * 100}%`, minHeight: m.income > 0 ? '2px' : '0' }} />
+                      <div className="flex-1 bg-red-400 rounded-t-sm transition-colors group-hover:bg-red-300" style={{ height: `${(m.expenses / maxMonthly) * 100}%`, minHeight: m.expenses > 0 ? '2px' : '0' }} />
                     </div>
                     <span className="text-[7px] font-bold text-slate-400 uppercase truncate w-full text-center">{m.label}</span>
                   </div>
@@ -435,7 +435,7 @@ export const FinancialDashboard = memo(() => {
                         <span className="text-[9px] font-black tabular-nums text-emerald-600">{ARS.format(cat.income)}</span>
                       </div>
                       <div className="h-3 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                        <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${width}%` }} />
+                        <div className="h-full bg-emerald-500 rounded-full transition-colors" style={{ width: `${width}%` }} />
                       </div>
                     </div>
                   );
@@ -457,7 +457,7 @@ export const FinancialDashboard = memo(() => {
                         <span className="text-[9px] font-black tabular-nums text-red-500">{ARS.format(cat.expense)}</span>
                       </div>
                       <div className="h-3 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                        <div className="h-full bg-red-400 rounded-full transition-all" style={{ width: `${width}%` }} />
+                        <div className="h-full bg-red-400 rounded-full transition-colors" style={{ width: `${width}%` }} />
                       </div>
                     </div>
                   );
@@ -551,7 +551,7 @@ export const FinancialDashboard = memo(() => {
                 <div key={cat.name} className="flex items-center gap-3">
                   <span className="text-[9px] font-black uppercase text-slate-600 dark:text-slate-300 w-28 truncate">{cat.name}</span>
                   <div className="flex-1 h-5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                    <div className="h-full bg-brand rounded-full transition-all" style={{ width: `${(cat.value / maxStockValue) * 100}%` }} />
+                    <div className="h-full bg-brand rounded-full transition-colors" style={{ width: `${(cat.value / maxStockValue) * 100}%` }} />
                   </div>
                   <span className="text-[9px] font-bold text-slate-500 w-12 text-right">{cat.qty}ud</span>
                   <span className="text-[9px] font-black tabular-nums w-20 text-right text-slate-900 dark:text-white">{ARS.format(cat.value)}</span>
@@ -747,25 +747,25 @@ export const FinancialDashboard = memo(() => {
               <div>
                 <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Monto *</label>
                 <input type="number" step="0.01" min="0" value={txAmount} onChange={e => setTxAmount(e.target.value)} placeholder="0.00"
-                  className={`w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black outline-none transition-all ${txType === 'EXPENSE' ? 'text-red-500 focus:border-red-500' : 'text-emerald-500 focus:border-emerald-500'}`} />
+                  className={`w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black transition-colors ${txType === 'EXPENSE' ? 'text-red-500 focus:border-red-500' : 'text-emerald-500 focus:border-emerald-500'}`} />
               </div>
               <div>
                 <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Descripción *</label>
                 <input type="text" value={txDescription} onChange={e => setTxDescription(e.target.value)} placeholder="Ej: Pago proveedor, Venta..."
-                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all uppercase" />
+                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors uppercase" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Categoría</label>
                   <select value={txCategory} onChange={e => setTxCategory(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black uppercase text-slate-700 dark:text-white outline-none">
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black uppercase text-slate-700 dark:text-white focus-visible:ring-2 focus-visible:ring-brand-500">
                     {FINANCIAL_CATEGORIES.map(c => <option key={c} value={c}>{c.replace(/_/g, ' ')}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Método</label>
                   <select value={txPaymentMethod} onChange={e => setTxPaymentMethod(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black uppercase text-slate-700 dark:text-white outline-none">
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black uppercase text-slate-700 dark:text-white focus-visible:ring-2 focus-visible:ring-brand-500">
                     {['EFECTIVO', 'MERCADO_PAGO', 'BANCO'].map(m => <option key={m} value={m}>{m.replace(/_/g, ' ')}</option>)}
                   </select>
                 </div>
@@ -773,7 +773,7 @@ export const FinancialDashboard = memo(() => {
               <div>
                 <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Unidad de Negocio</label>
                 <select value={txBusinessUnit} onChange={e => setTxBusinessUnit(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black uppercase text-slate-700 dark:text-white outline-none">
+                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black uppercase text-slate-700 dark:text-white focus-visible:ring-2 focus-visible:ring-brand-500">
                   {['GENERAL', 'RAÍCES', 'ROJO_SHOWROOM', 'UNIFORMES', 'RJ_CO'].map(u => <option key={u} value={u}>{u.replace(/_/g, ' ')}</option>)}
                 </select>
               </div>
@@ -781,7 +781,7 @@ export const FinancialDashboard = memo(() => {
             <div className="flex gap-2 mt-5">
               <button onClick={() => setShowTxModal(false)} className="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 rounded-xl text-xs font-black uppercase">Cancelar</button>
               <button onClick={handleRegisterTx} disabled={!txAmount || !txDescription.trim()}
-                className={`flex-1 text-white py-2.5 rounded-xl text-xs font-black uppercase disabled:opacity-40 transition-all active:scale-95 shadow-lg ${
+                className={`flex-1 text-white py-2.5 rounded-xl text-xs font-black uppercase disabled:opacity-40 transition-colors transition-transform active:scale-95 shadow-lg ${
                   txType === 'EXPENSE' ? 'bg-red-500 shadow-red-500/20' : 'bg-emerald-600 shadow-emerald-500/20'
                 }`}>Registrar</button>
             </div>

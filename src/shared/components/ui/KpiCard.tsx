@@ -24,7 +24,7 @@ export function KpiCard({ label, value, icon, trend, variant = 'default', classN
   return (
     <div
       className={cn(
-        'p-8 rounded-[2.5rem] border shadow-sm relative overflow-hidden group transition-all',
+        'p-8 rounded-[2.5rem] border shadow-sm relative overflow-hidden group transition-colors',
         variants[variant],
         className,
       )}
@@ -46,7 +46,7 @@ export function KpiCard({ label, value, icon, trend, variant = 'default', classN
         )}
       </p>
       {icon && (
-        <div className="absolute -right-2 -bottom-2 text-6xl opacity-5 grayscale group-hover:grayscale-0 transition-all" aria-hidden="true">
+        <div className="absolute -right-2 -bottom-2 text-6xl opacity-5 grayscale group-hover:grayscale-0 transition-colors" aria-hidden="true">
           {icon}
         </div>
       )}

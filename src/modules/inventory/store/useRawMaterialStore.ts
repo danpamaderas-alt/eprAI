@@ -22,8 +22,8 @@ interface RawMaterialStore {
   isLoading: boolean;
   fetchMaterials: () => Promise<void>;
   addMaterial: (material: Partial<RawMaterial>) => Promise<void>;
-  updateMaterial: (id: string, updates: Partial<RawMaterial>) => Promise<void>; // ✅ NUEVO
-  deleteMaterial: (id: string) => Promise<void>; // ✅ NUEVO
+  updateMaterial: (id: string, updates: Partial<RawMaterial>) => Promise<void>;
+  deleteMaterial: (id: string) => Promise<void>;
   updateStock: (id: string, newQuantity: number) => Promise<void>;
 }
 
@@ -76,3 +76,9 @@ export const useRawMaterialStore = create<RawMaterialStore>((set, get) => ({
     if (!error) await get().fetchMaterials();
   }
 }));
+
+useTenantStore.subscribe((state, prev) => {
+  if (state.activeCompanyId !== prev.activeCompanyId) {
+    useRawMaterialStore.setState({ materials: [], isLoading: false });
+  }
+});

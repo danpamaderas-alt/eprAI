@@ -274,7 +274,7 @@ export const PrintModelFilesSection = memo(function PrintModelFilesSection({ mod
           placeholder="Impresora (opcional: se pregunta después)"
           list="printers-known-list"
           aria-label="Nombre de la impresora para el G-code"
-          className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:border-violet-500 focus:outline-none"
+          className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:border-violet-500 focus-visible:ring-2 focus-visible:ring-violet-500"
         />
         <button
           type="button"

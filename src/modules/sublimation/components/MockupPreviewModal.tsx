@@ -180,7 +180,7 @@ export const MockupPreviewModal = ({ design, isOpen, onClose }: MockupPreviewMod
           <button
             type="button"
             onClick={onClose}
-            className="p-2 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 rounded-full transition-all"
+            className="p-2 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-slate-400 hover:text-rose-500 rounded-full transition-colors"
             aria-label="Cerrar"
           >
             <X className="w-5 h-5" />
@@ -242,7 +242,7 @@ export const MockupPreviewModal = ({ design, isOpen, onClose }: MockupPreviewMod
                     key={p.id}
                     type="button"
                     onClick={() => { setProductId(p.id); setSelectedTemplateId(null); }}
-                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors ${
                       productId === p.id && !selectedTemplateId
                         ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/25'
                         : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 hover:bg-slate-200'
@@ -270,7 +270,7 @@ export const MockupPreviewModal = ({ design, isOpen, onClose }: MockupPreviewMod
                         setSelectedTemplateId(t.id);
                       }}
                       title={t.print_area_width_mm && t.print_area_height_mm ? `Área: ${t.print_area_width_mm}×${t.print_area_height_mm}mm` : t.product_type}
-                      className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${
+                      className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors border ${
                         selectedTemplateId === t.id
                           ? 'bg-violet-600 text-white border-violet-600 shadow-lg shadow-violet-600/25'
                           : 'bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'

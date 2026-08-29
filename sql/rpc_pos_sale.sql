@@ -45,8 +45,8 @@ BEGIN
   END LOOP;
 
   new_sale_id := gen_random_uuid();
-  INSERT INTO sales (id, company_id, customer_id, total_amount, payment_method, items, status, created_at)
-  VALUES (new_sale_id, p_company_id, p_customer_id, p_total, p_payment_method, p_cart,
+  INSERT INTO sales (id, company_id, customer_id, total, total_amount, payment_method, items, status, created_at)
+  VALUES (new_sale_id, p_company_id, p_customer_id, p_total, p_total, p_payment_method, p_cart,
     CASE WHEN p_payment_method = 'CTA_CTE' THEN 'DEUDA' ELSE 'COBRADO' END, now());
 
   IF p_payment_method = 'CTA_CTE' AND p_customer_id IS NOT NULL THEN

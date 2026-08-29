@@ -83,6 +83,7 @@ export function Modal({
         aria-modal="true"
         aria-label={title}
         className={`relative w-full ${width} bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto`}
+        style={{ overscrollBehavior: 'contain' }}
       >
         <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-slate-800">
           <h2 className="text-sm font-black uppercase tracking-widest text-slate-900 dark:text-white">
@@ -92,7 +93,7 @@ export function Modal({
             type="button"
             onClick={onClose}
             aria-label={`Cerrar ${title?.toLowerCase() || 'modal'}`}
-            className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+            className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
           >
             <X className="w-4 h-4" aria-hidden="true" />
           </button>
@@ -111,7 +112,7 @@ export function Modal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 py-4 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-black text-xs uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-all focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                  className="flex-1 py-4 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-black text-xs uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
                 >
                   Cancelar
                 </button>
@@ -119,7 +120,7 @@ export function Modal({
               {submitLabel && (
                 <button
                   type="submit"
-                  className={`flex-1 py-4 rounded-2xl text-white font-black text-xs uppercase tracking-widest shadow-lg transition-all active:scale-95 ${submitColor}`}
+                  className={`flex-1 py-4 rounded-2xl text-white font-black text-xs uppercase tracking-widest shadow-lg transition-colors transition-transform active:scale-95 ${submitColor}`}
                 >
                   {submitLabel}
                 </button>
@@ -138,9 +139,10 @@ interface FormFieldProps {
 }
 
 export function FormField({ label, children }: FormFieldProps) {
+  const fieldId = `field-${label.replace(/\s+/g, '-').toLowerCase()}`;
   return (
     <div>
-      <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1 block mb-1">
+      <label htmlFor={fieldId} className="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1 block mb-1">
         {label}
       </label>
       {children}

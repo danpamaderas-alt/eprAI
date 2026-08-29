@@ -60,7 +60,7 @@ export const DashboardLayout = () => {
       <main
         id="contenido-principal"
         tabIndex={-1}
-        className="flex-1 h-screen overflow-y-auto bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white transition-colors duration-300 relative focus:outline-none"
+        className="flex-1 h-screen overflow-y-auto bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white transition-colors duration-300 relative"
       >
         <div className="p-4 pt-20 lg:p-8 lg:pt-8 pb-24 lg:pb-8 max-w-[1600px] mx-auto min-h-full">
           <Outlet />

@@ -330,7 +330,7 @@ export function SublimationDesignFormModal({
                 type="button"
                 onClick={handleScrape}
                 disabled={isScraping || isSaving}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-fuchsia-600 to-violet-600 hover:from-fuchsia-500 hover:to-violet-500 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-fuchsia-600/25 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-fuchsia-600 to-violet-600 hover:from-fuchsia-500 hover:to-violet-500 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-fuchsia-600/25 transition-colors transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
               >
                 {isScraping ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />

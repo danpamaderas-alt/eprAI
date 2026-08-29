@@ -79,6 +79,18 @@ export const useBlankStore = create<BlankState>((set, get) => ({
   },
 
   adjustStock: async (id, delta) => {
+    // RPC atómica (lock de fila en SQL) con fallback a read-modify-write
+    const { data, error } = await supabase.rpc('adjust_blank_stock', {
+      p_blank_id: id,
+      p_delta: delta,
+    });
+    if (!error && typeof data === 'number') {
+      set((state) => ({
+        blanks: state.blanks.map((b) => (b.id === id ? { ...b, stock_qty: data } : b)),
+      }));
+      return;
+    }
+
     const current = get().blanks.find((b) => b.id === id);
     if (!current) throw new Error('Blank no encontrado.');
 

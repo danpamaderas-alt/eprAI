@@ -90,7 +90,7 @@ export const RawMaterialDashboard = memo(() => {
         <button 
           type="button"
           onClick={() => { createForm.reset({ unit_measure: "Metros", min_stock_alert: 0, stock_quantity: 0 }); setIsCreateModalOpen(true); }}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-indigo-500/20 active:scale-95 transition-all"
+          className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-indigo-500/20 active:scale-95 transition-colors transition-transform"
         >
           + NUEVO REGISTRO
         </button>
@@ -106,7 +106,7 @@ export const RawMaterialDashboard = memo(() => {
             placeholder="Buscar por nombre o color..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white px-5 py-3 rounded-xl text-sm font-black uppercase placeholder-slate-400 outline-none focus:border-indigo-500 transition-all"
+            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white px-5 py-3 rounded-xl text-sm font-black uppercase placeholder-slate-400 focus:border-indigo-500 transition-colors"
           />
         </div>
         <div className="flex gap-2 overflow-x-auto w-full md:w-auto pb-1 scrollbar-hide">
@@ -115,7 +115,7 @@ export const RawMaterialDashboard = memo(() => {
               key={cat}
               type="button"
               onClick={() => setFilterCategory(cat)}
-              className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-[0.15em] whitespace-nowrap transition-all border ${filterCategory === cat ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-transparent hover:bg-slate-200'}`}
+              className={`px-5 py-2.5 rounded-full text-[9px] font-black uppercase tracking-[0.15em] whitespace-nowrap transition-colors border ${filterCategory === cat ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-transparent hover:bg-slate-200'}`}
             >
               {cat}
             </button>
@@ -175,7 +175,7 @@ export const RawMaterialDashboard = memo(() => {
                         <button 
                           type="button"
                           onClick={() => openStockModal(mat)}
-                          className="bg-slate-900 dark:bg-slate-700 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all"
+                          className="bg-slate-900 dark:bg-slate-700 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-colors transition-transform"
                         >
                           ⚖️ AJUSTAR
                         </button>
@@ -223,21 +223,21 @@ export const RawMaterialDashboard = memo(() => {
         width="max-w-xl"
       >
         <FormField label="Nombre del Material">
-          <input {...createForm.register("name")} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" placeholder="Ej: Tela Pique" />
+          <input {...createForm.register("name")} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold focus:ring-2 focus:ring-indigo-500 dark:text-white" placeholder="Ej: Tela Pique" />
           {createForm.formState.errors.name && <p className="text-rose-500 text-[10px] font-bold mt-1">{createForm.formState.errors.name.message}</p>}
         </FormField>
         <div className="grid grid-cols-2 gap-4">
           <FormField label="Categoria">
-            <input {...createForm.register("category")} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" placeholder="Textiles, Avios..." />
+            <input {...createForm.register("category")} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold focus:ring-2 focus:ring-indigo-500 dark:text-white" placeholder="Textiles, Avios..." />
             {createForm.formState.errors.category && <p className="text-rose-500 text-[10px] font-bold mt-1">{createForm.formState.errors.category.message}</p>}
           </FormField>
           <FormField label="Color">
-            <input {...createForm.register("color")} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" placeholder="Negro, Azul..." />
+            <input {...createForm.register("color")} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold focus:ring-2 focus:ring-indigo-500 dark:text-white" placeholder="Negro, Azul..." />
           </FormField>
         </div>
         <div className="grid grid-cols-2 gap-4">
           <FormField label="Unidad">
-            <select {...createForm.register("unit_measure")} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white text-sm">
+            <select {...createForm.register("unit_measure")} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold focus:ring-2 focus:ring-indigo-500 dark:text-white text-sm">
               <option value="Metros">Metros</option>
               <option value="Kilos">Kilos</option>
               <option value="Unidades">Unidades</option>
@@ -245,11 +245,11 @@ export const RawMaterialDashboard = memo(() => {
             </select>
           </FormField>
           <FormField label="Composicion">
-            <input {...createForm.register("composition")} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" placeholder="Ej: 100% Algodon" />
+            <input {...createForm.register("composition")} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold focus:ring-2 focus:ring-indigo-500 dark:text-white" placeholder="Ej: 100% Algodon" />
           </FormField>
         </div>
         <FormField label="Alerta Stock Min.">
-          <input type="number" {...createForm.register("min_stock_alert", { valueAsNumber: true })} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" placeholder="5" />
+          <input type="number" {...createForm.register("min_stock_alert", { valueAsNumber: true })} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold focus:ring-2 focus:ring-indigo-500 dark:text-white" placeholder="5" />
         </FormField>
       </Modal>
 
@@ -265,7 +265,7 @@ export const RawMaterialDashboard = memo(() => {
           <>
             <p className="text-sm font-bold text-slate-500 text-center mb-4">{stockModal.name} ({stockModal.color})</p>
             <FormField label={`Stock disponible en ${stockModal.unit_measure}`}>
-              <input type="number" {...stockForm.register("newStock", { valueAsNumber: true })} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-black text-2xl text-center outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" />
+              <input type="number" {...stockForm.register("newStock", { valueAsNumber: true })} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-black text-2xl text-center focus:ring-2 focus:ring-indigo-500 dark:text-white" />
               {stockForm.formState.errors.newStock && <p className="text-rose-500 text-[10px] font-bold mt-1">{stockForm.formState.errors.newStock.message}</p>}
             </FormField>
           </>

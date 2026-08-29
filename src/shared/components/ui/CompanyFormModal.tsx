@@ -180,7 +180,7 @@ export const CompanyFormModal = memo(({ isOpen, onClose, onSaved, editCompany }:
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors ${
                     activeTab === tab.id
                       ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
                       : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
@@ -207,7 +207,7 @@ export const CompanyFormModal = memo(({ isOpen, onClose, onSaved, editCompany }:
                   ref={nameRef}
                   value={form.name}
                   onChange={(e) => update('name', e.target.value)}
-                  className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                  className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 font-bold"
                   placeholder="EJ: RAICES DISEÑOS S.R.L."
                   required
                 />
@@ -219,7 +219,7 @@ export const CompanyFormModal = memo(({ isOpen, onClose, onSaved, editCompany }:
                 <input
                   value={form.commercial_name}
                   onChange={(e) => update('commercial_name', e.target.value)}
-                  className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500"
                   placeholder="EJ: Raíces Brand"
                 />
               </div>
@@ -231,7 +231,7 @@ export const CompanyFormModal = memo(({ isOpen, onClose, onSaved, editCompany }:
                   value={form.notes}
                   onChange={(e) => update('notes', e.target.value)}
                   rows={3}
-                  className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 resize-none"
                   placeholder="Información adicional sobre la empresa..."
                 />
               </div>
@@ -251,7 +251,7 @@ export const CompanyFormModal = memo(({ isOpen, onClose, onSaved, editCompany }:
                     <input
                       value={form.tax_id}
                       onChange={(e) => update('tax_id', e.target.value)}
-                      className="w-full pl-11 pr-4 py-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 font-mono font-bold"
+                      className="w-full pl-11 pr-4 py-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 font-mono font-bold"
                       placeholder="30-12345678-9"
                     />
                   </div>
@@ -263,7 +263,7 @@ export const CompanyFormModal = memo(({ isOpen, onClose, onSaved, editCompany }:
                   <select
                     value={form.fiscal_condition}
                     onChange={(e) => update('fiscal_condition', e.target.value)}
-                    className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white outline-none font-bold"
+                    className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white font-bold"
                   >
                     {FISCAL_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -295,7 +295,7 @@ export const CompanyFormModal = memo(({ isOpen, onClose, onSaved, editCompany }:
                 <input
                   value={form.address}
                   onChange={(e) => update('address', e.target.value)}
-                  className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500"
                   placeholder="Av. Corrientes 1234, Piso 5"
                 />
               </div>
@@ -307,7 +307,7 @@ export const CompanyFormModal = memo(({ isOpen, onClose, onSaved, editCompany }:
                   <input
                     value={form.city}
                     onChange={(e) => update('city', e.target.value)}
-                    className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500"
                     placeholder="CABA"
                   />
                 </div>
@@ -318,7 +318,7 @@ export const CompanyFormModal = memo(({ isOpen, onClose, onSaved, editCompany }:
                   <select
                     value={form.province}
                     onChange={(e) => update('province', e.target.value)}
-                    className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white outline-none font-bold text-sm"
+                    className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white font-bold text-sm"
                   >
                     {PROVINCIAS.map((p) => (
                       <option key={p} value={p}>{p}</option>
@@ -332,7 +332,7 @@ export const CompanyFormModal = memo(({ isOpen, onClose, onSaved, editCompany }:
                   <input
                     value={form.postal_code}
                     onChange={(e) => update('postal_code', e.target.value)}
-                    className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                    className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 font-mono"
                     placeholder="C1043"
                   />
                 </div>
@@ -353,7 +353,7 @@ export const CompanyFormModal = memo(({ isOpen, onClose, onSaved, editCompany }:
                     <input
                       value={form.phone}
                       onChange={(e) => update('phone', e.target.value)}
-                      className="w-full pl-11 pr-4 py-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full pl-11 pr-4 py-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500"
                       placeholder="+54 11 1234-5678"
                     />
                   </div>
@@ -366,7 +366,7 @@ export const CompanyFormModal = memo(({ isOpen, onClose, onSaved, editCompany }:
                     type="email"
                     value={form.email}
                     onChange={(e) => update('email', e.target.value)}
-                    className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500"
                     placeholder="info@raices.com.ar"
                   />
                 </div>
@@ -380,7 +380,7 @@ export const CompanyFormModal = memo(({ isOpen, onClose, onSaved, editCompany }:
                   <input
                     value={form.website}
                     onChange={(e) => update('website', e.target.value)}
-                    className="w-full pl-11 pr-4 py-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full pl-11 pr-4 py-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border dark:border-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500"
                     placeholder="https://www.raices.com.ar"
                   />
                 </div>
@@ -394,7 +394,7 @@ export const CompanyFormModal = memo(({ isOpen, onClose, onSaved, editCompany }:
           <button
             onClick={handleSubmit}
             disabled={isSubmitting || !form.name.trim()}
-            className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white p-5 rounded-2xl font-black uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 active:scale-95 transition-all disabled:opacity-50"
+            className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white p-5 rounded-2xl font-black uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 active:scale-95 transition-colors transition-transform disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
             {isSubmitting ? 'Guardando...' : editCompany ? 'Actualizar Empresa' : 'Crear Empresa'}

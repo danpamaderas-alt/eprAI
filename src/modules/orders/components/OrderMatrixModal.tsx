@@ -277,6 +277,7 @@ export const OrderMatrixModal: React.FC<OrderMatrixModalProps> = ({
                       type="number"
                       min={delivered}
                       defaultValue={defaultValue}
+                      aria-label={`Cantidad para ${color} talle ${size}`}
                       onChange={(e) => {
                         valuesRef.current[key] =
                           parseInt(e.target.value, 10) || 0;
@@ -295,7 +296,7 @@ export const OrderMatrixModal: React.FC<OrderMatrixModalProps> = ({
                           Number(e.currentTarget.value) <= stockActual,
                         );
                       }}
-                      className={`w-full mt-4 h-12 bg-transparent text-center font-black text-xl outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-2 focus:ring-blue-500 rounded-xl transition-all ${!variant ? "!text-amber-500 border-amber-300" : isOverStockInit ? "!text-rose-500" : "text-slate-900 dark:text-white"}`}
+                      className={`w-full mt-4 h-12 bg-transparent text-center font-black text-xl focus:bg-blue-50 dark:focus:bg-blue-900/20 focus-visible:ring-2 focus-visible:ring-blue-500 rounded-xl transition-colors ${!variant ? "!text-amber-500 border-amber-300" : isOverStockInit ? "!text-rose-500" : "text-slate-900 dark:text-white"}`}
                       placeholder="-"
                     />
                   </td>
@@ -317,7 +318,7 @@ export const OrderMatrixModal: React.FC<OrderMatrixModalProps> = ({
   );
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200" style={{ overscrollBehavior: 'contain' }}>
       <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col border border-slate-200 dark:border-slate-700 max-h-[90vh]">
         <div className="px-8 py-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900 sticky top-0 z-10">
           <div>
@@ -330,7 +331,8 @@ export const OrderMatrixModal: React.FC<OrderMatrixModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-rose-500 bg-white dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-full shadow-sm transition-all"
+            aria-label="Cerrar matriz de producción"
+            className="p-2 text-slate-400 hover:text-rose-500 bg-white dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-full shadow-sm transition-colors"
           >
             ✕
           </button>
@@ -365,7 +367,7 @@ export const OrderMatrixModal: React.FC<OrderMatrixModalProps> = ({
           </button>
           <button
             onClick={handleSave}
-            className="px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black shadow-lg shadow-blue-500/30 transition-all active:scale-95 uppercase tracking-widest"
+            className="px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black shadow-lg shadow-blue-500/30 transition-colors transition-transform active:scale-95 uppercase tracking-widest"
           >
             Guardar Matriz
           </button>

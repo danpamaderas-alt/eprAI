@@ -102,7 +102,7 @@ export const DeliverSublimationJobModal = ({ job, onClose }: Props) => {
                 <div className="mt-1 grid grid-cols-3 gap-2">
                   {PAYMENT_OPTIONS.map(({ value, label, icon: Icon }) => (
                     <button key={value} type="button" onClick={() => setPayment(value)}
-                      className={`flex flex-col items-center gap-1 py-2.5 rounded-xl border transition-all ${
+                      className={`flex flex-col items-center gap-1 py-2.5 rounded-xl border transition-colors ${
                         payment === value
                           ? 'bg-fuchsia-600/20 border-fuchsia-500 text-fuchsia-300'
                           : 'bg-slate-800 border-slate-700 text-slate-500 hover:text-white hover:border-slate-600'
@@ -119,13 +119,13 @@ export const DeliverSublimationJobModal = ({ job, onClose }: Props) => {
                   <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Total cobrado ($)</span>
                   <input type="number" min={0} step="100" value={total}
                     onChange={(e) => setTotal(e.target.value)}
-                    className="mt-1 w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white tabular-nums focus:border-fuchsia-500 focus:outline-none" />
+                    className="mt-1 w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white tabular-nums focus:border-fuchsia-500 " />
                 </label>
                 <label className="block">
                   <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Cliente</span>
                   <input type="text" placeholder="Mostrador" value={customer}
                     onChange={(e) => setCustomer(e.target.value)}
-                    className="mt-1 w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white placeholder:text-slate-600 focus:border-fuchsia-500 focus:outline-none" />
+                    className="mt-1 w-full px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-white placeholder:text-slate-600 focus:border-fuchsia-500 " />
                 </label>
               </div>
 

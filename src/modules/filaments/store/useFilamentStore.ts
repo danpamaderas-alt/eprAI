@@ -79,6 +79,18 @@ export const useFilamentStore = create<FilamentState>((set, get) => ({
   },
 
   consumeGrams: async (id, grams) => {
+    // RPC atómica (lock de fila en SQL) con fallback a read-modify-write
+    const { data, error } = await supabase.rpc('consume_filament_grams', {
+      p_filament_id: id,
+      p_grams: grams,
+    });
+    if (!error && typeof data === 'number') {
+      set((state) => ({
+        filaments: state.filaments.map((f) => (f.id === id ? { ...f, remaining_g: data } : f)),
+      }));
+      return;
+    }
+
     const current = get().filaments.find((f) => f.id === id);
     if (!current) throw new Error('Filamento no encontrado.');
 

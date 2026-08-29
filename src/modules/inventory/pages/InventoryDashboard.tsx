@@ -238,16 +238,16 @@ export const InventoryDashboard = memo(() => {
           <p className="text-xs text-slate-400 font-medium mt-1 ml-13">Gestión de stock, productos y variantes</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <button onClick={() => setShowNewSize(true)} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95">
+          <button onClick={() => setShowNewSize(true)} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors transition-transform active:scale-95">
             <Ruler className="w-3 h-3" /> Talle
           </button>
-          <button onClick={() => setShowNewColor(true)} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95">
+          <button onClick={() => setShowNewColor(true)} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors transition-transform active:scale-95">
             <Palette className="w-3 h-3" /> Color
           </button>
-          <button onClick={openMovements} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95">
+          <button onClick={openMovements} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors transition-transform active:scale-95">
             <History className="w-3 h-3" /> Movimientos
           </button>
-          <button onClick={() => setShowNewProduct(true)} className="flex items-center gap-1.5 px-4 py-2 bg-brand text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-brand/20 hover:shadow-brand/40 transition-all active:scale-95">
+          <button onClick={() => setShowNewProduct(true)} className="flex items-center gap-1.5 px-4 py-2 bg-brand text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-brand/20 hover:shadow-brand/40 transition-colors transition-transform active:scale-95">
             <Plus className="w-3 h-3" /> Nuevo Producto
           </button>
         </div>
@@ -277,7 +277,7 @@ export const InventoryDashboard = memo(() => {
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all active:scale-95 ${
+            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-colors transition-transform active:scale-95 ${
               activeTab === tab.key
                 ? tab.warn ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'bg-brand text-white shadow-lg shadow-brand/20'
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700'
@@ -295,7 +295,7 @@ export const InventoryDashboard = memo(() => {
           <button
             key={cat}
             onClick={() => setSelectedCategory(cat)}
-            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all active:scale-95 ${
+            className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-colors transition-transform active:scale-95 ${
               selectedCategory === cat
                 ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-lg'
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700'
@@ -316,7 +316,7 @@ export const InventoryDashboard = memo(() => {
               placeholder="Buscar por nombre, talla o color..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all"
+              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors"
             />
           </div>
         </div>
@@ -460,30 +460,30 @@ export const InventoryDashboard = memo(() => {
               <div>
                 <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Nombre *</label>
                 <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Ej: Remera Básica"
-                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all uppercase" />
+                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors uppercase" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Categoría</label>
                   <input type="text" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} placeholder="Ej: Remeras"
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all uppercase" />
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors uppercase" />
                 </div>
                 <div>
                   <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">SKU</label>
                   <input type="text" value={form.sku} onChange={e => setForm({ ...form, sku: e.target.value })} placeholder="Opcional"
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all uppercase" />
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors uppercase" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Precio Venta</label>
                   <input type="number" min="0" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} placeholder="0"
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all" />
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors" />
                 </div>
                 <div>
                   <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Costo</label>
                   <input type="number" min="0" value={form.cost_price} onChange={e => setForm({ ...form, cost_price: e.target.value })} placeholder="0"
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all" />
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors" />
                 </div>
               </div>
               <div className="border-t border-slate-200 dark:border-slate-700 pt-3">
@@ -492,7 +492,7 @@ export const InventoryDashboard = memo(() => {
                   <div>
                     <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Talle</label>
                     <select value={form.size_id} onChange={e => setForm({ ...form, size_id: e.target.value })}
-                      className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all">
+                      className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors">
                       <option value="">Sin talle</option>
                       {sizes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
@@ -500,7 +500,7 @@ export const InventoryDashboard = memo(() => {
                   <div>
                     <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Color</label>
                     <select value={form.color_id} onChange={e => setForm({ ...form, color_id: e.target.value })}
-                      className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all">
+                      className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors">
                       <option value="">Sin color</option>
                       {colors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
@@ -508,14 +508,14 @@ export const InventoryDashboard = memo(() => {
                   <div>
                     <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Stock Inicial</label>
                     <input type="number" min="0" value={form.initial_stock} onChange={e => setForm({ ...form, initial_stock: e.target.value })}
-                      className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all" />
+                      className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors" />
                   </div>
                 </div>
               </div>
             </div>
             <div className="flex gap-2 mt-5">
-              <button onClick={() => setShowNewProduct(false)} className="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 rounded-xl text-xs font-black uppercase text-slate-600 dark:text-slate-300 transition-all hover:bg-slate-200 dark:hover:bg-slate-700">Cancelar</button>
-              <button onClick={handleCreateProduct} disabled={!form.name.trim()} className="flex-1 bg-brand text-white py-2.5 rounded-xl text-xs font-black uppercase disabled:opacity-40 transition-all active:scale-95 shadow-lg shadow-brand/20">Crear Producto</button>
+              <button onClick={() => setShowNewProduct(false)} className="flex-1 bg-slate-100 dark:bg-slate-800 py-2.5 rounded-xl text-xs font-black uppercase text-slate-600 dark:text-slate-300 transition-colors hover:bg-slate-200 dark:hover:bg-slate-700">Cancelar</button>
+              <button onClick={handleCreateProduct} disabled={!form.name.trim()} className="flex-1 bg-brand text-white py-2.5 rounded-xl text-xs font-black uppercase disabled:opacity-40 transition-colors transition-transform active:scale-95 shadow-lg shadow-brand/20">Crear Producto</button>
             </div>
           </div>
         </div>
@@ -527,11 +527,11 @@ export const InventoryDashboard = memo(() => {
           <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-sm font-black uppercase mb-4 text-slate-900 dark:text-white">Nuevo Talle</h3>
             <input type="text" value={newSizeName} onChange={e => setNewSizeName(e.target.value)} placeholder="Ej: S, M, L, XL, 42..."
-              className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all uppercase mb-4"
+              className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors uppercase mb-4"
               onKeyDown={e => e.key === 'Enter' && handleCreateSize()} autoFocus />
             <div className="flex gap-2">
               <button onClick={() => setShowNewSize(false)} className="flex-1 bg-slate-100 dark:bg-slate-800 py-2 rounded-xl text-xs font-black uppercase">Cancelar</button>
-              <button onClick={handleCreateSize} disabled={!newSizeName.trim()} className="flex-1 bg-brand text-white py-2 rounded-xl text-xs font-black uppercase disabled:opacity-40 transition-all active:scale-95">Crear</button>
+              <button onClick={handleCreateSize} disabled={!newSizeName.trim()} className="flex-1 bg-brand text-white py-2 rounded-xl text-xs font-black uppercase disabled:opacity-40 transition-colors transition-transform active:scale-95">Crear</button>
             </div>
           </div>
         </div>
@@ -545,12 +545,12 @@ export const InventoryDashboard = memo(() => {
             <div className="flex gap-3 mb-4">
               <input type="color" value={newColorHex} onChange={e => setNewColorHex(e.target.value)} className="w-10 h-10 rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer" />
               <input type="text" value={newColorName} onChange={e => setNewColorName(e.target.value)} placeholder="Ej: Negro, Blanco, Rojo..."
-                className="flex-1 px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all uppercase"
+                className="flex-1 px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors uppercase"
                 onKeyDown={e => e.key === 'Enter' && handleCreateColor()} autoFocus />
             </div>
             <div className="flex gap-2">
               <button onClick={() => setShowNewColor(false)} className="flex-1 bg-slate-100 dark:bg-slate-800 py-2 rounded-xl text-xs font-black uppercase">Cancelar</button>
-              <button onClick={handleCreateColor} disabled={!newColorName.trim()} className="flex-1 bg-brand text-white py-2 rounded-xl text-xs font-black uppercase disabled:opacity-40 transition-all active:scale-95">Crear</button>
+              <button onClick={handleCreateColor} disabled={!newColorName.trim()} className="flex-1 bg-brand text-white py-2 rounded-xl text-xs font-black uppercase disabled:opacity-40 transition-colors transition-transform active:scale-95">Crear</button>
             </div>
           </div>
         </div>
@@ -564,13 +564,13 @@ export const InventoryDashboard = memo(() => {
             <p className="text-xs text-slate-500 mb-4 font-bold">{adjustModal.productName}</p>
             <input type="number" placeholder="Cantidad (+ sumar, - restar)" value={adjustQty}
               onChange={e => setAdjustQty(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand mb-3" />
+              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-medium text-slate-700 dark:text-white focus:border-brand mb-3" />
             <input type="text" placeholder="Motivo del ajuste" value={adjustReason}
               onChange={e => setAdjustReason(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand mb-4" />
+              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-medium text-slate-700 dark:text-white focus:border-brand mb-4" />
             <div className="flex gap-2">
               <button onClick={() => setAdjustModal({ open: false, variantId: '', productName: '' })} className="flex-1 bg-slate-100 dark:bg-slate-800 py-2 rounded-xl text-xs font-black uppercase">Cancelar</button>
-              <button onClick={submitAdjust} disabled={!adjustQty || !adjustReason.trim()} className="flex-1 bg-brand text-white py-2 rounded-xl text-xs font-black uppercase disabled:opacity-40 transition-all active:scale-95">Ajustar</button>
+              <button onClick={submitAdjust} disabled={!adjustQty || !adjustReason.trim()} className="flex-1 bg-brand text-white py-2 rounded-xl text-xs font-black uppercase disabled:opacity-40 transition-colors transition-transform active:scale-95">Ajustar</button>
             </div>
           </div>
         </div>
@@ -585,29 +585,29 @@ export const InventoryDashboard = memo(() => {
               <div>
                 <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Nombre</label>
                 <input type="text" value={editModal.name} onChange={e => setEditModal({ ...editModal, name: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all uppercase" />
+                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors uppercase" />
               </div>
               <div>
                 <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Categoría</label>
                 <input type="text" value={editModal.category} onChange={e => setEditModal({ ...editModal, category: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all uppercase" />
+                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors uppercase" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Precio Venta</label>
                   <input type="number" min="0" value={editModal.price} onChange={e => setEditModal({ ...editModal, price: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all" />
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors" />
                 </div>
                 <div>
                   <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 block">Costo</label>
                   <input type="number" min="0" value={editModal.cost_price} onChange={e => setEditModal({ ...editModal, cost_price: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-brand transition-all" />
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-brand transition-colors" />
                 </div>
               </div>
             </div>
             <div className="flex gap-2 mt-5">
               <button onClick={() => setEditModal({ ...editModal, open: false })} className="flex-1 bg-slate-100 dark:bg-slate-800 py-2 rounded-xl text-xs font-black uppercase">Cancelar</button>
-              <button onClick={handleSaveEdit} className="flex-1 bg-brand text-white py-2 rounded-xl text-xs font-black uppercase transition-all active:scale-95 shadow-lg shadow-brand/20">
+              <button onClick={handleSaveEdit} className="flex-1 bg-brand text-white py-2 rounded-xl text-xs font-black uppercase transition-colors transition-transform active:scale-95 shadow-lg shadow-brand/20">
                 <Save className="w-3 h-3 inline mr-1" /> Guardar
               </button>
             </div>

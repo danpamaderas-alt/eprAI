@@ -71,7 +71,7 @@ export const OrderCard = ({ order: initialOrder }: any) => {
   return (
     <>
       {/* 1. LA TARJETA VISUAL */}
-      <div className={`print:hidden bg-white rounded-3xl border transition-all duration-300 ${isExpanded ? 'border-blue-500 shadow-xl shadow-blue-500/10' : 'border-slate-200 shadow-sm'}`}>
+      <div className={`print:hidden bg-white rounded-3xl border transition-colors duration-300 ${isExpanded ? 'border-blue-500 shadow-xl shadow-blue-500/10' : 'border-slate-200 shadow-sm'}`}>
         <div className="p-5 flex justify-between items-center gap-4 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
           <div className="flex items-center gap-4 flex-1">
             <div className="bg-slate-100 p-3 rounded-2xl text-xl">

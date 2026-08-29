@@ -101,3 +101,9 @@ export const usePrintModelStore = create<PrintModelState>((set, get) => ({
     }));
   },
 }));
+
+useTenantStore.subscribe((state, prev) => {
+  if (state.activeCompanyId !== prev.activeCompanyId) {
+    usePrintModelStore.setState({ models: [], isLoading: false, error: null });
+  }
+});

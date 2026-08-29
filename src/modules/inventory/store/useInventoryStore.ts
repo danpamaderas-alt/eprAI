@@ -292,3 +292,9 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     return true;
   },
 }));
+
+useTenantStore.subscribe((state, prev) => {
+  if (state.activeCompanyId !== prev.activeCompanyId) {
+    useInventoryStore.setState({ products: [], sizes: [], colors: [], isLoading: false });
+  }
+});

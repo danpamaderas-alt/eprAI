@@ -43,7 +43,7 @@ export const CustomerSelector = memo(({ selectedCustomerId, onSelect }: Customer
             placeholder="Buscar por nombre..."
             value={clientSearch}
             onChange={(e) => setClientSearch(e.target.value)}
-            className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-950 border-none rounded-[2rem] text-sm font-black dark:text-white outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+            className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-950 border-none rounded-[2rem] text-sm font-black dark:text-white focus:ring-2 focus:ring-blue-500 transition-colors"
           />
           {filteredCustomers.length > 0 && (
             <div className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[2rem] shadow-2xl overflow-hidden">

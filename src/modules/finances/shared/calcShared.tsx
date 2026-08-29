@@ -27,11 +27,11 @@ export const applyRounding = (v: number, strategy: RoundingStrategy): number => 
     case '990':
       return Math.max(0.99, Math.floor(v) + 0.99);
     case '999':
-      return Math.max(0.99, Math.floor(v) + 0.999);
+      return Math.max(0.999, Math.floor(v) + 0.999);
     case '900':
       return Math.max(0.9, Math.floor(v) + 0.9);
     case 'hundred':
-      return Math.max(100, Math.round(v / 100) * 100);
+      return Math.max(100, Math.ceil(v / 100) * 100);
     default:
       return Math.round(v * 100) / 100;
   }
@@ -138,7 +138,7 @@ export const Field = ({
           onChange(Number.isNaN(v) ? 0 : v);
         }}
         placeholder="0"
-        className={`w-full bg-slate-950 border border-slate-700 text-white text-sm font-black rounded-xl py-3 outline-none focus:border-indigo-500 transition-colors text-right ${
+        className={`w-full bg-slate-950 border border-slate-700 text-white text-sm font-black rounded-xl py-3 focus:border-indigo-500 transition-colors text-right ${
           prefix ? 'pl-8 pr-4' : suffix ? 'pl-4 pr-8' : 'px-4'
         }`}
       />
@@ -178,7 +178,7 @@ export const FieldSelect = ({
       id={id}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-slate-950 border border-slate-700 text-white text-sm font-black rounded-xl py-3 pl-4 pr-10 outline-none focus:border-indigo-500 transition-colors appearance-none cursor-pointer"
+      className="w-full bg-slate-950 border border-slate-700 text-white text-sm font-black rounded-xl py-3 pl-4 pr-10 focus:border-indigo-500 transition-colors appearance-none cursor-pointer"
     >
       {options.map((o) => (
         <option key={o.value} value={o.value}>
@@ -217,7 +217,7 @@ export const TimeField = ({
       value={hoursToTime(value)}
       onChange={(e) => onChange(timeToHours(e.target.value))}
       placeholder="HH:MM"
-      className="w-full bg-slate-950 border border-slate-700 text-white text-sm font-black rounded-xl py-3 px-4 outline-none focus:border-indigo-500 transition-colors"
+      className="w-full bg-slate-950 border border-slate-700 text-white text-sm font-black rounded-xl py-3 px-4 focus:border-indigo-500 transition-colors"
     />
   </div>
 );

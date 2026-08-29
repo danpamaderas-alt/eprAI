@@ -121,7 +121,7 @@ export const StockWithdrawal = () => {
               <select
                 value={productId}
                 onChange={(e) => setProductId(e.target.value)}
-                className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-rose-500 outline-none transition-all"
+                className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-rose-500 transition-colors"
               >
                 <option value="">Selecciona un producto...</option>
                 {products.map((p) => (
@@ -139,7 +139,7 @@ export const StockWithdrawal = () => {
               <select
                 value={sizeId}
                 onChange={(e) => setSizeId(e.target.value)}
-                className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-rose-500 outline-none transition-all"
+                className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-rose-500 transition-colors"
               >
                 <option value="">Selecciona un talle...</option>
                 {sizes.map((s) => (
@@ -157,7 +157,7 @@ export const StockWithdrawal = () => {
               <select
                 value={colorId}
                 onChange={(e) => setColorId(e.target.value)}
-                className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-rose-500 outline-none transition-all"
+                className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-rose-500 transition-colors"
               >
                 <option value="">Selecciona un color...</option>
                 {colors.map((c) => (
@@ -190,7 +190,7 @@ export const StockWithdrawal = () => {
                   )
                 }
                 placeholder="Ej: 5"
-                className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-rose-500 outline-none transition-all"
+                className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-rose-500 transition-colors"
               />
             </div>
 
@@ -201,7 +201,7 @@ export const StockWithdrawal = () => {
               <select
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-rose-500 outline-none transition-all"
+                className="w-full p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-rose-500 transition-colors"
               >
                 <option value="">Selecciona el motivo...</option>
                 <option value="FALLA_FABRICA">Falla de Fábrica</option>
@@ -217,7 +217,7 @@ export const StockWithdrawal = () => {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full mt-4 bg-rose-600 hover:bg-rose-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-rose-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full mt-4 bg-rose-600 hover:bg-rose-700 text-white font-bold py-4 rounded-xl transition-colors shadow-lg shadow-rose-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? "Procesando..." : "Confirmar Retiro de Stock"}
           </button>

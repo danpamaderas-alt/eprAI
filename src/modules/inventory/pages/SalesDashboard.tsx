@@ -285,7 +285,7 @@ const SalesContent = memo(() => {
               placeholder="Buscar por nombre o SKU..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-700 dark:text-white outline-none focus:border-brand focus:ring-2 focus:ring-brand/20 transition-all"
+              className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-700 dark:text-white focus:border-brand focus:ring-2 focus:ring-brand/20 transition-colors"
             />
           </div>
 
@@ -296,7 +296,7 @@ const SalesContent = memo(() => {
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
                 className={cn(
-                  'px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all active:scale-95',
+                  'px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-colors transition-transform active:scale-95',
                   selectedCategory === cat
                     ? 'bg-brand text-white shadow-lg shadow-brand/20'
                     : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700',
@@ -332,7 +332,7 @@ const SalesContent = memo(() => {
                     {/* Product Card */}
                     <div
                       className={cn(
-                        'bg-slate-50 dark:bg-slate-900 border rounded-2xl overflow-hidden transition-all group',
+                        'bg-slate-50 dark:bg-slate-900 border rounded-2xl overflow-hidden transition-colors group',
                         isExpanded
                           ? 'border-brand dark:border-brand shadow-lg ring-2 ring-brand/20'
                           : 'border-slate-200 dark:border-slate-700 hover:border-brand dark:hover:border-brand hover:shadow-lg',
@@ -365,7 +365,7 @@ const SalesContent = memo(() => {
                           <button
                             onClick={() => setExpandedProduct(isExpanded ? null : p.id)}
                             className={cn(
-                              'px-2 py-1 rounded-lg text-[9px] font-black uppercase transition-all active:scale-90',
+                              'px-2 py-1 rounded-lg text-[9px] font-black uppercase transition-colors transition-transform active:scale-90',
                               stock > 0
                                 ? 'bg-brand text-white hover:bg-brand-700 shadow-md shadow-brand/20'
                                 : 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed',
@@ -402,7 +402,7 @@ const SalesContent = memo(() => {
                                     max={vStock}
                                     defaultValue={1}
                                     id={`qty-${v.id}`}
-                                    className="w-14 text-center text-xs font-black bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg py-1 outline-none focus:border-brand"
+                                    className="w-14 text-center text-xs font-black bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg py-1 focus:border-brand"
                                   />
                                   <button
                                     onClick={() => {
@@ -410,7 +410,7 @@ const SalesContent = memo(() => {
                                       const qty = Math.min(Number(input.value) || 1, vStock);
                                       addToCart(p, v, qty);
                                     }}
-                                    className="px-3 py-1.5 bg-brand text-white rounded-lg text-[9px] font-black uppercase hover:bg-brand-700 transition-all active:scale-90"
+                                    className="px-3 py-1.5 bg-brand text-white rounded-lg text-[9px] font-black uppercase hover:bg-brand-700 transition-colors transition-transform active:scale-90"
                                   >
                                     <Plus className="w-3 h-3" />
                                   </button>
@@ -451,7 +451,7 @@ const SalesContent = memo(() => {
                     setCustomerSearch('');
                   }}
                   className={cn(
-                    'flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[9px] font-black uppercase transition-all active:scale-95',
+                    'flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[9px] font-black uppercase transition-colors transition-transform active:scale-95',
                     customerType === value
                       ? value === 'mayorista'
                         ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20'
@@ -480,7 +480,7 @@ const SalesContent = memo(() => {
                     if (!e.target.value) setSelectedResellerId(null);
                   }}
                   onFocus={() => setShowCustomerDropdown(true)}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none focus:border-purple-500 transition-all"
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white focus:border-purple-500 transition-colors"
                 />
                 {selectedResellerId && (
                   <button
@@ -522,7 +522,7 @@ const SalesContent = memo(() => {
                   }}
                   onFocus={() => setShowCustomerDropdown(true)}
                   className={cn(
-                    'w-full px-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white outline-none transition-all',
+                    'w-full px-4 py-2.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium text-slate-700 dark:text-white transition-colors',
                     customerType === 'mayorista' ? 'focus:border-amber-500' : 'focus:border-brand',
                   )}
                 />
@@ -618,7 +618,7 @@ const SalesContent = memo(() => {
                         <span className="text-[8px] font-black bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded uppercase">{item.sku}</span>
                       </div>
                     </div>
-                    <button onClick={() => removeFromCart(item.id)} className="p-1.5 text-slate-300 hover:text-danger hover:bg-danger/10 rounded-lg transition-all">
+                    <button onClick={() => removeFromCart(item.id)} className="p-1.5 text-slate-300 hover:text-danger hover:bg-danger/10 rounded-lg transition-colors">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -626,7 +626,7 @@ const SalesContent = memo(() => {
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => updateCartQty(item.id, -1)}
-                        className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 hover:bg-danger/20 hover:text-danger transition-colors active:scale-90"
+                        className="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 hover:bg-danger/20 hover:text-danger transition-colors transition-transform active:scale-90"
                       >
                         <Minus className="w-3 h-3" />
                       </button>
@@ -635,7 +635,7 @@ const SalesContent = memo(() => {
                         onClick={() => item.qty < item.maxQty && updateCartQty(item.id, 1)}
                         disabled={item.qty >= item.maxQty}
                         className={cn(
-                          'w-6 h-6 rounded-lg flex items-center justify-center transition-all active:scale-90',
+                          'w-6 h-6 rounded-lg flex items-center justify-center transition-colors transition-transform active:scale-90',
                           item.qty >= item.maxQty
                             ? 'bg-slate-50 dark:bg-slate-800 text-slate-300 cursor-not-allowed'
                             : 'bg-brand/10 text-brand hover:bg-brand hover:text-white',
@@ -668,7 +668,7 @@ const SalesContent = memo(() => {
                       <button
                         onClick={() => updateItemDiscount(item.id, 'none', 0)}
                         className={cn(
-                          'flex-1 py-1 rounded-lg text-[8px] font-black uppercase transition-all',
+                          'flex-1 py-1 rounded-lg text-[8px] font-black uppercase transition-colors',
                           item.discountType === 'none'
                             ? 'bg-slate-200 dark:bg-slate-700 text-slate-500'
                             : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700',
@@ -679,7 +679,7 @@ const SalesContent = memo(() => {
                       <button
                         onClick={() => updateItemDiscount(item.id, 'percent', item.discountType === 'percent' ? item.discountValue : 10)}
                         className={cn(
-                          'flex-1 py-1 rounded-lg text-[8px] font-black uppercase transition-all flex items-center justify-center gap-0.5',
+                          'flex-1 py-1 rounded-lg text-[8px] font-black uppercase transition-colors flex items-center justify-center gap-0.5',
                           item.discountType === 'percent'
                             ? 'bg-amber-500 text-white'
                             : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700',
@@ -690,7 +690,7 @@ const SalesContent = memo(() => {
                       <button
                         onClick={() => updateItemDiscount(item.id, 'fixed', item.discountType === 'fixed' ? item.discountValue : 0)}
                         className={cn(
-                          'flex-1 py-1 rounded-lg text-[8px] font-black uppercase transition-all flex items-center justify-center gap-0.5',
+                          'flex-1 py-1 rounded-lg text-[8px] font-black uppercase transition-colors flex items-center justify-center gap-0.5',
                           item.discountType === 'fixed'
                             ? 'bg-amber-500 text-white'
                             : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700',
@@ -706,7 +706,7 @@ const SalesContent = memo(() => {
                         max={item.discountType === 'percent' ? 100 : item.price * item.qty}
                         value={item.discountValue}
                         onChange={(e) => updateItemDiscount(item.id, item.discountType, Number(e.target.value) || 0)}
-                        className="w-14 text-center text-[9px] font-black bg-white dark:bg-slate-950 border border-amber-300 dark:border-amber-700 rounded-lg py-1 outline-none focus:border-amber-500"
+                        className="w-14 text-center text-[9px] font-black bg-white dark:bg-slate-950 border border-amber-300 dark:border-amber-700 rounded-lg py-1 focus:border-amber-500"
                       />
                     )}
                     {item.discountType !== 'none' && (
@@ -731,7 +731,7 @@ const SalesContent = memo(() => {
                 <button
                   onClick={() => setGlobalDiscountType('none')}
                   className={cn(
-                    'flex-1 py-2 rounded-xl text-[9px] font-black uppercase transition-all',
+                    'flex-1 py-2 rounded-xl text-[9px] font-black uppercase transition-colors',
                     globalDiscountType === 'none'
                       ? 'bg-slate-200 dark:bg-slate-700 text-slate-500'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700',
@@ -742,7 +742,7 @@ const SalesContent = memo(() => {
                 <button
                   onClick={() => setGlobalDiscountType('percent')}
                   className={cn(
-                    'flex-1 py-2 rounded-xl text-[9px] font-black uppercase transition-all flex items-center justify-center gap-1',
+                    'flex-1 py-2 rounded-xl text-[9px] font-black uppercase transition-colors flex items-center justify-center gap-1',
                     globalDiscountType === 'percent'
                       ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700',
@@ -753,7 +753,7 @@ const SalesContent = memo(() => {
                 <button
                   onClick={() => setGlobalDiscountType('fixed')}
                   className={cn(
-                    'flex-1 py-2 rounded-xl text-[9px] font-black uppercase transition-all flex items-center justify-center gap-1',
+                    'flex-1 py-2 rounded-xl text-[9px] font-black uppercase transition-colors flex items-center justify-center gap-1',
                     globalDiscountType === 'fixed'
                       ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700',
@@ -770,7 +770,7 @@ const SalesContent = memo(() => {
                     max={globalDiscountType === 'percent' ? 100 : totals.subtotal}
                     value={globalDiscountValue}
                     onChange={(e) => setGlobalDiscountValue(Number(e.target.value) || 0)}
-                    className="flex-1 px-3 py-2 bg-white dark:bg-slate-950 border border-amber-300 dark:border-amber-700 rounded-xl text-xs font-bold text-slate-700 dark:text-white outline-none focus:border-amber-500 transition-all"
+                    className="flex-1 px-3 py-2 bg-white dark:bg-slate-950 border border-amber-300 dark:border-amber-700 rounded-xl text-xs font-bold text-slate-700 dark:text-white focus:border-amber-500 transition-colors"
                   />
                   <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400">
                     {globalDiscountType === 'percent' ? '%' : 'ARS'}
@@ -792,7 +792,7 @@ const SalesContent = memo(() => {
                     key={value}
                     onClick={() => setPaymentMethod(value)}
                     className={cn(
-                      'flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all active:scale-95',
+                      'flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-colors transition-transform active:scale-95',
                       paymentMethod === value
                         ? 'border-brand bg-brand/10 text-brand shadow-md shadow-brand/10'
                         : 'border-slate-200 dark:border-slate-700 text-slate-400 hover:border-slate-300 dark:hover:border-slate-600',
@@ -860,7 +860,7 @@ const SalesContent = memo(() => {
                 onClick={handleCheckout}
                 disabled={cart.length === 0 || isProcessing}
                 className={cn(
-                  'flex-1 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-all active:scale-[0.97]',
+                  'flex-1 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-colors transition-transform active:scale-[0.97]',
                   cart.length > 0 && !isProcessing
                     ? 'bg-success hover:bg-success-500 text-white shadow-lg shadow-success/20'
                     : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed',

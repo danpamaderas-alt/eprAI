@@ -223,6 +223,15 @@ export function QuoteDashboard() {
   };
 
   const handleDelete = async (quoteId: string) => {
+    const res = await Swal.fire({
+      title: '¿Eliminar presupuesto?',
+      text: 'Esta acción no se puede deshacer.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Eliminar',
+      confirmButtonColor: '#e11d48',
+    });
+    if (!(res as { isConfirmed?: boolean }).isConfirmed) return;
     try {
       const { error } = await supabase.from('quotes').delete().eq('id', quoteId);
       if (error) throw error;
@@ -360,10 +369,10 @@ export function QuoteDashboard() {
           <p className="text-xs text-slate-400 font-medium mt-1 ml-13">Presupuestos para clientes e instituciones</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <button onClick={handleExportCSV} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95">
+          <button onClick={handleExportCSV} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors transition-transform active:scale-95">
             <Download className="w-3 h-3" /> CSV
           </button>
-          <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-indigo-500/20 transition-all active:scale-95">
+          <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-indigo-500/20 transition-colors transition-transform active:scale-95">
             <Plus className="w-3 h-3" /> Nuevo Presupuesto
           </button>
         </div>
@@ -393,7 +402,7 @@ export function QuoteDashboard() {
             placeholder="Buscar por número, cliente o notas..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold dark:text-white outline-none focus:border-indigo-500 transition-colors"
+            className="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold dark:text-white focus:border-indigo-500 transition-colors"
           />
         </div>
         <div className="flex gap-1 overflow-x-auto">
@@ -401,7 +410,7 @@ export function QuoteDashboard() {
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
-              className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase whitespace-nowrap transition-all ${
+              className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase whitespace-nowrap transition-colors ${
                 statusFilter === status
                   ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700'
@@ -412,7 +421,7 @@ export function QuoteDashboard() {
           ))}
         </div>
         <button onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}
-          className="flex items-center gap-1 px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95">
+          className="flex items-center gap-1 px-3 py-2 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors transition-transform active:scale-95">
           <Calendar className="w-3 h-3" /> {sortDir === 'desc' ? 'Más recientes' : 'Más antiguos'}
         </button>
       </div>
@@ -459,30 +468,30 @@ export function QuoteDashboard() {
                     <td className="p-3 text-center">
                       <div className="flex items-center justify-center gap-1">
                         <button onClick={() => handleDownloadPDF(q)} title="PDF"
-                          className="p-1.5 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-600 hover:text-white text-indigo-600 dark:text-indigo-400 rounded-lg transition-all">
+                          className="p-1.5 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-600 hover:text-white text-indigo-600 dark:text-indigo-400 rounded-lg transition-colors">
                           <Download className="w-3 h-3" />
                         </button>
-                        <button onClick={() => handleShareWhatsApp(q)} title="WhatsApp" className="p-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-all">
+                        <button onClick={() => handleShareWhatsApp(q)} title="WhatsApp" className="p-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">
                           <MessageSquare className="w-3 h-3" />
                         </button>
                         <button onClick={() => handleDuplicate(q)} title="Duplicar"
-                          className="p-1.5 bg-slate-50 dark:bg-slate-700 hover:bg-slate-600 hover:text-white text-slate-500 rounded-lg transition-all">
+                          className="p-1.5 bg-slate-50 dark:bg-slate-700 hover:bg-slate-600 hover:text-white text-slate-500 rounded-lg transition-colors">
                           <Copy className="w-3 h-3" />
                         </button>
                         {q.status === 'PENDIENTE' && (
                           <>
                             <button onClick={() => handleUpdateStatus(q.id, 'APROBADO')} title="Aprobar"
-                              className="p-1.5 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-600 hover:text-white text-emerald-600 dark:text-emerald-400 rounded-lg transition-all">
+                              className="p-1.5 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-600 hover:text-white text-emerald-600 dark:text-emerald-400 rounded-lg transition-colors">
                               <CheckCircle className="w-3 h-3" />
                             </button>
                             <button onClick={() => handleUpdateStatus(q.id, 'RECHAZADO')} title="Rechazar"
-                              className="p-1.5 bg-red-50 dark:bg-red-900/30 hover:bg-red-600 hover:text-white text-red-600 dark:text-red-400 rounded-lg transition-all">
+                              className="p-1.5 bg-red-50 dark:bg-red-900/30 hover:bg-red-600 hover:text-white text-red-600 dark:text-red-400 rounded-lg transition-colors">
                               <XCircle className="w-3 h-3" />
                             </button>
                           </>
                         )}
                         <button onClick={() => handleDelete(q.id)} title="Eliminar"
-                          className="p-1.5 bg-red-50 dark:bg-red-900/30 hover:bg-red-600 hover:text-white text-red-600 dark:text-red-400 rounded-lg transition-all">
+                          className="p-1.5 bg-red-50 dark:bg-red-900/30 hover:bg-red-600 hover:text-white text-red-600 dark:text-red-400 rounded-lg transition-colors">
                           <Trash2 className="w-3 h-3" />
                         </button>
                       </div>
@@ -514,7 +523,7 @@ export function QuoteDashboard() {
               <div className="bg-indigo-50 dark:bg-indigo-900/10 p-4 rounded-xl border border-indigo-100 dark:border-indigo-900/30">
                 <label className="text-[9px] font-black uppercase text-indigo-600 dark:text-indigo-400 mb-2 block tracking-widest">Cliente / Institución</label>
                 <select value={selectedClient} onChange={e => setSelectedClient(e.target.value)}
-                  className="w-full p-3 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-slate-700 rounded-xl text-xs font-bold dark:text-white outline-none focus:border-indigo-500">
+                  className="w-full p-3 bg-white dark:bg-slate-900 border border-indigo-200 dark:border-slate-700 rounded-xl text-xs font-bold dark:text-white focus:border-indigo-500">
                   <option value="">-- Seleccionar cliente --</option>
                   {clients.map(c => (
                     <option key={c.id} value={c.id}>{c.name} {c.cuit ? `(CUIT: ${c.cuit})` : ''}</option>
@@ -535,7 +544,7 @@ export function QuoteDashboard() {
                   <div key={index} className="flex flex-col md:flex-row gap-2 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border dark:border-slate-700 items-start md:items-center">
                     <div className="w-full md:w-1/3">
                       <select value={item.product_id} onChange={e => updateItemRow(index, 'product_id', e.target.value)}
-                        className="w-full p-2.5 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded-lg text-[10px] font-bold dark:text-white outline-none">
+                        className="w-full p-2.5 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded-lg text-[10px] font-bold dark:text-white focus-visible:ring-2 focus-visible:ring-brand-500">
                         <option value="">-- Producto --</option>
                         {products.map(p => (
                           <option key={p.id} value={p.id}>{p.sku ? `${p.sku} | ` : ''}{p.name}</option>
@@ -545,25 +554,25 @@ export function QuoteDashboard() {
                     <div className="w-full md:w-1/4">
                       <input type="text" placeholder="Descripción" value={item.description}
                         onChange={e => updateItemRow(index, 'description', e.target.value)}
-                        className="w-full p-2.5 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded-lg text-[10px] font-medium dark:text-white outline-none" />
+                        className="w-full p-2.5 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded-lg text-[10px] font-medium dark:text-white focus-visible:ring-2 focus-visible:ring-brand-500" />
                     </div>
                     <div className="w-full md:w-20">
                       <input type="number" min="1" value={item.quantity}
                         onChange={e => updateItemRow(index, 'quantity', Number(e.target.value))}
-                        className="w-full p-2.5 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded-lg text-[10px] font-black text-center dark:text-white outline-none" />
+                        className="w-full p-2.5 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded-lg text-[10px] font-black text-center dark:text-white focus-visible:ring-2 focus-visible:ring-brand-500" />
                     </div>
                     <div className="w-full md:w-28">
                       <input type="number" value={item.unit_price}
                         onChange={e => updateItemRow(index, 'unit_price', Number(e.target.value))}
                         title="Precio de venta"
-                        className="w-full p-2.5 bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800 rounded-lg text-[10px] font-black text-emerald-600 dark:text-emerald-400 outline-none" />
+                        className="w-full p-2.5 bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800 rounded-lg text-[10px] font-black text-emerald-600 dark:text-emerald-400 focus-visible:ring-2 focus-visible:ring-emerald-500" />
                     </div>
                     <div className="w-full md:w-24">
                       <input type="number" value={item.unit_cost || ''}
                         placeholder="Costo"
                         onChange={e => updateItemRow(index, 'unit_cost', Number(e.target.value))}
                         title="Costo real por unidad (insumos + blank)"
-                        className="w-full p-2.5 bg-rose-50 dark:bg-rose-900/10 border border-rose-200 dark:border-rose-800 rounded-lg text-[10px] font-black text-rose-600 dark:text-rose-400 outline-none" />
+                        className="w-full p-2.5 bg-rose-50 dark:bg-rose-900/10 border border-rose-200 dark:border-rose-800 rounded-lg text-[10px] font-black text-rose-600 dark:text-rose-400 focus-visible:ring-2 focus-visible:ring-rose-500" />
                     </div>
                     <div className="w-full md:w-28 text-right">
                       <span className="text-xs font-black text-slate-800 dark:text-white tabular-nums">{ARS.format(item.quantity * item.unit_price)}</span>
@@ -615,7 +624,7 @@ export function QuoteDashboard() {
                     <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap" htmlFor="q-target-margin">Margen objetivo</label>
                     <input id="q-target-margin" type="number" min="1" max="95" value={targetMargin}
                       onChange={e => handleTargetMarginChange(Number(e.target.value))}
-                      className="w-14 p-1.5 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded-lg text-[10px] font-black text-center dark:text-white outline-none" />
+                      className="w-14 p-1.5 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded-lg text-[10px] font-black text-center dark:text-white focus-visible:ring-2 focus-visible:ring-brand-500" />
                     <span className="text-[9px] font-bold text-indigo-500 tabular-nums whitespace-nowrap">
                       → Sugerido: {ARS.format(totals.suggested)}
                     </span>
@@ -630,7 +639,7 @@ export function QuoteDashboard() {
                 Cancelar
               </button>
               <button onClick={handleSaveQuote} disabled={isSaving}
-                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-8 py-2.5 rounded-xl font-black uppercase text-[10px] shadow-lg shadow-indigo-500/20 transition-all active:scale-95">
+                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-8 py-2.5 rounded-xl font-black uppercase text-[10px] shadow-lg shadow-indigo-500/20 transition-colors transition-transform active:scale-95">
                 <Send className="w-3 h-3" /> {isSaving ? 'Guardando...' : 'Guardar'}
               </button>
             </div>

@@ -110,8 +110,8 @@ export const AIAnalyticBrain = () => {
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] shadow-xl relative overflow-hidden group transition-all">
-      <div className="absolute top-0 right-0 p-8 opacity-[0.03] text-8xl group-hover:scale-110 group-hover:opacity-[0.05] transition-all duration-700 select-none pointer-events-none">
+    <div className="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] shadow-xl relative overflow-hidden group transition-colors">
+      <div className="absolute top-0 right-0 p-8 opacity-[0.03] text-8xl group-hover:scale-110 group-hover:opacity-[0.05] transition-colors duration-700 select-none pointer-events-none">
         <Bot size={180} />
       </div>
 
@@ -132,7 +132,7 @@ export const AIAnalyticBrain = () => {
           <button
             onClick={handleAnalyze}
             disabled={isAnalyzing}
-            className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-indigo-100 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-indigo-600/20 active:scale-95 transition-all flex items-center gap-2"
+            className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-indigo-100 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-indigo-600/20 active:scale-95 transition-colors transition-transform flex items-center gap-2"
           >
             {isAnalyzing ? "PROCESANDO VARIABLES..." : "SOLICITAR DIAGNÓSTICO"}
           </button>

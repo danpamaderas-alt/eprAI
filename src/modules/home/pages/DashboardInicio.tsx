@@ -97,7 +97,7 @@ const DashboardContent = memo(() => {
     year: 'numeric',
   });
   const greeting =
-    hour < 12 ? 'Buenos dias' : hour < 19 ? 'Buenas tardes' : 'Buenas noches';
+    hour < 12 ? 'Buenos días' : hour < 19 ? 'Buenas tardes' : 'Buenas noches';
 
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -153,7 +153,7 @@ const DashboardContent = memo(() => {
 
         <div className="relative z-10 p-10 lg:p-12">
           <div className="flex items-center gap-2 mb-4">
-            <Sparkles className="w-4 h-4 text-blue-400" />
+            <Sparkles className="w-4 h-4 text-blue-400" aria-hidden="true" />
             <span className="text-xs font-bold text-blue-300 uppercase tracking-widest">{greeting}, {userName}</span>
           </div>
           <div className="mb-3">
@@ -225,7 +225,7 @@ const DashboardContent = memo(() => {
       {/* Accesos rápidos por rubro */}
       <div className="bg-white dark:bg-slate-800/50 backdrop-blur-sm rounded-[2.5rem] border border-slate-200 dark:border-slate-700/50 p-8 shadow-sm">
         <div className="flex items-center gap-2 mb-6">
-          <LayoutGrid className="w-4 h-4 text-slate-400" />
+          <LayoutGrid className="w-4 h-4 text-slate-400" aria-hidden="true" />
           <h2 className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-[0.25em]">
             Accesos Rápidos
           </h2>
@@ -244,7 +244,7 @@ const DashboardContent = memo(() => {
                     <Link
                       key={m.path}
                       to={m.path}
-                      className="group relative flex items-center gap-3 p-4 rounded-2xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-900/40 overflow-hidden hover:border-slate-300 dark:hover:border-slate-500 hover:-translate-y-0.5 hover:shadow-lg transition-all"
+                      className="group relative flex items-center gap-3 p-4 rounded-2xl border border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-900/40 overflow-hidden hover:border-slate-300 dark:hover:border-slate-500 hover:-translate-y-0.5 hover:shadow-lg transition-colors transition-shadow"
                     >
                       <span className={`absolute inset-y-0 left-0 w-1 bg-gradient-to-b ${m.color}`} aria-hidden="true" />
                       <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${m.color} text-white flex items-center justify-center shadow-lg shrink-0 group-hover:scale-110 transition-transform`}>

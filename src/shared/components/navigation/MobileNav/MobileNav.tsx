@@ -15,7 +15,7 @@ export const MobileNav = memo(() => {
               key={item.href} // ✅ FIX: Key única para eliminar el warning de la consola
               to={item.href}
               className={({ isActive }) => 
-                `flex flex-col items-center gap-1 transition-all ${
+                `flex flex-col items-center gap-1 transition-colors ${
                   isActive ? 'text-blue-600 scale-110' : 'text-slate-400'
                 }`
               }

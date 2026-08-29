@@ -142,7 +142,7 @@ export const BlanksPage = () => {
               toast('CSV generado', { type: 'success' });
             }}
             disabled={filtered.length === 0}
-            className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-300 hover:text-fuchsia-600 dark:hover:text-fuchsia-400 text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-300 hover:text-fuchsia-600 dark:hover:text-fuchsia-400 text-[10px] font-black uppercase tracking-widest transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <FileDown className="w-3.5 h-3.5" aria-hidden="true" />
             CSV
@@ -150,7 +150,7 @@ export const BlanksPage = () => {
           <button
             type="button"
             onClick={handleOpenForm}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-fuchsia-600/30 transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-fuchsia-500 focus-visible:ring-offset-2"
+            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-fuchsia-600/30 transition-colors transition-transform active:scale-95 focus-visible:ring-2 focus-visible:ring-fuchsia-500 focus-visible:ring-offset-2"
           >
             <Plus className="w-4 h-4" aria-hidden="true" />
             Nuevo Blank
@@ -196,7 +196,7 @@ export const BlanksPage = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar por nombre, talle, color o proveedor..."
-            className="w-full pl-11 pr-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 transition-all"
+            className="w-full pl-11 pr-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus-visible:ring-2 focus-visible:ring-brand-500 transition-colors"
           />
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -207,7 +207,7 @@ export const BlanksPage = () => {
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 cursor-pointer"
+            className="px-3 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 focus-visible:ring-2 focus-visible:ring-brand-500 cursor-pointer"
           >
             {TYPE_FILTERS.map((t) => (
               <option key={t} value={t}>{t}</option>
@@ -246,7 +246,7 @@ export const BlanksPage = () => {
             <button
               type="button"
               onClick={handleOpenForm}
-              className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-black text-xs uppercase tracking-widest transition-all active:scale-95"
+              className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-black text-xs uppercase tracking-widest transition-colors transition-transform active:scale-95"
             >
               <Plus className="w-4 h-4" aria-hidden="true" />
               Agregar Blank

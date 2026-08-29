@@ -90,7 +90,7 @@ export const PaymentSelector = memo(({ methods, value, onChange }: PaymentSelect
             type="button"
             onClick={() => onChange(m.id)}
             className={cn(
-              'relative flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all active:scale-95',
+              'relative flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-colors transition-transform active:scale-95',
               active
                 ? ACTIVE_COLOR_MAP[m.color]
                 : cn('bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-400 hover:border-slate-300 dark:hover:border-slate-600')

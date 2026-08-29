@@ -117,8 +117,8 @@ export const ProductTable = ({ data, onDelete, deleteVariation, onUpdateStock, o
           
           {/* CONTROL DE STOCK RÁPIDO */}
           <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-xl p-1 border border-slate-200 dark:border-slate-700">
-            <button onClick={() => onUpdateStock(i.row.original.id, Math.max(0, i.row.original.displayStock - 1), i.row.original.variationId)} className="w-8 h-8 flex items-center justify-center dark:text-white font-black hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-all">-</button>
-            <button onClick={() => onUpdateStock(i.row.original.id, i.row.original.displayStock + 1, i.row.original.variationId)} className="w-8 h-8 flex items-center justify-center dark:text-white font-black hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-all">+</button>
+            <button onClick={() => onUpdateStock(i.row.original.id, Math.max(0, i.row.original.displayStock - 1), i.row.original.variationId)} className="w-8 h-8 flex items-center justify-center dark:text-white font-black hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-colors">-</button>
+            <button onClick={() => onUpdateStock(i.row.original.id, i.row.original.displayStock + 1, i.row.original.variationId)} className="w-8 h-8 flex items-center justify-center dark:text-white font-black hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-colors">+</button>
           </div>
 
           {/* BOTÓN BORRAR */}
@@ -171,7 +171,7 @@ export const ProductTable = ({ data, onDelete, deleteVariation, onUpdateStock, o
         </thead>
         <tbody>
           {table.getRowModel().rows.map(row => (
-            <tr key={row.id} className="bg-white dark:bg-slate-800/50 shadow-sm hover:shadow-md transition-all group">
+            <tr key={row.id} className="bg-white dark:bg-slate-800/50 shadow-sm hover:shadow-md transition-colors group">
               {row.getVisibleCells().map((cell, idx) => (
                 <td key={cell.id} className={`py-4 px-6 ${idx === 0 ? 'rounded-l-2xl' : ''} ${idx === row.getVisibleCells().length - 1 ? 'rounded-r-2xl' : ''}`}>
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}

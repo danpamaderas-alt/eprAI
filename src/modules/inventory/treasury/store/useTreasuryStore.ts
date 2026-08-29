@@ -63,19 +63,25 @@ export const useTreasuryStore = create<TreasuryState>((set, get) => ({
   },
 
   deleteTransaction: async (id) => {
-    const { error } = await supabase.from('treasury').delete().eq('id', id);
+    const companyId = useTenantStore.getState().activeCompanyId;
+    if (!companyId) throw new Error('No hay company_id activo');
+    const { error } = await supabase.from('treasury').delete().eq('id', id).eq('company_id', companyId);
     if (error) throw error;
     await get().fetchTransactions();
   },
 
   updateTransaction: async (id, data) => {
-    const { error } = await supabase.from('treasury').update(data as TreasuryUpdate).eq('id', id);
+    const companyId = useTenantStore.getState().activeCompanyId;
+    if (!companyId) throw new Error('No hay company_id activo');
+    const { error } = await supabase.from('treasury').update(data as TreasuryUpdate).eq('id', id).eq('company_id', companyId);
     if (error) throw error;
     await get().fetchTransactions();
   },
 
   resolvePayment: async (id) => {
-    const { error } = await supabase.from('treasury').update({ status: 'COMPLETED' }).eq('id', id);
+    const companyId = useTenantStore.getState().activeCompanyId;
+    if (!companyId) throw new Error('No hay company_id activo');
+    const { error } = await supabase.from('treasury').update({ status: 'COMPLETED' }).eq('id', id).eq('company_id', companyId);
     if (error) throw error;
     await get().fetchTransactions();
   },

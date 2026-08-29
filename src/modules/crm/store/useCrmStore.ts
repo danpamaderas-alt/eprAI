@@ -173,3 +173,9 @@ export const useCrmStore = create<CrmState>((set, get) => ({
     await get().fetchBalances();
   },
 }));
+
+useTenantStore.subscribe((state, prev) => {
+  if (state.activeCompanyId !== prev.activeCompanyId) {
+    useCrmStore.setState({ balances: [], isLoading: false });
+  }
+});

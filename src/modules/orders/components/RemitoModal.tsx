@@ -31,13 +31,13 @@ export const RemitoModal: React.FC<RemitoModalProps> = ({ isOpen, onClose, order
           <div className="flex gap-3">
             <button 
               onClick={handlePrint}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-black text-xs uppercase transition-all shadow-lg shadow-blue-900/20"
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-black text-xs uppercase transition-colors shadow-lg shadow-blue-900/20"
             >
               <Printer className="w-4 h-4" /> Imprimir / PDF
             </button>
             <button 
               onClick={onClose}
-              className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2.5 rounded-xl transition-all"
+              className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2.5 rounded-xl transition-colors"
             >
               <X className="w-4 h-4" />
             </button>

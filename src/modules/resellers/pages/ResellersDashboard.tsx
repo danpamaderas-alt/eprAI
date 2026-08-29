@@ -102,9 +102,9 @@ export const ResellersDashboard = () => {
                 {...resellerForm.register('name', { required: true })}
                 type="text" 
                 placeholder="Nombre del socio..." 
-                className="w-full text-xs p-3 bg-white border border-slate-200 rounded-xl outline-none focus:border-blue-500 shadow-sm transition-all" 
+                className="w-full text-xs p-3 bg-white border border-slate-200 rounded-xl focus:border-blue-500 shadow-sm transition-colors" 
               />
-              <button type="submit" className="w-full py-2 bg-slate-900 hover:bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95">
+              <button type="submit" className="w-full py-2 bg-slate-900 hover:bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors transition-transform active:scale-95">
                 + Vincular Socio
               </button>
             </form>
@@ -119,7 +119,7 @@ export const ResellersDashboard = () => {
                   <button 
                     key={r.id} 
                     onClick={() => setSelectedId(r.id)}
-                    className={`w-full p-5 text-left transition-all relative ${selectedId === r.id ? 'bg-blue-50/50' : 'hover:bg-slate-50'}`}
+                    className={`w-full p-5 text-left transition-colors relative ${selectedId === r.id ? 'bg-blue-50/50' : 'hover:bg-slate-50'}`}
                   >
                     {selectedId === r.id && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-600 rounded-r-lg"></div>}
                     <p className={`font-black text-xs uppercase tracking-tight ${selectedId === r.id ? 'text-blue-600' : 'text-slate-700'}`}>{r.name}</p>
@@ -164,7 +164,7 @@ export const ResellersDashboard = () => {
                 <form onSubmit={txForm.handleSubmit(onRegisterTx)} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                   <div className="space-y-1.5">
                     <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Tipo de Operación</label>
-                    <select {...txForm.register('type')} className="w-full bg-slate-800 border border-slate-700 text-white text-xs p-3 rounded-xl outline-none focus:border-blue-500">
+                    <select {...txForm.register('type')} className="w-full bg-slate-800 border border-slate-700 text-white text-xs p-3 rounded-xl focus:border-blue-500">
                       <option value="GOODS_GIVEN">📤 ENTREGA MERCADERÍA</option>
                       <option value="PAYMENT">💰 COBRO DE DINERO</option>
                     </select>
@@ -173,7 +173,7 @@ export const ResellersDashboard = () => {
                   {watchTxType === 'PAYMENT' && (
                     <div className="space-y-1.5 animate-in slide-in-from-left-4">
                       <label className="text-[9px] font-black uppercase tracking-widest ml-1 text-emerald-500">Destino Tesorería</label>
-                      <select {...txForm.register('paymentMethod')} className="w-full bg-slate-800 border border-slate-700 text-white text-xs p-3 rounded-xl outline-none">
+                      <select {...txForm.register('paymentMethod')} className="w-full bg-slate-800 border border-slate-700 text-white text-xs p-3 rounded-xl focus-visible:ring-2 focus-visible:ring-blue-500">
                         <option value="EFECTIVO">CAJA FUERTE (EFE)</option>
                         <option value="MERCADO_PAGO">MERCADO PAGO</option>
                         <option value="BANCO">BANCO GALICIA</option>
@@ -181,13 +181,13 @@ export const ResellersDashboard = () => {
                     </div>
                   )}
 
-                  <div className={`space-y-1.5 transition-all ${watchTxType === 'PAYMENT' ? 'md:col-span-1' : 'md:col-span-2'}`}>
+                  <div className={`space-y-1.5 transition-colors ${watchTxType === 'PAYMENT' ? 'md:col-span-1' : 'md:col-span-2'}`}>
                     <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest ml-1">Concepto / Detalle</label>
                     <input 
                       {...txForm.register('description', { required: true })}
                       type="text" 
                       placeholder="Ej: 5 Buzos, 2 Pantalones..." 
-                      className="w-full bg-slate-800 border border-slate-700 text-white text-xs p-3 rounded-xl outline-none focus:border-blue-500" 
+                      className="w-full bg-slate-800 border border-slate-700 text-white text-xs p-3 rounded-xl focus:border-blue-500" 
                     />
                   </div>
 
@@ -198,12 +198,12 @@ export const ResellersDashboard = () => {
                         {...txForm.register('amount', { required: true })}
                         type="number" 
                         placeholder="$ 0"
-                        className="w-full bg-slate-800 border border-slate-700 text-white text-xs p-3 rounded-xl outline-none focus:border-blue-500 font-black tabular-nums" 
+                        className="w-full bg-slate-800 border border-slate-700 text-white text-xs p-3 rounded-xl focus:border-blue-500 font-black tabular-nums" 
                       />
                       <button 
                         disabled={txForm.formState.isSubmitting}
                         type="submit" 
-                        className={`px-6 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${watchTxType === 'GOODS_GIVEN' ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-900/40' : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-900/40'}`}
+                        className={`px-6 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors transition-transform active:scale-95 ${watchTxType === 'GOODS_GIVEN' ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-900/40' : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-900/40'}`}
                       >
                         {txForm.formState.isSubmitting ? '...' : 'Registrar'}
                       </button>
@@ -216,7 +216,7 @@ export const ResellersDashboard = () => {
               <div className="flex-1 overflow-y-auto p-8 scrollbar-thin">
                 <div className="space-y-3">
                   {resellerTxs.map(tx => (
-                    <div key={tx.id} className="group flex justify-between items-center p-4 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:shadow-md transition-all">
+                    <div key={tx.id} className="group flex justify-between items-center p-4 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:shadow-md transition-colors">
                       <div className="flex items-center gap-4">
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-inner ${tx.type === 'GOODS_GIVEN' ? 'bg-rose-50 text-rose-500' : 'bg-emerald-50 text-emerald-500'}`}>
                           {tx.type === 'GOODS_GIVEN' ? '📤' : '💰'}

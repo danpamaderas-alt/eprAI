@@ -31,7 +31,7 @@ export function Tabs({ tabs, activeTab, onChange, className }: TabsProps) {
           key={tab.id}
           onClick={() => handleChange(tab.id)}
           className={cn(
-            'flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex-1 justify-center',
+            'flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex-1 justify-center',
             current === tab.id
               ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
               : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300',

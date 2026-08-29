@@ -300,3 +300,20 @@ export const useFinanceStore = create<FinanceState>((set) => ({
     }
   },
 }));
+
+useTenantStore.subscribe((state, prev) => {
+  if (state.activeCompanyId !== prev.activeCompanyId) {
+    useFinanceStore.setState({
+      metrics: { totalIncome: 0, totalExpenses: 0, balance: 0, pendingPayables: 0, pendingReceivables: 0, stockCost: 0, stockValue: 0, projectedProfit: 0, avgMargin: 0, moneyInStreet: 0, patrimonio: 0 },
+      monthlyTrend: [],
+      categoryBreakdown: [],
+      businessUnitBreakdown: [],
+      agingReceivables: [],
+      agingPayables: [],
+      orderPipeline: { totalPending: 0, countPending: 0, totalDelivered: 0, countDelivered: 0, totalCancelled: 0, advancePayments: 0, conversionRate: 0 },
+      projections: [],
+      todayActivity: { income: 0, expenses: 0, transactions: 0, orders: 0 },
+      isLoading: false,
+    });
+  }
+});

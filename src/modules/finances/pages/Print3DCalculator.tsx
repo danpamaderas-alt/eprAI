@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useToastStore } from "../../../store/useToastStore";
 import { formatDate, formatDateTime, hoursToTime, timeToHours } from "../../../shared/utils/format";
+import { applyRounding, ROUNDING_LABELS, type RoundingStrategy } from "../shared/calcShared";
 import { useFilamentStore } from "../../filaments/store/useFilamentStore";
 import { usePrintJobStore } from "../../printjobs/store/usePrintJobStore";
 
@@ -53,8 +54,6 @@ const PRINTERS: PrinterPreset[] = [
 // ====================================================
 // TIPOS
 // ====================================================
-type RoundingStrategy = "exact" | "990" | "999" | "900" | "hundred";
-
 interface Inputs {
   printerModel: string;
   // Material
@@ -165,24 +164,6 @@ const fmt = (n: number, decimals = 2) =>
     maximumFractionDigits: decimals,
   }).format(n);
 
-const applyRounding = (v: number, strategy: RoundingStrategy): number => {
-  if (v <= 0) return 0;
-  switch (strategy) {
-    case "exact":
-      return Math.round(v * 100) / 100;
-    case "990":
-      return Math.max(0.99, Math.floor(v) + 0.99);
-    case "999":
-      return Math.max(0.999, Math.floor(v) + 0.999);
-    case "900":
-      return Math.max(0.9, Math.floor(v) + 0.9);
-    case "hundred":
-      return Math.ceil(v / 100) * 100;
-    default:
-      return Math.round(v * 100) / 100;
-  }
-};
-
 const loadJSON = <T,>(key: string): T | null => {
   try {
     const raw = localStorage.getItem(key);
@@ -205,14 +186,6 @@ const mergeDefaults = (base: Inputs): Inputs => {
     }
   }
   return merged;
-};
-
-const ROUNDING_LABELS: Record<RoundingStrategy, string> = {
-  exact: "Exacto",
-  "990": "Terminar en .990",
-  "999": "Terminar en .999",
-  "900": "Terminar en .900",
-  hundred: "Redondear a centena",
 };
 
 // ====================================================
@@ -284,7 +257,7 @@ const Field = ({
           onChange(isNaN(v) ? 0 : v);
         }}
         placeholder="0"
-        className={`w-full bg-slate-950 border border-slate-700 text-white text-sm font-black rounded-xl py-3 outline-none focus:border-indigo-500 transition-colors text-right ${
+        className={`w-full bg-slate-950 border border-slate-700 text-white text-sm font-black rounded-xl py-3 focus:border-indigo-500 transition-colors text-right ${
           prefix ? "pl-8 pr-4" : suffix ? "pl-4 pr-8" : "px-4"
         }`}
       />
@@ -324,7 +297,7 @@ const FieldSelect = ({
       id={id}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-slate-950 border border-slate-700 text-white text-sm font-black rounded-xl py-3 pl-4 pr-10 outline-none focus:border-indigo-500 transition-colors appearance-none cursor-pointer"
+      className="w-full bg-slate-950 border border-slate-700 text-white text-sm font-black rounded-xl py-3 pl-4 pr-10 focus:border-indigo-500 transition-colors appearance-none cursor-pointer"
     >
       {options.map((o) => (
         <option key={o.value} value={o.value}>
@@ -363,7 +336,7 @@ const TimeField = ({
       value={hoursToTime(value)}
       onChange={(e) => onChange(timeToHours(e.target.value))}
       placeholder="HH:MM"
-      className="w-full bg-slate-950 border border-slate-700 text-white text-sm font-black rounded-xl py-3 px-4 outline-none focus:border-indigo-500 transition-colors"
+      className="w-full bg-slate-950 border border-slate-700 text-white text-sm font-black rounded-xl py-3 px-4 focus:border-indigo-500 transition-colors"
     />
   </div>
 );
@@ -738,7 +711,7 @@ export const Print3DCalculator = () => {
             value={jobName}
             onChange={(e) => setJobName(e.target.value)}
             placeholder="Ej: Pieza articulada serie A"
-            className="w-full bg-slate-900 border border-slate-700 text-white text-sm font-bold rounded-xl px-4 py-3 outline-none focus:border-violet-500 transition-colors placeholder:text-slate-600"
+            className="w-full bg-slate-900 border border-slate-700 text-white text-sm font-bold rounded-xl px-4 py-3 focus:border-violet-500 transition-colors placeholder:text-slate-600"
           />
         </div>
       </div>

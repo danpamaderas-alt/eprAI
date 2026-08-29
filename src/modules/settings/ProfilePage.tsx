@@ -295,7 +295,7 @@ export const ProfilePage = () => {
                     setProfile({ ...profile, language: e.target.value });
                     logActivity('Idioma cambiado');
                   }}
-                  className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-[10px] font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer"
+                  className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-[10px] font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500 cursor-pointer"
                 >
                   <option value="es">Español</option>
                   <option value="en">English</option>

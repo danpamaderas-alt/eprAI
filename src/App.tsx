@@ -44,8 +44,9 @@ const ProfilePage = lazy(() => import("./modules/settings/ProfilePage").then(m =
 import { Spinner } from "./shared/components/ui/Spinner";
 
 const LoadingFallback = () => (
-  <div className="h-full flex items-center justify-center">
+  <div className="h-full flex items-center justify-center" role="status" aria-live="polite">
     <Spinner size="lg" className="text-blue-500" />
+    <span className="sr-only">Cargando…</span>
   </div>
 );
 
@@ -57,6 +58,9 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <a href="#contenido-principal" className="sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:p-4 focus:bg-white focus:text-black">
+        Saltar al contenido principal
+      </a>
       <ToastContainer />
       <Suspense fallback={<LoadingFallback />}>
         <Routes>

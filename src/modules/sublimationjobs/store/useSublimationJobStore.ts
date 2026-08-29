@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { supabase } from '../../../lib/supabase';
 import { useTenantStore } from '../../../store/useTenantStore';
 import type { Json } from '../../../shared/types/database.types';
+import { generateRemitoNumber } from '../../../shared/utils/format';
 import type {
   SublimationJob,
   SublimationJobInput,
@@ -118,6 +119,7 @@ export const useSublimationJobStore = create<SublimationJobState>((set) => ({
 
     await useSublimationJobStore.getState().updateJob(id, {
       status: 'completado',
+      completed_at: new Date().toISOString(),
       actual_cost_total: Number(data.actual_cost_total.toFixed(2)),
       actual_notes: data.actual_notes ?? null,
     });
@@ -168,7 +170,7 @@ export const useSublimationJobStore = create<SublimationJobState>((set) => ({
     if (saleError) throw saleError;
 
     // 2. Generar el remito con el detalle de producción
-    const remitoNumber = `0002-${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`;
+    const remitoNumber = generateRemitoNumber();
     const { data: remitoRow, error: remitoError } = await supabase
       .from('remitos')
       .insert({

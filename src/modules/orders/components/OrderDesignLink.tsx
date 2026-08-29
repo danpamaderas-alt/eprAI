@@ -22,7 +22,7 @@ interface OrderDesignLinkProps {
 }
 
 const INPUT_CLASS =
-  'w-full p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white font-bold text-sm outline-none focus:ring-2 focus:ring-blue-500';
+  'w-full p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white font-bold text-sm focus:ring-2 focus:ring-blue-500';
 
 export const OrderDesignLink = ({ value, onChange }: OrderDesignLinkProps) => {
   const { designs, fetchDesigns } = useSublimationStore();

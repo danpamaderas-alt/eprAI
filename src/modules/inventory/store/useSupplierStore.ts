@@ -121,3 +121,9 @@ export const useSupplierStore = create<SupplierState>((set, get) => ({
     await get().fetchDebts();
   },
 }));
+
+useTenantStore.subscribe((state, prev) => {
+  if (state.activeCompanyId !== prev.activeCompanyId) {
+    useSupplierStore.setState({ suppliers: [], debts: [], isLoading: false });
+  }
+});

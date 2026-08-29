@@ -115,7 +115,7 @@ export const FilamentsPage = () => {
 
   const exportCSV = useCallback(() => {
     const rows = [
-      ['Marca', 'Material', 'Color', 'Rollo (g)', 'Restante (g)', 'Costo/kg', 'Mínimo (g)', 'Proveedor'],
+      ['Marca', 'Material', 'Color', 'Rollo (g)', 'Restante (g)', 'Costo/kg', 'Costo rollo', 'Mínimo (g)', 'Proveedor'],
       ...filtered.map((f) => [
         f.brand,
         f.material,
@@ -123,6 +123,7 @@ export const FilamentsPage = () => {
         String(f.spool_weight_g),
         String(f.remaining_g),
         f.cost_per_kg != null ? String(f.cost_per_kg) : '',
+        f.cost_per_kg != null ? String(Math.round((f.cost_per_kg / 1000) * (f.spool_weight_g || 1000))) : '',
         String(f.min_stock_g),
         f.provider ?? '',
       ]),
@@ -163,7 +164,7 @@ export const FilamentsPage = () => {
               toast('CSV generado', { type: 'success' });
             }}
             disabled={filtered.length === 0}
-            className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 text-[10px] font-black uppercase tracking-widest transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <FileDown className="w-3.5 h-3.5" aria-hidden="true" />
             CSV
@@ -171,7 +172,7 @@ export const FilamentsPage = () => {
           <button
             type="button"
             onClick={handleOpenForm}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-orange-600 hover:bg-orange-500 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-orange-600/30 transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-orange-600 hover:bg-orange-500 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-orange-600/30 transition-colors transition-transform active:scale-95 focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
           >
             <Plus className="w-4 h-4" aria-hidden="true" />
             Nuevo Rollo
@@ -219,7 +220,7 @@ export const FilamentsPage = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar por marca, color o proveedor..."
-            className="w-full pl-11 pr-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 transition-all"
+            className="w-full pl-11 pr-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus-visible:ring-2 focus-visible:ring-brand-500 transition-colors"
           />
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -230,7 +231,7 @@ export const FilamentsPage = () => {
           <select
             value={materialFilter}
             onChange={(e) => setMaterialFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 cursor-pointer"
+            className="px-3 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-200 focus-visible:ring-2 focus-visible:ring-brand-500 cursor-pointer"
           >
             {MATERIAL_FILTERS.map((m) => (
               <option key={m} value={m}>{m}</option>
@@ -269,7 +270,7 @@ export const FilamentsPage = () => {
             <button
               type="button"
               onClick={handleOpenForm}
-              className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-orange-600 hover:bg-orange-500 text-white font-black text-xs uppercase tracking-widest transition-all active:scale-95"
+              className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-orange-600 hover:bg-orange-500 text-white font-black text-xs uppercase tracking-widest transition-colors transition-transform active:scale-95"
             >
               <Plus className="w-4 h-4" aria-hidden="true" />
               Agregar Rollo
