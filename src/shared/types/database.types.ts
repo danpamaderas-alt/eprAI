@@ -440,6 +440,10 @@ export type Database = {
           phone: string | null
           portal_access: boolean | null
           is_supplier: boolean | null
+          whatsapp_id: string | null
+          email_primary: string | null
+          instagram_handle: string | null
+          facebook_id: string | null
           type: string
         }
         Insert: {
@@ -457,6 +461,10 @@ export type Database = {
           phone?: string | null
           portal_access?: boolean | null
           is_supplier?: boolean | null
+          whatsapp_id?: string | null
+          email_primary?: string | null
+          instagram_handle?: string | null
+          facebook_id?: string | null
           type: string
         }
         Update: {
@@ -474,11 +482,63 @@ export type Database = {
           phone?: string | null
           portal_access?: boolean | null
           is_supplier?: boolean | null
+          whatsapp_id?: string | null
+          email_primary?: string | null
+          instagram_handle?: string | null
+          facebook_id?: string | null
           type?: string
         }
         Relationships: [
           {
             foreignKeyName: "customers_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_interactions: {
+        Row: {
+          id: string
+          customer_id: string
+          company_id: string
+          channel: string
+          direction: string
+          content: string
+          metadata: Json | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          customer_id: string
+          company_id: string
+          channel: string
+          direction: string
+          content: string
+          metadata?: Json | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          customer_id?: string
+          company_id?: string
+          channel?: string
+          direction?: string
+          content?: string
+          metadata?: Json | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_interactions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_interactions_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"

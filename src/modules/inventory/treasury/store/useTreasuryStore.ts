@@ -98,3 +98,7 @@ export const useTreasuryStore = create<TreasuryState>((set, get) => ({
     await get().fetchTransactions();
   },
 }));
+
+useTenantStore.subscribe((state) => {
+  useTreasuryStore.setState({ transactions: [] });
+});

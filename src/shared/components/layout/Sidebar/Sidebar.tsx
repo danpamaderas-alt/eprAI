@@ -25,6 +25,7 @@ import {
   Frame,
   Users,
   CreditCard,
+  MessageSquare,
   Moon,
   Sun,
   Plus,
@@ -114,6 +115,7 @@ const NAV_SECTIONS: readonly NavSection[] = [
 ];
 
 const CRM_ROUTES: readonly NavRoute[] = [
+  { path: '/inbox', label: 'Bandeja Omnicanal', icon: MessageSquare, highlight: 'indigo' },
   { path: '/clientes', label: 'Directorio', icon: Users },
   { path: '/cuentas-corrientes', label: 'Cuentas Corrientes', icon: CreditCard },
 ];

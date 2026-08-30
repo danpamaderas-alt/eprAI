@@ -8,6 +8,7 @@ import { ErrorBoundary } from "./shared/components/ui/ErrorBoundary";
 import { ToastContainer } from "./shared/components/ui/Toast";
 
 const LoginPage = lazy(() => import("./modules/auth/LoginPage").then(m => ({ default: m.LoginPage })));
+const OmnichannelInbox = lazy(() => import("./modules/crm/pages/OmnichannelInbox").then(m => ({ default: m.OmnichannelInbox })));
 const CustomerCRM = lazy(() => import("./modules/customers/CustomerCRM").then(m => ({ default: m.CustomerCRM })));
 const POSDashboard = lazy(() => import("./modules/pos/POSDashboard").then(m => ({ default: m.POSDashboard })));
 const ProfitabilityDashboard = lazy(() => import("./modules/inventory/pages/ProfitabilityDashboard").then(m => ({ default: m.ProfitabilityDashboard })));
@@ -76,6 +77,7 @@ export default function App() {
               </ProtectedRoute>
             }
           >
+            <Route path="inbox" element={<OmnichannelInbox />} />
             <Route path="clientes" element={<CustomerCRM />} />
             <Route path="cuentas-corrientes" element={<CurrentAccounts />} />
             <Route path="remitos" element={<RemitosDashboard />} />

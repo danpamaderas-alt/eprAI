@@ -4,6 +4,7 @@ export interface Env {
   GEMINI_API_KEY: string;
   SUPABASE_URL: string;
   SUPABASE_ANON_KEY: string;
+  WHATSAPP_VERIFY_TOKEN: string;
   ASSETS: { fetch: (request: Request) => Promise<Response> };
 }
 
@@ -551,13 +552,129 @@ async function postJsonWithTimeout(
   }
 }
 
+async function handleWhatsappWebhook(request: Request, env: Env): Promise<Response> {
+  if (request.method === 'GET') {
+    const url = new URL(request.url);
+    const mode = url.searchParams.get('hub.mode');
+    const token = url.searchParams.get('hub.verify_token');
+    const challenge = url.searchParams.get('hub.challenge');
+
+    if (mode === 'subscribe' && token === env.WHATSAPP_VERIFY_TOKEN && challenge) {
+      return new Response(challenge, { status: 200 });
+    }
+    return new Response('Verification failed', { status: 403 });
+  }
+
+  if (request.method === 'POST') {
+    try {
+      const body = await request.json();
+      const entry = body.entry?.[0];
+      const change = entry?.changes?.[0];
+      const value = change?.value;
+      const message = value?.messages?.[0];
+
+      if (!message) return new Response('No message found', { status: 200 });
+
+      const from = message.from;
+      const text = message.text?.body || '';
+      const companyPhone = value.metadata?.display_phone_number;
+
+      const companyRes = await fetch(
+        `${env.SUPABASE_URL}/rest/v1/companies?phone=eq.${companyPhone}&select=id`,
+        { headers: { apikey: env.SUPABASE_ANON_KEY, Authorization: `Bearer ${env.SUPABASE_ANON_KEY}` } }
+      );
+      const companies = await companyRes.json() as any[];
+      let companyId: string;
+
+      if (companies.length > 0) {
+        companyId = companies[0].id;
+      } else {
+        const allCompaniesRes = await fetch(
+          `${env.SUPABASE_URL}/rest/v1/companies?select=id&limit=1`,
+          { headers: { apikey: env.SUPABASE_ANON_KEY, Authorization: `Bearer ${env.SUPABASE_ANON_KEY}` } }
+        );
+        const allCompanies = await allCompaniesRes.json() as any[];
+        if (allCompanies.length === 0) return new Response('No company found', { status: 200 });
+        companyId = allCompanies[0].id;
+      }
+
+      const customerRes = await fetch(
+        `${env.SUPABASE_URL}/rest/v1/customers?whatsapp_id=eq.${from}&select=id`,
+        { headers: { apikey: env.SUPABASE_ANON_KEY, Authorization: `Bearer ${env.SUPABASE_ANON_KEY}` } }
+      );
+      const customers = await customerRes.json() as any[];
+      let customerId: string;
+
+      if (customers.length > 0) {
+        customerId = customers[0].id;
+      } else {
+        const createRes = await fetch(
+          `${env.SUPABASE_URL}/rest/v1/customers`,
+          {
+            method: 'POST',
+            headers: {
+              'apikey': env.SUPABASE_ANON_KEY,
+              'Authorization': `Bearer ${env.SUPABASE_ANON_KEY}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=representation'
+            },
+            body: JSON.stringify({
+              name: `Cliente ${from}`,
+              whatsapp_id: from,
+              company_id: companyId,
+              type: 'B2C'
+            })
+          }
+        );
+        const created = await createRes.json() as any[];
+        customerId = created[0].id;
+      }
+
+      await fetch(
+        `${env.SUPABASE_URL}/rest/v1/customer_interactions`,
+        {
+          method: 'POST',
+          headers: {
+            'apikey': env.SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${env.SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            customer_id: customerId,
+            company_id: companyId,
+            channel: 'whatsapp',
+            direction: 'inbound',
+            content: text,
+            metadata: {
+              whatsapp_msg_id: message.id,
+              timestamp: message.timestamp
+            }
+          })
+        }
+      );
+
+      return new Response('Event processed', { status: 200 });
+    } catch (err) {
+      console.error('WhatsApp Webhook Error:', err);
+      return new Response('Internal Error', { status: 500 });
+    }
+  }
+
+  return new Response('Method not allowed', { status: 405 });
+}
+
 export default {
+
   async fetch(request: Request, env: Env): Promise<Response> {
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
 
     const url = new URL(request.url);
+
+    if (url.pathname === '/api/whatsapp/webhook') {
+      return handleWhatsappWebhook(request, env);
+    }
 
     if (url.pathname === '/api/gemini' && request.method === 'POST') {
       const authHeader = request.headers.get('Authorization');
